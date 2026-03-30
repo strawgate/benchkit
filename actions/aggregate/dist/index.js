@@ -111,7 +111,9 @@ async function run() {
     const allMetrics = new Set();
     const indexRuns = runs.map((r) => {
         const metricNames = new Set();
+        const benchNames = new Set();
         for (const b of r.result.benchmarks) {
+            benchNames.add(b.name);
             for (const m of Object.keys(b.metrics)) {
                 metricNames.add(m);
                 allMetrics.add(m);
@@ -122,7 +124,7 @@ async function run() {
             timestamp: r.result.context?.timestamp ?? new Date().toISOString(),
             commit: r.result.context?.commit,
             ref: r.result.context?.ref,
-            benchmarks: r.result.benchmarks.length,
+            benchmarks: benchNames.size,
             metrics: Array.from(metricNames).sort(),
         };
     });
@@ -131,38 +133,61 @@ async function run() {
         metrics: Array.from(allMetrics).sort(),
     };
     // Build series files per metric
+    // When a run has multiple benchmarks with the same name (e.g. -count=N),
+    // average their values and compute range from the spread.
     const seriesMap = new Map();
     for (const r of runs) {
+        // Group benchmarks by (name + tags) within this run
+        const groups = new Map();
         for (const bench of r.result.benchmarks) {
+            const tagsStr = bench.tags
+                ? Object.entries(bench.tags)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(",")
+                : "";
+            const groupKey = tagsStr ? `${bench.name} [${tagsStr}]` : bench.name;
+            let group = groups.get(groupKey);
+            if (!group) {
+                group = { name: bench.name, tags: bench.tags, values: new Map() };
+                groups.set(groupKey, group);
+            }
             for (const [metricName, metric] of Object.entries(bench.metrics)) {
+                let agg = group.values.get(metricName);
+                if (!agg) {
+                    agg = { sum: 0, count: 0, min: Infinity, max: -Infinity, unit: metric.unit, direction: metric.direction };
+                    group.values.set(metricName, agg);
+                }
+                agg.sum += metric.value;
+                agg.count++;
+                agg.min = Math.min(agg.min, metric.value);
+                agg.max = Math.max(agg.max, metric.value);
+            }
+        }
+        // Now emit one point per (seriesKey, metric) per run
+        for (const [seriesKey, group] of groups) {
+            for (const [metricName, agg] of group.values) {
                 let series = seriesMap.get(metricName);
                 if (!series) {
                     series = {
                         metric: metricName,
-                        unit: metric.unit,
-                        direction: metric.direction,
+                        unit: agg.unit,
+                        direction: agg.direction,
                         series: {},
                     };
                     seriesMap.set(metricName, series);
                 }
-                const tagsStr = bench.tags
-                    ? Object.entries(bench.tags)
-                        .sort(([a], [b]) => a.localeCompare(b))
-                        .map(([k, v]) => `${k}=${v}`)
-                        .join(",")
-                    : "";
-                const seriesKey = tagsStr
-                    ? `${bench.name} [${tagsStr}]`
-                    : bench.name;
                 if (!series.series[seriesKey]) {
-                    series.series[seriesKey] = { tags: bench.tags, points: [] };
+                    series.series[seriesKey] = { tags: group.tags, points: [] };
                 }
+                const avg = agg.sum / agg.count;
+                const range = agg.count > 1 ? agg.max - agg.min : undefined;
                 const point = {
                     timestamp: r.result.context?.timestamp ?? new Date().toISOString(),
-                    value: metric.value,
+                    value: Math.round(avg * 100) / 100,
                     commit: r.result.context?.commit,
                     run_id: r.id,
-                    range: metric.range,
+                    range: range != null ? Math.round(range * 100) / 100 : undefined,
                 };
                 series.series[seriesKey].points.push(point);
             }
