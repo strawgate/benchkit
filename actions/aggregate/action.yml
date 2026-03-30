@@ -16,5 +16,5 @@ outputs:
   metrics:
     description: 'Comma-separated list of metric names found.'
 runs:
-  using: 'node22'
+  using: 'node24'
   main: 'dist/index.js'
