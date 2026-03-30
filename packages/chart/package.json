@@ -1,0 +1,32 @@
+{
+  "name": "@benchkit/chart",
+  "version": "0.1.0",
+  "description": "Preact components for rendering benchkit benchmark dashboards.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./css": "./dist/style.css"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test": "node --test dist/*.test.js"
+  },
+  "files": ["dist"],
+  "license": "MIT",
+  "dependencies": {
+    "chart.js": "^4.4.0",
+    "@benchkit/format": "*"
+  },
+  "peerDependencies": {
+    "preact": "^10.0.0"
+  },
+  "devDependencies": {
+    "preact": "^10.25.0"
+  }
+}

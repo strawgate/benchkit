@@ -23,6 +23,12 @@ jobs:
       - name: Test format package
         run: npm run test --workspace=packages/format
 
+      - name: Build chart package
+        run: npm run build --workspace=packages/chart
+
+      - name: Test chart package
+        run: npm run test --workspace=packages/chart
+
       - name: Build stash action
         run: npm run build --workspace=actions/stash
 
