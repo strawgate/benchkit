@@ -1,0 +1,15 @@
+{
+  "name": "@benchkit/aggregate",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub Action: rebuild index and series files from benchmark runs.",
+  "scripts": {
+    "build": "tsc && ncc build lib/main.js -o dist -s",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.0",
+    "@actions/exec": "^1.1.1",
+    "@benchkit/format": "*"
+  }
+}

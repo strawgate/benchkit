@@ -1,0 +1,38 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build format package
+        run: npm run build --workspace=packages/format
+
+      - name: Test format package
+        run: npm run test --workspace=packages/format
+
+      - name: Build stash action
+        run: npm run build --workspace=actions/stash
+
+      - name: Build aggregate action
+        run: npm run build --workspace=actions/aggregate
+
+      - name: Verify action bundles are up-to-date
+        run: |
+          if [[ -n "$(git status --porcelain actions/*/dist/)" ]]; then
+            echo "::error::Action dist/ bundles are out of date. Run 'npm run build' and commit."
+            git diff --stat actions/*/dist/
+            exit 1
+          fi

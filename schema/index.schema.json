@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/strawgate/benchkit/schema/index.schema.json",
+  "title": "Benchkit Index",
+  "description": "Index of all benchmark runs stored on the data branch.",
+  "type": "object",
+  "required": ["runs"],
+  "properties": {
+    "runs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/run_entry"
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "description": "List of all known metric names across all runs.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "run_entry": {
+      "type": "object",
+      "required": ["id", "timestamp"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique run identifier (e.g. GitHub Actions run_id-run_attempt, or a UUID)."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "commit": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "benchmarks": {
+          "type": "integer",
+          "description": "Number of benchmarks in this run."
+        },
+        "metrics": {
+          "type": "array",
+          "description": "Metric names present in this run.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

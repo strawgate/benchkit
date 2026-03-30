@@ -1,0 +1,14 @@
+{
+  "name": "@benchkit/format",
+  "version": "0.1.0",
+  "description": "Benchmark result types and format parsers (Go bench, benchmark-action, OTLP, native).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/**/*.test.js",
+    "lint": "tsc --noEmit"
+  },
+  "files": ["dist"],
+  "license": "MIT"
+}

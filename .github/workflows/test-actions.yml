@@ -1,0 +1,96 @@
+name: Test Actions
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-stash-go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create fake Go bench output
+        run: |
+          mkdir -p results
+          cat > results/bench.txt << 'EOF'
+          BenchmarkSort-4           5000000       320 ns/op      48 B/op       2 allocs/op
+          BenchmarkSearch-4        10000000       120 ns/op       0 B/op       0 allocs/op
+          BenchmarkInsert-4         3000000       450 ns/op      64 B/op       3 allocs/op
+          EOF
+
+      - name: Stash Go bench results
+        uses: ./actions/stash
+        id: stash
+        with:
+          results: results/bench.txt
+          format: go
+          run-id: test-go-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Verify stash outputs
+        run: |
+          echo "Run ID: ${{ steps.stash.outputs.run-id }}"
+          echo "File:   ${{ steps.stash.outputs.file-path }}"
+          [[ -n "${{ steps.stash.outputs.run-id }}" ]] || exit 1
+
+  test-stash-native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create native format results
+        run: |
+          cat > results.json << 'EOF'
+          {
+            "benchmarks": [
+              {
+                "name": "http-throughput",
+                "metrics": {
+                  "requests_per_sec": { "value": 15230, "unit": "req/s", "direction": "bigger_is_better" },
+                  "p99_latency_ms": { "value": 12.4, "unit": "ms", "direction": "smaller_is_better" }
+                }
+              }
+            ]
+          }
+          EOF
+
+      - name: Stash native results
+        uses: ./actions/stash
+        id: stash
+        with:
+          results: results.json
+          format: native
+          run-id: test-native-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Verify stash outputs
+        run: |
+          echo "Run ID: ${{ steps.stash.outputs.run-id }}"
+          [[ -n "${{ steps.stash.outputs.run-id }}" ]] || exit 1
+
+  test-aggregate:
+    needs: [test-stash-go, test-stash-native]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Aggregate results
+        uses: ./actions/aggregate
+        id: agg
+
+      - name: Verify aggregate outputs
+        run: |
+          echo "Run count: ${{ steps.agg.outputs.run-count }}"
+          echo "Metrics:   ${{ steps.agg.outputs.metrics }}"
+          [[ "${{ steps.agg.outputs.run-count }}" -ge 2 ]] || exit 1
+
+      - name: Verify data branch contents
+        run: |
+          git fetch origin bench-data
+          git show origin/bench-data:data/index.json | head -20
+          echo "---"
+          ls_output=$(git ls-tree --name-only origin/bench-data data/series/)
+          echo "Series files: $ls_output"
+          [[ -n "$ls_output" ]] || exit 1

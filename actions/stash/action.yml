@@ -1,0 +1,26 @@
+name: 'Benchkit Stash'
+description: 'Parse benchmark results and commit them to a data branch.'
+inputs:
+  results:
+    description: 'Path or glob pattern to benchmark result file(s).'
+    required: true
+  format:
+    description: 'Input format: go, benchmark-action, native, or auto (default: auto).'
+    default: 'auto'
+  data-branch:
+    description: 'Branch used for benchmark data storage.'
+    default: 'bench-data'
+  github-token:
+    description: 'Token with push access to the repository.'
+    default: ${{ github.token }}
+  run-id:
+    description: 'Custom run identifier. Defaults to GITHUB_RUN_ID-GITHUB_RUN_ATTEMPT.'
+    required: false
+outputs:
+  run-id:
+    description: 'The run identifier used for this stash.'
+  file-path:
+    description: 'Path to the stored JSON file on the data branch.'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/strawgate/benchkit/schema/benchmark-result.schema.json",
+  "title": "Benchkit Result",
+  "description": "Native format for benchmark results. All input formats are normalized to this shape.",
+  "type": "object",
+  "required": ["benchmarks"],
+  "properties": {
+    "benchmarks": {
+      "type": "array",
+      "description": "One or more benchmark results from a single run.",
+      "items": {
+        "$ref": "#/$defs/benchmark"
+      },
+      "minItems": 1
+    },
+    "context": {
+      "$ref": "#/$defs/context"
+    }
+  },
+  "$defs": {
+    "benchmark": {
+      "type": "object",
+      "required": ["name", "metrics"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable benchmark name, e.g. 'BenchmarkScanner' or 'full-agent-dissect'."
+        },
+        "tags": {
+          "type": "object",
+          "description": "Arbitrary key-value dimensions for grouping and filtering, e.g. {\"cpu\": \"0.5\", \"scenario\": \"passthrough\"}.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "description": "Named metrics for this benchmark. Keys are metric names (e.g. 'ns_per_op', 'eps', 'allocs').",
+          "additionalProperties": {
+            "$ref": "#/$defs/metric"
+          },
+          "minProperties": 1
+        },
+        "samples": {
+          "type": "array",
+          "description": "Optional time-series samples collected during the benchmark run.",
+          "items": {
+            "$ref": "#/$defs/sample"
+          }
+        }
+      }
+    },
+    "metric": {
+      "type": "object",
+      "required": ["value"],
+      "properties": {
+        "value": {
+          "type": "number",
+          "description": "The primary metric value."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measurement, e.g. 'ns/op', 'events/sec', 'bytes'."
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["bigger_is_better", "smaller_is_better"],
+          "description": "Whether higher or lower values represent improvement."
+        },
+        "range": {
+          "type": "number",
+          "description": "Variance or uncertainty of the value (±)."
+        }
+      }
+    },
+    "sample": {
+      "type": "object",
+      "required": ["t"],
+      "description": "A single time-series data point. 't' is seconds since benchmark start. All other keys are metric values at that instant.",
+      "properties": {
+        "t": {
+          "type": "number",
+          "description": "Seconds elapsed since benchmark start."
+        }
+      },
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "context": {
+      "type": "object",
+      "description": "Metadata about the environment and commit that produced these results.",
+      "properties": {
+        "commit": {
+          "type": "string",
+          "description": "Full commit SHA."
+        },
+        "ref": {
+          "type": "string",
+          "description": "Git ref (branch or tag), e.g. 'main' or 'refs/pull/42/merge'."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of when the benchmark was run."
+        },
+        "runner": {
+          "type": "string",
+          "description": "GitHub Actions runner label or machine description."
+        }
+      }
+    }
+  }
+}
