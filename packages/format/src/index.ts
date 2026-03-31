@@ -27,5 +27,7 @@ export { parseNative } from "./parse-native.js";
 export { parseGoBench } from "./parse-go.js";
 /** Parse benchmark-action/github-action-benchmark JSON format. */
 export { parseBenchmarkAction } from "./parse-benchmark-action.js";
+/** Parse Hyperfine JSON format. */
+export { parseHyperfine } from "./parse-hyperfine.js";
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 export { compare } from "./compare.js";

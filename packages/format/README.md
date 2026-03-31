@@ -1,6 +1,6 @@
 # @benchkit/format
 
-Benchmark result types and format parsers for [benchkit](../../README.md). Parses Go bench output, [benchmark-action](https://github.com/benchmark-action/github-action-benchmark) JSON, and the benchkit native format into a single normalized shape.
+Benchmark result types and format parsers for [benchkit](../../README.md). Parses Go bench output, [Hyperfine](https://github.com/sharkdp/hyperfine) JSON, [benchmark-action](https://github.com/benchmark-action/github-action-benchmark) JSON, and the benchkit native format into a single normalized shape.
 
 ## Installation
 
@@ -33,6 +33,7 @@ omitted or `"auto"`, the parser inspects the input and picks the right strategy:
 | Detected shape | Format |
 |---|---|
 | JSON object with a `benchmarks` array | `native` |
+| JSON object with a `results` array (Hyperfine) | `hyperfine` |
 | JSON array of `{name, value, unit}` objects | `benchmark-action` |
 | Lines matching `Benchmark…  N  value unit` | `go` |
 
@@ -93,6 +94,30 @@ import { parseBenchmarkAction } from "@benchkit/format";
 const result = parseBenchmarkAction(JSON.stringify([
   { name: "My Bench", value: 42000, unit: "ops/sec", range: "± 300" }
 ]));
+```
+
+### `parseHyperfine(input)`
+
+Parses the JSON export from [Hyperfine](https://github.com/sharkdp/hyperfine)
+(`hyperfine --export-json`). Each result becomes a benchmark named after the
+command, with `mean`, `stddev`, `median`, `min`, and `max` metrics.
+
+```ts
+import { parseHyperfine } from "@benchkit/format";
+
+const result = parseHyperfine(JSON.stringify({
+  results: [
+    {
+      command: "sleep 0.1",
+      mean: 0.105,
+      stddev: 0.002,
+      median: 0.105,
+      min: 0.103,
+      max: 0.108,
+      times: [0.103, 0.105, 0.108]
+    }
+  ]
+}));
 ```
 
 ## Types
