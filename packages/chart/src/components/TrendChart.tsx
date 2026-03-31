@@ -42,7 +42,7 @@ const COLORS = [
 
 export function TrendChart({ series, height = 300, title, maxPoints, class: className }: TrendChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<Chart | null>(null);
+  const chartRef = useRef<Chart<"line"> | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;

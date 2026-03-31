@@ -27,7 +27,7 @@ const COLORS = [
 
 export function ComparisonBar({ series, height = 250, title, class: className }: ComparisonBarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<Chart | null>(null);
+  const chartRef = useRef<Chart<"bar"> | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;

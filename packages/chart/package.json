@@ -17,16 +17,19 @@
     "lint": "tsc --noEmit",
     "test": "node --test dist/*.test.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "license": "MIT",
   "dependencies": {
-    "chart.js": "^4.4.0",
-    "@benchkit/format": "*"
+    "@benchkit/format": "*",
+    "chart.js": "^4.4.0"
   },
   "peerDependencies": {
     "preact": "^10.0.0"
   },
   "devDependencies": {
-    "preact": "^10.25.0"
+    "preact": "^10.25.0",
+    "preact-render-to-string": "^6.6.7"
   }
 }
