@@ -68,6 +68,9 @@ async function run() {
 }
 async function startMonitor() {
     const pollInterval = parseInt(core.getInput("poll-interval") || "250", 10);
+    if (isNaN(pollInterval) || pollInterval < 50 || pollInterval > 60_000) {
+        throw new Error("poll-interval must be between 50 and 60000 ms");
+    }
     const output = core.getInput("output") || "monitor.json";
     const ignoreCommandsRaw = core.getInput("ignore-commands") || "";
     const ignoreCommands = ignoreCommandsRaw
@@ -78,18 +81,8 @@ async function startMonitor() {
     const statePath = path.join(runnerTemp(), STATE_NAME);
     const outputPath = path.resolve(output);
     // Clean up any leftover sentinel/state from previous runs
-    try {
-        fs.unlinkSync(sentinelPath);
-    }
-    catch {
-        /* no-op */
-    }
-    try {
-        fs.unlinkSync(statePath);
-    }
-    catch {
-        /* no-op */
-    }
+    safeUnlink(sentinelPath);
+    safeUnlink(statePath);
     const config = {
         pollIntervalMs: pollInterval,
         outputPath,
@@ -161,26 +154,26 @@ async function stopMonitor() {
         core.warning("Monitor exited but no output file was produced.");
     }
     // Clean up
-    try {
-        fs.unlinkSync(state.sentinelPath);
-    }
-    catch {
-        /* no-op */
-    }
-    try {
-        fs.unlinkSync(statePath);
-    }
-    catch {
-        /* no-op */
-    }
+    safeUnlink(state.sentinelPath);
+    safeUnlink(statePath);
 }
 function isProcessRunning(pid) {
+    if (pid <= 0)
+        return false;
     try {
         process.kill(pid, 0);
         return true;
     }
     catch {
         return false;
+    }
+}
+function safeUnlink(filePath) {
+    try {
+        fs.unlinkSync(filePath);
+    }
+    catch {
+        // File may not exist; ignore
     }
 }
 function sleep(ms) {
