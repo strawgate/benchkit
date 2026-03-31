@@ -8,6 +8,7 @@ import {
   shortName,
   shouldInclude,
   groupByName,
+  buildOutput,
   writeOutput,
   type SystemTotals,
 } from "./monitor.js";
@@ -102,6 +103,57 @@ describe("groupByName", () => {
   it("handles empty list", () => {
     const groups = groupByName([]);
     assert.equal(groups.size, 0);
+  });
+});
+
+// ── buildOutput (pure) ──────────────────────────────────────────────
+
+describe("buildOutput", () => {
+  it("returns valid BenchmarkResult without touching disk", () => {
+    const tracked = new Map<number, TrackedProcess>();
+    tracked.set(1000, makeProcess({ pid: 1000, comm: "go", pollCount: 5 }));
+
+    const system: SystemTotals = {
+      cpuUserTotal: 1000,
+      cpuSystemTotal: 200,
+      cpuTotalTicks: 5000,
+      memAvailableMinMB: 8000,
+      loadAvg1mMax: 2.5,
+      startTime: 1000,
+      endTime: 6000,
+      pollCount: 20,
+    };
+
+    const result = buildOutput(
+      { pollIntervalMs: 250, ignoreCommands: [] },
+      tracked,
+      system,
+    );
+
+    assert.ok(Array.isArray(result.benchmarks));
+    assert.equal(result.benchmarks.length, 2); // 1 process + 1 system
+    assert.equal(result.benchmarks[0].name, "_monitor/process/go");
+    assert.equal(result.benchmarks[1].name, "_monitor/system");
+    assert.ok(result.context?.monitor);
+    assert.equal(result.context?.monitor?.poll_interval_ms, 250);
+    assert.equal(result.context?.monitor?.duration_ms, 5000);
+  });
+
+  it("aggregates metrics across processes sharing a name", () => {
+    const tracked = new Map<number, TrackedProcess>();
+    tracked.set(1, makeProcess({ pid: 1, comm: "worker", pollCount: 5, ioReadEnd: 100, ioWriteEnd: 200 }));
+    tracked.set(2, makeProcess({ pid: 2, comm: "worker", pollCount: 5, ioReadEnd: 300, ioWriteEnd: 400 }));
+
+    const system: SystemTotals = {
+      cpuUserTotal: 0, cpuSystemTotal: 0, cpuTotalTicks: 1,
+      memAvailableMinMB: 8000, loadAvg1mMax: 0, startTime: 0, endTime: 1000, pollCount: 5,
+    };
+
+    const result = buildOutput({ pollIntervalMs: 100, ignoreCommands: [] }, tracked, system);
+    const worker = result.benchmarks.find((b) => b.name === "_monitor/process/worker");
+    assert.ok(worker);
+    assert.equal(worker.metrics.io_read_bytes.value, 400); // 100 + 300
+    assert.equal(worker.metrics.io_write_bytes.value, 600); // 200 + 400
   });
 });
 

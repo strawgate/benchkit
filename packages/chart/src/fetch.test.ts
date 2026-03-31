@@ -1,24 +1,6 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
-
-// Inline rawUrl logic for unit testing without ESM bundler complications.
-interface DataSource {
-  owner?: string;
-  repo?: string;
-  branch?: string;
-  baseUrl?: string;
-}
-
-function rawUrl(ds: DataSource, path: string): string {
-  if (ds.baseUrl) {
-    return `${ds.baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
-  }
-  if (!ds.owner || !ds.repo) {
-    throw new Error("DataSource must have either baseUrl or owner+repo");
-  }
-  const branch = ds.branch ?? "bench-data";
-  return `https://raw.githubusercontent.com/${ds.owner}/${ds.repo}/${branch}/${path}`;
-}
+import { rawUrl, type DataSource } from "./fetch.js";
 
 describe("fetch", () => {
   it("constructs correct raw URLs", () => {

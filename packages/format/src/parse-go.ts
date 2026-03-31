@@ -1,4 +1,5 @@
 import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import { inferDirection } from "./infer-direction.js";
 
 /**
  * Parse Go benchmark text output into native format.
@@ -62,22 +63,4 @@ function unitToMetricName(unit: string): string {
   return unit.replace(/\//g, "_per_").replace(/\s+/g, "_").toLowerCase();
 }
 
-function inferDirection(
-  unit: string,
-): "bigger_is_better" | "smaller_is_better" {
-  const lower = unit.toLowerCase();
-  if (
-    lower.includes("ns/") ||
-    lower.includes("ms/") ||
-    lower.includes("us/") ||
-    lower.includes("s/") ||
-    lower.includes("b/op") ||
-    lower.includes("allocs/")
-  ) {
-    return "smaller_is_better";
-  }
-  if (lower.includes("ops/") || lower.includes("mb/s")) {
-    return "bigger_is_better";
-  }
-  return "smaller_is_better"; // safe default for benchmarks
-}
+

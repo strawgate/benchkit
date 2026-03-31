@@ -14,6 +14,7 @@ import {
 } from "chart.js";
 import "chartjs-adapter-date-fns";
 import type { SeriesFile, SeriesEntry } from "@benchkit/format";
+import { COLORS } from "../colors.js";
 
 Chart.register(
   LineController,
@@ -37,11 +38,6 @@ export interface TrendChartProps {
   /** CSS class name */
   class?: string;
 }
-
-const COLORS = [
-  "#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6",
-  "#06b6d4", "#ec4899", "#14b8a6", "#f97316", "#6366f1",
-];
 
 export function TrendChart({ series, height = 300, title, maxPoints, seriesNameFormatter, class: className }: TrendChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -138,7 +134,7 @@ export function TrendChart({ series, height = 300, title, maxPoints, seriesNameF
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-  }, [series, maxPoints]);
+  }, [series, maxPoints, seriesNameFormatter]);
 
   return (
     <div class={className} style={{ position: "relative", height: `${height}px` }}>

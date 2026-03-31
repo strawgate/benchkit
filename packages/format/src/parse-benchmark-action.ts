@@ -1,4 +1,5 @@
 import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import { inferDirection } from "./infer-direction.js";
 
 /**
  * benchmark-action/github-action-benchmark compatible format.
@@ -31,7 +32,7 @@ export function parseBenchmarkAction(input: string): BenchmarkResult {
     const metric: Metric = {
       value: entry.value,
       unit: entry.unit,
-      direction: inferDirectionFromUnit(entry.unit),
+      direction: inferDirection(entry.unit),
     };
     if (range !== undefined) metric.range = range;
 
@@ -51,19 +52,4 @@ function parseRange(range: string | undefined): number | undefined {
   return m ? parseFloat(m[1]) : undefined;
 }
 
-function inferDirectionFromUnit(
-  unit: string,
-): "bigger_is_better" | "smaller_is_better" {
-  const lower = unit.toLowerCase();
-  if (
-    lower.includes("ops/s") ||
-    lower.includes("op/s") ||
-    lower.includes("/sec") ||
-    lower.includes("mb/s") ||
-    lower.includes("throughput") ||
-    lower.includes("events")
-  ) {
-    return "bigger_is_better";
-  }
-  return "smaller_is_better";
-}
+

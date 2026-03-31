@@ -13,6 +13,7 @@ import type {
   TrackedProcess,
   CpuSnapshot,
 } from "./types.js";
+import type { SystemTotals } from "./monitor.js";
 import {
   listPids,
   readProcessSnapshot,
@@ -32,141 +33,161 @@ if (!configJson) {
 const config: MonitorConfig = JSON.parse(configJson);
 runMonitor(config);
 
+// ── State ───────────────────────────────────────────────────────────
+
+interface MonitorState {
+  tracked: Map<number, TrackedProcess>;
+  baselinePids: Set<number>;
+  cpuPrev: CpuSnapshot | undefined;
+  cpuUserTotal: number;
+  cpuSystemTotal: number;
+  cpuTotalTicks: number;
+  memAvailableMinMB: number;
+  loadAvg1mMax: number;
+  startTime: number;
+  pollCount: number;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+
+function initState(): MonitorState {
+  return {
+    tracked: new Map(),
+    baselinePids: new Set(listPids()),
+    cpuPrev: readCpuSnapshot(),
+    cpuUserTotal: 0,
+    cpuSystemTotal: 0,
+    cpuTotalTicks: 0,
+    memAvailableMinMB: Infinity,
+    loadAvg1mMax: 0,
+    startTime: Date.now(),
+    pollCount: 0,
+  };
+}
+
+function initTrackedProcess(pid: number, snap: ReturnType<typeof readProcessSnapshot> & object, now: number): TrackedProcess {
+  return {
+    pid,
+    ppid: snap.ppid,
+    comm: snap.comm,
+    cmdline: snap.cmdline,
+    firstSeen: now,
+    lastSeen: now,
+    peakRSS: snap.vmHWM,
+    finalRSS: snap.vmRSS,
+    utimeStart: snap.utime,
+    utimeEnd: snap.utime,
+    stimeStart: snap.stime,
+    stimeEnd: snap.stime,
+    ioReadStart: snap.ioReadBytes,
+    ioReadEnd: snap.ioReadBytes,
+    ioWriteStart: snap.ioWriteBytes,
+    ioWriteEnd: snap.ioWriteBytes,
+    voluntaryCtxStart: snap.voluntaryCtxSwitches,
+    voluntaryCtxEnd: snap.voluntaryCtxSwitches,
+    involuntaryCtxStart: snap.involuntaryCtxSwitches,
+    involuntaryCtxEnd: snap.involuntaryCtxSwitches,
+    pollCount: 1,
+  };
+}
+
+function trackProcesses(state: MonitorState): void {
+  const now = Date.now();
+  const pids = listPids();
+
+  for (const pid of pids) {
+    if (state.baselinePids.has(pid)) continue;
+
+    const snap = readProcessSnapshot(pid);
+    if (!snap) continue;
+
+    const existing = state.tracked.get(pid);
+    if (existing) {
+      existing.lastSeen = now;
+      existing.peakRSS = Math.max(existing.peakRSS, snap.vmHWM);
+      existing.finalRSS = snap.vmRSS;
+      existing.utimeEnd = snap.utime;
+      existing.stimeEnd = snap.stime;
+      existing.ioReadEnd = snap.ioReadBytes;
+      existing.ioWriteEnd = snap.ioWriteBytes;
+      existing.voluntaryCtxEnd = snap.voluntaryCtxSwitches;
+      existing.involuntaryCtxEnd = snap.involuntaryCtxSwitches;
+      existing.pollCount++;
+    } else {
+      state.tracked.set(pid, initTrackedProcess(pid, snap, now));
+    }
+  }
+}
+
+function updateSystemMetrics(state: MonitorState): void {
+  const sys = readSystemSnapshot();
+  if (sys.memAvailableMB > 0 && sys.memAvailableMB < state.memAvailableMinMB) {
+    state.memAvailableMinMB = sys.memAvailableMB;
+  }
+  if (sys.loadAvg1m > state.loadAvg1mMax) {
+    state.loadAvg1mMax = sys.loadAvg1m;
+  }
+
+  const cpuNow = readCpuSnapshot();
+  if (state.cpuPrev && cpuNow) {
+    const dUser = cpuNow.user + cpuNow.nice - state.cpuPrev.user - state.cpuPrev.nice;
+    const dSystem =
+      cpuNow.system + cpuNow.irq + cpuNow.softirq -
+      state.cpuPrev.system - state.cpuPrev.irq - state.cpuPrev.softirq;
+    const dIdle = cpuNow.idle + cpuNow.iowait - state.cpuPrev.idle - state.cpuPrev.iowait;
+    const dTotal = dUser + dSystem + dIdle;
+    if (dTotal > 0) {
+      state.cpuUserTotal += dUser;
+      state.cpuSystemTotal += dSystem;
+      state.cpuTotalTicks += dTotal;
+    }
+  }
+  state.cpuPrev = cpuNow;
+}
+
+function collectSystemTotals(state: MonitorState): SystemTotals {
+  return {
+    cpuUserTotal: state.cpuUserTotal,
+    cpuSystemTotal: state.cpuSystemTotal,
+    cpuTotalTicks: state.cpuTotalTicks,
+    memAvailableMinMB: state.memAvailableMinMB === Infinity ? 0 : state.memAvailableMinMB,
+    loadAvg1mMax: state.loadAvg1mMax,
+    startTime: state.startTime,
+    endTime: Date.now(),
+    pollCount: state.pollCount,
+  };
+}
+
+function finalize(cfg: MonitorConfig, state: MonitorState): void {
+  try {
+    writeOutput(cfg, state.tracked, collectSystemTotals(state));
+  } catch (err) {
+    process.stderr.write(`monitor: failed to write output: ${err}\n`);
+  }
+}
+
 // ── Main loop ───────────────────────────────────────────────────────
 
 function runMonitor(cfg: MonitorConfig): void {
-  const tracked = new Map<number, TrackedProcess>();
-  const baselinePids = new Set(listPids());
-
-  let cpuPrev: CpuSnapshot | undefined = readCpuSnapshot();
-  let cpuUserTotal = 0;
-  let cpuSystemTotal = 0;
-  let cpuTotalTicks = 0;
-  let memAvailableMinMB = Infinity;
-  let loadAvg1mMax = 0;
-  const startTime = Date.now();
-  let pollCount = 0;
+  const state = initState();
 
   const poll = (): void => {
-    pollCount++;
-    const now = Date.now();
-    const pids = listPids();
+    state.pollCount++;
+    trackProcesses(state);
+    updateSystemMetrics(state);
 
-    // Per-process tracking
-    for (const pid of pids) {
-      if (baselinePids.has(pid)) continue;
-
-      const snap = readProcessSnapshot(pid);
-      if (!snap) continue;
-
-      const existing = tracked.get(pid);
-      if (existing) {
-        existing.lastSeen = now;
-        existing.peakRSS = Math.max(existing.peakRSS, snap.vmHWM);
-        existing.finalRSS = snap.vmRSS;
-        existing.utimeEnd = snap.utime;
-        existing.stimeEnd = snap.stime;
-        existing.ioReadEnd = snap.ioReadBytes;
-        existing.ioWriteEnd = snap.ioWriteBytes;
-        existing.voluntaryCtxEnd = snap.voluntaryCtxSwitches;
-        existing.involuntaryCtxEnd = snap.involuntaryCtxSwitches;
-        existing.pollCount++;
-      } else {
-        tracked.set(pid, {
-          pid,
-          ppid: snap.ppid,
-          comm: snap.comm,
-          cmdline: snap.cmdline,
-          firstSeen: now,
-          lastSeen: now,
-          peakRSS: snap.vmHWM,
-          finalRSS: snap.vmRSS,
-          utimeStart: snap.utime,
-          utimeEnd: snap.utime,
-          stimeStart: snap.stime,
-          stimeEnd: snap.stime,
-          ioReadStart: snap.ioReadBytes,
-          ioReadEnd: snap.ioReadBytes,
-          ioWriteStart: snap.ioWriteBytes,
-          ioWriteEnd: snap.ioWriteBytes,
-          voluntaryCtxStart: snap.voluntaryCtxSwitches,
-          voluntaryCtxEnd: snap.voluntaryCtxSwitches,
-          involuntaryCtxStart: snap.involuntaryCtxSwitches,
-          involuntaryCtxEnd: snap.involuntaryCtxSwitches,
-          pollCount: 1,
-        });
-      }
-    }
-
-    // System-wide metrics
-    const sys = readSystemSnapshot();
-    if (sys.memAvailableMB > 0 && sys.memAvailableMB < memAvailableMinMB) {
-      memAvailableMinMB = sys.memAvailableMB;
-    }
-    if (sys.loadAvg1m > loadAvg1mMax) {
-      loadAvg1mMax = sys.loadAvg1m;
-    }
-
-    // CPU percentage via delta
-    const cpuNow = readCpuSnapshot();
-    if (cpuPrev && cpuNow) {
-      const dUser = cpuNow.user + cpuNow.nice - cpuPrev.user - cpuPrev.nice;
-      const dSystem =
-        cpuNow.system +
-        cpuNow.irq +
-        cpuNow.softirq -
-        cpuPrev.system -
-        cpuPrev.irq -
-        cpuPrev.softirq;
-      const dIdle =
-        cpuNow.idle + cpuNow.iowait - cpuPrev.idle - cpuPrev.iowait;
-      const dTotal = dUser + dSystem + dIdle;
-      if (dTotal > 0) {
-        cpuUserTotal += dUser;
-        cpuSystemTotal += dSystem;
-        cpuTotalTicks += dTotal;
-      }
-    }
-    cpuPrev = cpuNow;
-
-    // Check sentinel
     if (fs.existsSync(cfg.sentinelPath)) {
       clearInterval(timer);
-      writeOutput(cfg, tracked, {
-        cpuUserTotal,
-        cpuSystemTotal,
-        cpuTotalTicks,
-        memAvailableMinMB:
-          memAvailableMinMB === Infinity ? 0 : memAvailableMinMB,
-        loadAvg1mMax,
-        startTime,
-        endTime: Date.now(),
-        pollCount,
-      });
+      finalize(cfg, state);
       process.exit(0);
     }
   };
 
   const timer = setInterval(poll, cfg.pollIntervalMs);
 
-  // Safety: also exit on SIGTERM
   process.on("SIGTERM", () => {
     clearInterval(timer);
-    try {
-      writeOutput(cfg, tracked, {
-        cpuUserTotal,
-        cpuSystemTotal,
-        cpuTotalTicks,
-        memAvailableMinMB:
-          memAvailableMinMB === Infinity ? 0 : memAvailableMinMB,
-        loadAvg1mMax,
-        startTime,
-        endTime: Date.now(),
-        pollCount,
-      });
-    } catch (err) {
-      process.stderr.write(`monitor: failed to write output on SIGTERM: ${err}\n`);
-    }
+    finalize(cfg, state);
     process.exit(0);
   });
 }

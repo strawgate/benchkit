@@ -55,31 +55,13 @@ async function run() {
     const monitorPath = core.getInput("monitor") || "";
     const runId = core.getInput("run-id") ||
         `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
-    // Find result files
-    const globber = await glob.create(resultsPattern);
-    const files = await globber.glob();
-    if (files.length === 0) {
-        throw new Error(`No files matched pattern: ${resultsPattern}`);
-    }
-    core.info(`Found ${files.length} result file(s)`);
-    // Parse and merge
-    const allBenchmarks = [];
-    for (const file of files) {
-        const content = fs.readFileSync(file, "utf-8");
-        const result = (0, format_1.parse)(content, format);
-        allBenchmarks.push(...result.benchmarks);
-        core.info(`  ${path.basename(file)}: ${result.benchmarks.length} benchmark(s)`);
-    }
-    // Read and merge monitor output if provided
+    // Parse benchmark files
+    const allBenchmarks = await parseBenchmarkFiles(resultsPattern, format);
+    // Merge monitor output if provided
     let monitorResult;
     if (monitorPath) {
-        if (!fs.existsSync(monitorPath)) {
-            throw new Error(`Monitor file not found: ${monitorPath}`);
-        }
-        const monitorContent = fs.readFileSync(monitorPath, "utf-8");
-        monitorResult = (0, format_1.parseNative)(monitorContent);
+        monitorResult = readMonitorOutput(monitorPath);
         allBenchmarks.push(...monitorResult.benchmarks);
-        core.info(`  ${path.basename(monitorPath)}: ${monitorResult.benchmarks.length} monitor benchmark(s)`);
     }
     const result = {
         benchmarks: allBenchmarks,
@@ -93,21 +75,61 @@ async function run() {
             monitor: monitorResult?.context?.monitor,
         },
     };
-    // Configure git
+    // Git setup and push
+    await configureGit(token);
+    const worktree = await checkoutDataBranch(dataBranch);
+    const runsDir = path.join(worktree, "data", "runs");
+    fs.mkdirSync(runsDir, { recursive: true });
+    const resultPath = path.join(runsDir, `${runId}.json`);
+    fs.writeFileSync(resultPath, JSON.stringify(result, null, 2) + "\n");
+    core.info(`Wrote ${resultPath}`);
+    await exec.exec("git", ["-C", worktree, "add", "."]);
+    await exec.exec("git", ["-C", worktree, "commit", "-m", `bench: add run ${runId}`]);
+    await pushWithRetry(worktree, dataBranch, 3);
+    await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
+    core.setOutput("run-id", runId);
+    core.setOutput("file-path", `data/runs/${runId}.json`);
+}
+// ── Helpers ─────────────────────────────────────────────────────────
+async function parseBenchmarkFiles(pattern, format) {
+    const globber = await glob.create(pattern);
+    const files = await globber.glob();
+    if (files.length === 0) {
+        throw new Error(`No files matched pattern: ${pattern}`);
+    }
+    core.info(`Found ${files.length} result file(s)`);
+    const benchmarks = [];
+    for (const file of files) {
+        const content = fs.readFileSync(file, "utf-8");
+        const result = (0, format_1.parse)(content, format);
+        benchmarks.push(...result.benchmarks);
+        core.info(`  ${path.basename(file)}: ${result.benchmarks.length} benchmark(s)`);
+    }
+    return benchmarks;
+}
+function readMonitorOutput(monitorPath) {
+    if (!fs.existsSync(monitorPath)) {
+        throw new Error(`Monitor file not found: ${monitorPath}`);
+    }
+    const content = fs.readFileSync(monitorPath, "utf-8");
+    const result = (0, format_1.parseNative)(content);
+    core.info(`  ${path.basename(monitorPath)}: ${result.benchmarks.length} monitor benchmark(s)`);
+    return result;
+}
+async function configureGit(token) {
     await exec.exec("git", ["config", "user.name", "github-actions[bot]"]);
     await exec.exec("git", [
-        "config",
-        "user.email",
+        "config", "user.email",
         "41898282+github-actions[bot]@users.noreply.github.com",
     ]);
     const basicAuth = Buffer.from(`x-access-token:${token}`).toString("base64");
     await exec.exec("git", [
-        "config",
-        "--local",
+        "config", "--local",
         "http.https://github.com/.extraheader",
         `AUTHORIZATION: basic ${basicAuth}`,
     ]);
-    // Prepare worktree for data branch
+}
+async function checkoutDataBranch(dataBranch) {
     const worktree = path.join(os.tmpdir(), `benchkit-stash-${Date.now()}`);
     const fetchCode = await exec.exec("git", ["fetch", "origin", `${dataBranch}:${dataBranch}`], { ignoreReturnCode: true });
     if (fetchCode === 0) {
@@ -115,57 +137,25 @@ async function run() {
     }
     else {
         core.info(`Branch '${dataBranch}' does not exist, creating orphan branch`);
-        await exec.exec("git", [
-            "worktree",
-            "add",
-            "--orphan",
-            "-b",
-            dataBranch,
-            worktree,
-        ]);
+        await exec.exec("git", ["worktree", "add", "--orphan", "-b", dataBranch, worktree]);
     }
-    // Write result
-    const runsDir = path.join(worktree, "data", "runs");
-    fs.mkdirSync(runsDir, { recursive: true });
-    const resultPath = path.join(runsDir, `${runId}.json`);
-    fs.writeFileSync(resultPath, JSON.stringify(result, null, 2) + "\n");
-    core.info(`Wrote ${resultPath}`);
-    // Commit and push with retry
-    await exec.exec("git", ["-C", worktree, "add", "."]);
-    await exec.exec("git", [
-        "-C",
-        worktree,
-        "commit",
-        "-m",
-        `bench: add run ${runId}`,
-    ]);
-    const MAX_RETRIES = 3;
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    return worktree;
+}
+async function pushWithRetry(worktree, dataBranch, maxRetries) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
         const pushCode = await exec.exec("git", ["-C", worktree, "push", "origin", `HEAD:${dataBranch}`], { ignoreReturnCode: true });
         if (pushCode === 0) {
             core.info(`Pushed to ${dataBranch}`);
-            break;
+            return;
         }
-        if (attempt < MAX_RETRIES) {
-            core.warning(`Push failed (attempt ${attempt}/${MAX_RETRIES}), rebasing and retrying...`);
-            await exec.exec("git", [
-                "-C",
-                worktree,
-                "pull",
-                "--rebase",
-                "origin",
-                dataBranch,
-            ]);
+        if (attempt < maxRetries) {
+            core.warning(`Push failed (attempt ${attempt}/${maxRetries}), rebasing and retrying...`);
+            await exec.exec("git", ["-C", worktree, "pull", "--rebase", "origin", dataBranch]);
         }
         else {
-            throw new Error(`Failed to push after ${MAX_RETRIES} attempts`);
+            throw new Error(`Failed to push after ${maxRetries} attempts`);
         }
     }
-    // Clean up
-    await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
-    // Outputs
-    core.setOutput("run-id", runId);
-    core.setOutput("file-path", `data/runs/${runId}.json`);
 }
 run().catch((err) => {
     core.setFailed(err instanceof Error ? err.message : String(err));
@@ -59367,26 +59357,59 @@ module.exports = {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseNative = exports.parseBenchmarkAction = exports.parseGoBench = exports.parse = void 0;
+exports.parseBenchmarkAction = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
+var infer_direction_js_1 = __nccwpck_require__(5083);
+Object.defineProperty(exports, "inferDirection", ({ enumerable: true, get: function () { return infer_direction_js_1.inferDirection; } }));
+var parse_native_js_1 = __nccwpck_require__(1470);
+Object.defineProperty(exports, "parseNative", ({ enumerable: true, get: function () { return parse_native_js_1.parseNative; } }));
 var parse_go_js_1 = __nccwpck_require__(8303);
 Object.defineProperty(exports, "parseGoBench", ({ enumerable: true, get: function () { return parse_go_js_1.parseGoBench; } }));
 var parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 Object.defineProperty(exports, "parseBenchmarkAction", ({ enumerable: true, get: function () { return parse_benchmark_action_js_1.parseBenchmarkAction; } }));
-var parse_native_js_1 = __nccwpck_require__(1470);
-Object.defineProperty(exports, "parseNative", ({ enumerable: true, get: function () { return parse_native_js_1.parseNative; } }));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
 
-/***/ 5985:
+/***/ 5083:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.inferDirection = inferDirection;
+/**
+ * Infer whether a unit is "bigger_is_better" or "smaller_is_better".
+ *
+ * Common patterns:
+ *  - ops/s, MB/s, throughput, events → bigger is better
+ *  - ns/op, B/op, allocs/op, ms, bytes → smaller is better (default)
+ */
+function inferDirection(unit) {
+    const lower = unit.toLowerCase();
+    if (lower.includes("ops/s") ||
+        lower.includes("op/s") ||
+        lower.includes("/sec") ||
+        lower.includes("mb/s") ||
+        lower.includes("throughput") ||
+        lower.includes("events")) {
+        return "bigger_is_better";
+    }
+    return "smaller_is_better";
+}
+//# sourceMappingURL=infer-direction.js.map
+
+/***/ }),
+
+/***/ 5985:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseBenchmarkAction = parseBenchmarkAction;
+const infer_direction_js_1 = __nccwpck_require__(5083);
 function parseBenchmarkAction(input) {
     const entries = JSON.parse(input);
     if (!Array.isArray(entries)) {
@@ -59397,7 +59420,7 @@ function parseBenchmarkAction(input) {
         const metric = {
             value: entry.value,
             unit: entry.unit,
-            direction: inferDirectionFromUnit(entry.unit),
+            direction: (0, infer_direction_js_1.inferDirection)(entry.unit),
         };
         if (range !== undefined)
             metric.range = range;
@@ -59415,29 +59438,18 @@ function parseRange(range) {
     const m = range.match(/[±]?\s*\+?\/?-?\s*([\d.]+)/);
     return m ? parseFloat(m[1]) : undefined;
 }
-function inferDirectionFromUnit(unit) {
-    const lower = unit.toLowerCase();
-    if (lower.includes("ops/s") ||
-        lower.includes("op/s") ||
-        lower.includes("/sec") ||
-        lower.includes("mb/s") ||
-        lower.includes("throughput") ||
-        lower.includes("events")) {
-        return "bigger_is_better";
-    }
-    return "smaller_is_better";
-}
 //# sourceMappingURL=parse-benchmark-action.js.map
 
 /***/ }),
 
 /***/ 8303:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseGoBench = parseGoBench;
+const infer_direction_js_1 = __nccwpck_require__(5083);
 /**
  * Parse Go benchmark text output into native format.
  *
@@ -59470,7 +59482,7 @@ function parseGoBench(input) {
             metrics[metricName] = {
                 value,
                 unit,
-                direction: inferDirection(unit),
+                direction: (0, infer_direction_js_1.inferDirection)(unit),
             };
         }
         if (Object.keys(metrics).length > 0) {
@@ -59492,21 +59504,6 @@ function unitToMetricName(unit) {
     if (aliases[unit])
         return aliases[unit];
     return unit.replace(/\//g, "_per_").replace(/\s+/g, "_").toLowerCase();
-}
-function inferDirection(unit) {
-    const lower = unit.toLowerCase();
-    if (lower.includes("ns/") ||
-        lower.includes("ms/") ||
-        lower.includes("us/") ||
-        lower.includes("s/") ||
-        lower.includes("b/op") ||
-        lower.includes("allocs/")) {
-        return "smaller_is_better";
-    }
-    if (lower.includes("ops/") || lower.includes("mb/s")) {
-        return "bigger_is_better";
-    }
-    return "smaller_is_better"; // safe default for benchmarks
 }
 //# sourceMappingURL=parse-go.js.map
 

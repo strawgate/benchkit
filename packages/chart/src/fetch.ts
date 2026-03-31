@@ -8,39 +8,32 @@ export interface DataSource {
   baseUrl?: string;
 }
 
-function rawUrl(ds: DataSource, path: string): string {
+export function rawUrl(ds: DataSource, filePath: string): string {
   if (ds.baseUrl) {
-    return `${ds.baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+    return `${ds.baseUrl.replace(/\/+$/, "")}/${filePath.replace(/^\/+/, "")}`;
   }
   if (!ds.owner || !ds.repo) {
     throw new Error("DataSource must have either baseUrl or owner+repo");
   }
   const branch = ds.branch ?? "bench-data";
-  return `https://raw.githubusercontent.com/${ds.owner}/${ds.repo}/${branch}/${path}`;
+  return `https://raw.githubusercontent.com/${ds.owner}/${ds.repo}/${branch}/${filePath}`;
 }
 
-export async function fetchIndex(ds: DataSource, signal?: AbortSignal): Promise<IndexFile> {
-  const res = await fetch(rawUrl(ds, "data/index.json"), { signal });
-  if (!res.ok) throw new Error(`Failed to fetch index: ${res.status}`);
-  return res.json() as Promise<IndexFile>;
+async function fetchJson<T>(ds: DataSource, filePath: string, signal?: AbortSignal): Promise<T> {
+  const url = rawUrl(ds, filePath);
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+  return res.json() as Promise<T>;
 }
 
-export async function fetchSeries(
-  ds: DataSource,
-  metric: string,
-  signal?: AbortSignal,
-): Promise<SeriesFile> {
-  const res = await fetch(rawUrl(ds, `data/series/${metric}.json`), { signal });
-  if (!res.ok) throw new Error(`Failed to fetch series/${metric}: ${res.status}`);
-  return res.json() as Promise<SeriesFile>;
+export function fetchIndex(ds: DataSource, signal?: AbortSignal): Promise<IndexFile> {
+  return fetchJson<IndexFile>(ds, "data/index.json", signal);
 }
 
-export async function fetchRun(
-  ds: DataSource,
-  runId: string,
-  signal?: AbortSignal,
-): Promise<BenchmarkResult> {
-  const res = await fetch(rawUrl(ds, `data/runs/${runId}.json`), { signal });
-  if (!res.ok) throw new Error(`Failed to fetch run ${runId}: ${res.status}`);
-  return res.json() as Promise<BenchmarkResult>;
+export function fetchSeries(ds: DataSource, metric: string, signal?: AbortSignal): Promise<SeriesFile> {
+  return fetchJson<SeriesFile>(ds, `data/series/${metric}.json`, signal);
+}
+
+export function fetchRun(ds: DataSource, runId: string, signal?: AbortSignal): Promise<BenchmarkResult> {
+  return fetchJson<BenchmarkResult>(ds, `data/runs/${runId}.json`, signal);
 }

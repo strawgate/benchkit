@@ -11,6 +11,7 @@ import type {
   MonitorConfig,
   TrackedProcess,
 } from "./types.js";
+import type { BenchmarkResult } from "@benchkit/format";
 
 // ── Output generation ───────────────────────────────────────────────
 
@@ -63,23 +64,17 @@ export function groupByName(
   return groups;
 }
 
-export function writeOutput(
-  cfg: MonitorConfig,
+export function buildOutput(
+  cfg: Pick<MonitorConfig, "pollIntervalMs" | "ignoreCommands">,
   tracked: Map<number, TrackedProcess>,
   system: SystemTotals,
-): void {
+): BenchmarkResult {
   const minPolls = 2;
   const processes = Array.from(tracked.values()).filter((p) =>
     shouldInclude(p, minPolls, cfg.ignoreCommands),
   );
 
-  const benchmarks: Array<{
-    name: string;
-    metrics: Record<
-      string,
-      { value: number; unit?: string; direction?: string }
-    >;
-  }> = [];
+  const benchmarks: BenchmarkResult["benchmarks"] = [];
 
   // Per-process metrics (grouped by name, aggregated)
   const groups = groupByName(processes);
@@ -176,7 +171,7 @@ export function writeOutput(
     },
   });
 
-  const output = {
+  return {
     benchmarks,
     context: {
       timestamp: new Date().toISOString(),
@@ -190,7 +185,14 @@ export function writeOutput(
       },
     },
   };
+}
 
+export function writeOutput(
+  cfg: MonitorConfig,
+  tracked: Map<number, TrackedProcess>,
+  system: SystemTotals,
+): void {
+  const output = buildOutput(cfg, tracked, system);
   const dir = path.dirname(cfg.outputPath);
   if (dir && dir !== ".") {
     fs.mkdirSync(dir, { recursive: true });

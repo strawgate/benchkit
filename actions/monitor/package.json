@@ -9,6 +9,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@actions/core": "^1.11.0"
+    "@actions/core": "^1.11.0",
+    "@benchkit/format": "*"
   }
 }

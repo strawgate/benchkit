@@ -10,6 +10,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import type { SeriesFile, SeriesEntry } from "@benchkit/format";
+import { COLORS } from "../colors.js";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -21,11 +22,6 @@ export interface ComparisonBarProps {
   seriesNameFormatter?: (name: string, entry: SeriesEntry) => string;
   class?: string;
 }
-
-const COLORS = [
-  "#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6",
-  "#06b6d4", "#ec4899", "#14b8a6", "#f97316", "#6366f1",
-];
 
 export function ComparisonBar({ series, height = 250, title, seriesNameFormatter, class: className }: ComparisonBarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -106,7 +102,7 @@ export function ComparisonBar({ series, height = 250, title, seriesNameFormatter
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-  }, [series]);
+  }, [series, seriesNameFormatter]);
 
   return (
     <div class={className} style={{ position: "relative", height: `${height}px` }}>

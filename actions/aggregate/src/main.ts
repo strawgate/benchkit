@@ -17,26 +17,12 @@ async function run(): Promise<void> {
   const token = core.getInput("github-token", { required: true });
   const maxRuns = parseInt(core.getInput("max-runs") || "0", 10);
 
-  // Configure git
-  await exec.exec("git", ["config", "user.name", "github-actions[bot]"]);
-  await exec.exec("git", [
-    "config",
-    "user.email",
-    "41898282+github-actions[bot]@users.noreply.github.com",
-  ]);
-  const basicAuth = Buffer.from(`x-access-token:${token}`).toString("base64");
-  await exec.exec("git", [
-    "config",
-    "--local",
-    "http.https://github.com/.extraheader",
-    `AUTHORIZATION: basic ${basicAuth}`,
-  ]);
+  await configureGit(token);
 
-  // Fetch and check out data branch
+  // Fetch data branch
   const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
   const fetchCode = await exec.exec(
-    "git",
-    ["fetch", "origin", `${dataBranch}:${dataBranch}`],
+    "git", ["fetch", "origin", `${dataBranch}:${dataBranch}`],
     { ignoreReturnCode: true },
   );
   if (fetchCode !== 0) {
@@ -57,46 +43,81 @@ async function run(): Promise<void> {
     return;
   }
 
-  const runFiles = fs
-    .readdirSync(runsDir)
-    .filter((f) => f.endsWith(".json"))
-    .sort();
-  core.info(`Found ${runFiles.length} run file(s)`);
+  const runs = readRuns(runsDir);
+  core.info(`Found ${runs.length} run file(s)`);
 
-  // Parse all runs
-  const runs: ParsedRun[] = [];
-  for (const file of runFiles) {
-    const content = fs.readFileSync(path.join(runsDir, file), "utf-8");
-    const result = JSON.parse(content) as BenchmarkResult;
-    runs.push({ id: path.basename(file, ".json"), result });
-  }
-
-  // Sort by timestamp (oldest first)
+  // Sort, prune, aggregate
   sortRuns(runs);
-
-  // Prune old runs
   const pruned = pruneRuns(runs, maxRuns);
   for (const id of pruned) {
     fs.unlinkSync(path.join(runsDir, `${id}.json`));
     core.info(`Pruned old run: ${id}`);
   }
 
-  // Build index and series
   const index = buildIndex(runs);
   const allMetrics = index.metrics ?? [];
   const seriesMap = buildSeries(runs);
 
-  // Write index
-  const dataDir = path.join(worktree, "data");
-  fs.writeFileSync(
-    path.join(dataDir, "index.json"),
-    JSON.stringify(index, null, 2) + "\n",
-  );
-  core.info(
-    `Wrote index.json (${index.runs.length} runs, ${allMetrics.length} metrics)`,
+  // Write output files
+  writeAggregatedFiles(worktree, index, seriesMap);
+  core.info(`Wrote index.json (${index.runs.length} runs, ${allMetrics.length} metrics)`);
+
+  // Commit and push if changed
+  await exec.exec("git", ["-C", worktree, "add", "."]);
+  const diffCode = await exec.exec(
+    "git", ["-C", worktree, "diff", "--cached", "--quiet"],
+    { ignoreReturnCode: true },
   );
 
-  // Write series files
+  if (diffCode === 0) {
+    core.info("No changes to commit");
+  } else {
+    await exec.exec("git", [
+      "-C", worktree, "commit", "-m",
+      `bench: rebuild index and series (${runs.length} runs)`,
+    ]);
+    await exec.exec("git", ["-C", worktree, "push", "origin", `HEAD:${dataBranch}`]);
+    core.info(`Pushed aggregated data to ${dataBranch}`);
+  }
+
+  await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
+  core.setOutput("run-count", String(runs.length));
+  core.setOutput("metrics", allMetrics.join(","));
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+
+async function configureGit(token: string): Promise<void> {
+  await exec.exec("git", ["config", "user.name", "github-actions[bot]"]);
+  await exec.exec("git", [
+    "config", "user.email",
+    "41898282+github-actions[bot]@users.noreply.github.com",
+  ]);
+  const basicAuth = Buffer.from(`x-access-token:${token}`).toString("base64");
+  await exec.exec("git", [
+    "config", "--local",
+    "http.https://github.com/.extraheader",
+    `AUTHORIZATION: basic ${basicAuth}`,
+  ]);
+}
+
+function readRuns(runsDir: string): ParsedRun[] {
+  const runFiles = fs.readdirSync(runsDir).filter((f) => f.endsWith(".json")).sort();
+  return runFiles.map((file) => {
+    const content = fs.readFileSync(path.join(runsDir, file), "utf-8");
+    const result = JSON.parse(content) as BenchmarkResult;
+    return { id: path.basename(file, ".json"), result };
+  });
+}
+
+function writeAggregatedFiles(
+  worktree: string,
+  index: ReturnType<typeof buildIndex>,
+  seriesMap: ReturnType<typeof buildSeries>,
+): void {
+  const dataDir = path.join(worktree, "data");
+  fs.writeFileSync(path.join(dataDir, "index.json"), JSON.stringify(index, null, 2) + "\n");
+
   const seriesDir = path.join(dataDir, "series");
   fs.mkdirSync(seriesDir, { recursive: true });
 
@@ -106,49 +127,12 @@ async function run(): Promise<void> {
       fs.unlinkSync(path.join(seriesDir, f));
     }
   }
+
   for (const [metricName, series] of seriesMap) {
     const fileName = `${metricName}.json`;
-    fs.writeFileSync(
-      path.join(seriesDir, fileName),
-      JSON.stringify(series, null, 2) + "\n",
-    );
+    fs.writeFileSync(path.join(seriesDir, fileName), JSON.stringify(series, null, 2) + "\n");
     core.info(`Wrote series/${fileName}`);
   }
-
-  // Commit and push if changed
-  await exec.exec("git", ["-C", worktree, "add", "."]);
-  const diffCode = await exec.exec(
-    "git",
-    ["-C", worktree, "diff", "--cached", "--quiet"],
-    { ignoreReturnCode: true },
-  );
-
-  if (diffCode === 0) {
-    core.info("No changes to commit");
-  } else {
-    await exec.exec("git", [
-      "-C",
-      worktree,
-      "commit",
-      "-m",
-      `bench: rebuild index and series (${runs.length} runs)`,
-    ]);
-    await exec.exec("git", [
-      "-C",
-      worktree,
-      "push",
-      "origin",
-      `HEAD:${dataBranch}`,
-    ]);
-    core.info(`Pushed aggregated data to ${dataBranch}`);
-  }
-
-  // Clean up
-  await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
-
-  // Outputs
-  core.setOutput("run-count", String(runs.length));
-  core.setOutput("metrics", allMetrics.join(","));
 }
 
 run().catch((err) => {

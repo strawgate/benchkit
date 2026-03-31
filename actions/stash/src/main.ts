@@ -16,37 +16,14 @@ async function run(): Promise<void> {
     core.getInput("run-id") ||
     `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
 
-  // Find result files
-  const globber = await glob.create(resultsPattern);
-  const files = await globber.glob();
-  if (files.length === 0) {
-    throw new Error(`No files matched pattern: ${resultsPattern}`);
-  }
-  core.info(`Found ${files.length} result file(s)`);
+  // Parse benchmark files
+  const allBenchmarks = await parseBenchmarkFiles(resultsPattern, format);
 
-  // Parse and merge
-  const allBenchmarks: BenchmarkResult["benchmarks"] = [];
-  for (const file of files) {
-    const content = fs.readFileSync(file, "utf-8");
-    const result = parse(content, format);
-    allBenchmarks.push(...result.benchmarks);
-    core.info(
-      `  ${path.basename(file)}: ${result.benchmarks.length} benchmark(s)`,
-    );
-  }
-
-  // Read and merge monitor output if provided
+  // Merge monitor output if provided
   let monitorResult: BenchmarkResult | undefined;
   if (monitorPath) {
-    if (!fs.existsSync(monitorPath)) {
-      throw new Error(`Monitor file not found: ${monitorPath}`);
-    }
-    const monitorContent = fs.readFileSync(monitorPath, "utf-8");
-    monitorResult = parseNative(monitorContent);
+    monitorResult = readMonitorOutput(monitorPath);
     allBenchmarks.push(...monitorResult.benchmarks);
-    core.info(
-      `  ${path.basename(monitorPath)}: ${monitorResult.benchmarks.length} monitor benchmark(s)`,
-    );
   }
 
   const result: BenchmarkResult = {
@@ -62,95 +39,101 @@ async function run(): Promise<void> {
     },
   };
 
-  // Configure git
-  await exec.exec("git", ["config", "user.name", "github-actions[bot]"]);
-  await exec.exec("git", [
-    "config",
-    "user.email",
-    "41898282+github-actions[bot]@users.noreply.github.com",
-  ]);
-  const basicAuth = Buffer.from(`x-access-token:${token}`).toString("base64");
-  await exec.exec("git", [
-    "config",
-    "--local",
-    "http.https://github.com/.extraheader",
-    `AUTHORIZATION: basic ${basicAuth}`,
-  ]);
+  // Git setup and push
+  await configureGit(token);
+  const worktree = await checkoutDataBranch(dataBranch);
 
-  // Prepare worktree for data branch
-  const worktree = path.join(os.tmpdir(), `benchkit-stash-${Date.now()}`);
-  const fetchCode = await exec.exec(
-    "git",
-    ["fetch", "origin", `${dataBranch}:${dataBranch}`],
-    { ignoreReturnCode: true },
-  );
-  if (fetchCode === 0) {
-    await exec.exec("git", ["worktree", "add", worktree, dataBranch]);
-  } else {
-    core.info(
-      `Branch '${dataBranch}' does not exist, creating orphan branch`,
-    );
-    await exec.exec("git", [
-      "worktree",
-      "add",
-      "--orphan",
-      "-b",
-      dataBranch,
-      worktree,
-    ]);
-  }
-
-  // Write result
   const runsDir = path.join(worktree, "data", "runs");
   fs.mkdirSync(runsDir, { recursive: true });
   const resultPath = path.join(runsDir, `${runId}.json`);
   fs.writeFileSync(resultPath, JSON.stringify(result, null, 2) + "\n");
   core.info(`Wrote ${resultPath}`);
 
-  // Commit and push with retry
   await exec.exec("git", ["-C", worktree, "add", "."]);
-  await exec.exec("git", [
-    "-C",
-    worktree,
-    "commit",
-    "-m",
-    `bench: add run ${runId}`,
-  ]);
+  await exec.exec("git", ["-C", worktree, "commit", "-m", `bench: add run ${runId}`]);
+  await pushWithRetry(worktree, dataBranch, 3);
+  await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
 
-  const MAX_RETRIES = 3;
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+  core.setOutput("run-id", runId);
+  core.setOutput("file-path", `data/runs/${runId}.json`);
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+
+async function parseBenchmarkFiles(pattern: string, format: Format): Promise<BenchmarkResult["benchmarks"]> {
+  const globber = await glob.create(pattern);
+  const files = await globber.glob();
+  if (files.length === 0) {
+    throw new Error(`No files matched pattern: ${pattern}`);
+  }
+  core.info(`Found ${files.length} result file(s)`);
+
+  const benchmarks: BenchmarkResult["benchmarks"] = [];
+  for (const file of files) {
+    const content = fs.readFileSync(file, "utf-8");
+    const result = parse(content, format);
+    benchmarks.push(...result.benchmarks);
+    core.info(`  ${path.basename(file)}: ${result.benchmarks.length} benchmark(s)`);
+  }
+  return benchmarks;
+}
+
+function readMonitorOutput(monitorPath: string): BenchmarkResult {
+  if (!fs.existsSync(monitorPath)) {
+    throw new Error(`Monitor file not found: ${monitorPath}`);
+  }
+  const content = fs.readFileSync(monitorPath, "utf-8");
+  const result = parseNative(content);
+  core.info(`  ${path.basename(monitorPath)}: ${result.benchmarks.length} monitor benchmark(s)`);
+  return result;
+}
+
+async function configureGit(token: string): Promise<void> {
+  await exec.exec("git", ["config", "user.name", "github-actions[bot]"]);
+  await exec.exec("git", [
+    "config", "user.email",
+    "41898282+github-actions[bot]@users.noreply.github.com",
+  ]);
+  const basicAuth = Buffer.from(`x-access-token:${token}`).toString("base64");
+  await exec.exec("git", [
+    "config", "--local",
+    "http.https://github.com/.extraheader",
+    `AUTHORIZATION: basic ${basicAuth}`,
+  ]);
+}
+
+async function checkoutDataBranch(dataBranch: string): Promise<string> {
+  const worktree = path.join(os.tmpdir(), `benchkit-stash-${Date.now()}`);
+  const fetchCode = await exec.exec(
+    "git", ["fetch", "origin", `${dataBranch}:${dataBranch}`],
+    { ignoreReturnCode: true },
+  );
+  if (fetchCode === 0) {
+    await exec.exec("git", ["worktree", "add", worktree, dataBranch]);
+  } else {
+    core.info(`Branch '${dataBranch}' does not exist, creating orphan branch`);
+    await exec.exec("git", ["worktree", "add", "--orphan", "-b", dataBranch, worktree]);
+  }
+  return worktree;
+}
+
+async function pushWithRetry(worktree: string, dataBranch: string, maxRetries: number): Promise<void> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const pushCode = await exec.exec(
-      "git",
-      ["-C", worktree, "push", "origin", `HEAD:${dataBranch}`],
+      "git", ["-C", worktree, "push", "origin", `HEAD:${dataBranch}`],
       { ignoreReturnCode: true },
     );
     if (pushCode === 0) {
       core.info(`Pushed to ${dataBranch}`);
-      break;
+      return;
     }
-    if (attempt < MAX_RETRIES) {
-      core.warning(
-        `Push failed (attempt ${attempt}/${MAX_RETRIES}), rebasing and retrying...`,
-      );
-      await exec.exec("git", [
-        "-C",
-        worktree,
-        "pull",
-        "--rebase",
-        "origin",
-        dataBranch,
-      ]);
+    if (attempt < maxRetries) {
+      core.warning(`Push failed (attempt ${attempt}/${maxRetries}), rebasing and retrying...`);
+      await exec.exec("git", ["-C", worktree, "pull", "--rebase", "origin", dataBranch]);
     } else {
-      throw new Error(`Failed to push after ${MAX_RETRIES} attempts`);
+      throw new Error(`Failed to push after ${maxRetries} attempts`);
     }
   }
-
-  // Clean up
-  await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
-
-  // Outputs
-  core.setOutput("run-id", runId);
-  core.setOutput("file-path", `data/runs/${runId}.json`);
 }
 
 run().catch((err) => {
