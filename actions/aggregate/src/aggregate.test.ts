@@ -204,6 +204,49 @@ describe("buildIndex", () => {
     assert.deepEqual(index.metrics, []);
     assertValidIndex(index);
   });
+
+  it("includes monitor context in run entry when present", () => {
+    const monitorCtx = {
+      monitor_version: "0.1.0",
+      poll_interval_ms: 500,
+      duration_ms: 10000,
+      runner_os: "Linux",
+      runner_arch: "X64",
+      cpu_model: "Intel Core i7-12700",
+      cpu_count: 12,
+      total_memory_mb: 16384,
+    };
+    const runs: ParsedRun[] = [
+      {
+        id: "run-with-monitor",
+        result: {
+          benchmarks: [
+            { name: "_monitor/system", metrics: { cpu_user_pct: { value: 12.5, unit: "%" } } },
+          ],
+          context: {
+            timestamp: "2024-06-01T00:00:00Z",
+            monitor: monitorCtx,
+          },
+        },
+      },
+    ];
+
+    const index = buildIndex(runs);
+    assertValidIndex(index);
+    assert.equal(index.runs.length, 1);
+    assert.deepEqual(index.runs[0].monitor, monitorCtx);
+  });
+
+  it("omits monitor context when not present", () => {
+    const runs = [
+      makeRun("run-no-monitor", "2024-01-01T00:00:00Z", [
+        { name: "BenchA", metrics: { ns_per_op: { value: 100 } } },
+      ]),
+    ];
+    const index = buildIndex(runs);
+    assertValidIndex(index);
+    assert.equal(index.runs[0].monitor, undefined);
+  });
 });
 
 // ── buildSeries ─────────────────────────────────────────────────────

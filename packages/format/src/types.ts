@@ -81,4 +81,5 @@ export interface RunEntry {
   ref?: string;
   benchmarks?: number;
   metrics?: string[];
+  monitor?: MonitorContext;
 }

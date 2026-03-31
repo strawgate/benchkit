@@ -51,6 +51,7 @@ export function buildIndex(runs: ParsedRun[]): IndexFile {
       ref: r.result.context?.ref,
       benchmarks: benchNames.size,
       metrics: Array.from(metricNames).sort(),
+      monitor: r.result.context?.monitor,
     };
   });
 

@@ -49,7 +49,27 @@
           "items": {
             "type": "string"
           }
+        },
+        "monitor": {
+          "$ref": "#/$defs/monitor_context",
+          "description": "Runner environment captured by the monitor action."
         }
+      }
+    },
+    "monitor_context": {
+      "type": "object",
+      "required": ["monitor_version", "poll_interval_ms", "duration_ms"],
+      "properties": {
+        "monitor_version": { "type": "string" },
+        "poll_interval_ms": { "type": "integer" },
+        "duration_ms": { "type": "integer" },
+        "runner_os": { "type": "string" },
+        "runner_arch": { "type": "string" },
+        "poll_count": { "type": "integer" },
+        "kernel": { "type": "string" },
+        "cpu_model": { "type": "string" },
+        "cpu_count": { "type": "integer" },
+        "total_memory_mb": { "type": "number" }
       }
     }
   }
