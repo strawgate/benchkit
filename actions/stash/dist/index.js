@@ -59533,7 +59533,7 @@ function compare(current, baseline, config = DEFAULT_THRESHOLD) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.compare = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+exports.compare = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
@@ -59546,6 +59546,9 @@ Object.defineProperty(exports, "parseNative", ({ enumerable: true, get: function
 /** Parse Go testing/benchmark output text. */
 var parse_go_js_1 = __nccwpck_require__(8303);
 Object.defineProperty(exports, "parseGoBench", ({ enumerable: true, get: function () { return parse_go_js_1.parseGoBench; } }));
+/** Parse Rust cargo bench (libtest) output text. */
+var parse_rust_js_1 = __nccwpck_require__(7215);
+Object.defineProperty(exports, "parseRustBench", ({ enumerable: true, get: function () { return parse_rust_js_1.parseRustBench; } }));
 /** Parse benchmark-action/github-action-benchmark JSON format. */
 var parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 Object.defineProperty(exports, "parseBenchmarkAction", ({ enumerable: true, get: function () { return parse_benchmark_action_js_1.parseBenchmarkAction; } }));
@@ -59791,6 +59794,55 @@ function parseNative(input) {
 
 /***/ }),
 
+/***/ 7215:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseRustBench = parseRustBench;
+/**
+ * Parse Rust cargo bench (libtest) output into native format.
+ *
+ * Example:
+ *   test sort::bench_sort   ... bench:         320 ns/iter (+/- 42)
+ */
+function parseRustBench(input) {
+    const benchmarks = [];
+    const re = /^test\s+(?<name>\S+)\s+\.\.\.\s+bench:\s+(?<value>[\d,]+)\s+(?<unit>\S+)(?:\s+\(\+\/-\s+(?<range>[\d,]+)\))?/;
+    for (const line of input.split(/\r?\n/)) {
+        const trimmedLine = line.trim();
+        const m = trimmedLine.match(re);
+        if (!m?.groups)
+            continue;
+        const { name, value, unit, range } = m.groups;
+        const metrics = {};
+        const numericValue = parseFloat(value.replace(/,/g, ""));
+        const metric = {
+            value: numericValue,
+            unit,
+            direction: "smaller_is_better",
+        };
+        if (range) {
+            metric.range = parseFloat(range.replace(/,/g, ""));
+        }
+        metrics[unitToMetricName(unit)] = metric;
+        benchmarks.push({
+            name,
+            metrics,
+        });
+    }
+    return { benchmarks };
+}
+function unitToMetricName(unit) {
+    if (unit === "ns/iter")
+        return "ns_per_iter";
+    return unit.replace(/\//g, "_per_").replace(/\s+/g, "_").toLowerCase();
+}
+//# sourceMappingURL=parse-rust.js.map
+
+/***/ }),
+
 /***/ 9152:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -59799,6 +59851,7 @@ function parseNative(input) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parse = parse;
 const parse_go_js_1 = __nccwpck_require__(8303);
+const parse_rust_js_1 = __nccwpck_require__(7215);
 const parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 const parse_native_js_1 = __nccwpck_require__(1470);
 const parse_hyperfine_js_1 = __nccwpck_require__(9347);
@@ -59814,6 +59867,8 @@ function parse(input, format = "auto") {
             return (0, parse_native_js_1.parseNative)(input);
         case "go":
             return (0, parse_go_js_1.parseGoBench)(input);
+        case "rust":
+            return (0, parse_rust_js_1.parseRustBench)(input);
         case "benchmark-action":
             return (0, parse_benchmark_action_js_1.parseBenchmarkAction)(input);
         case "hyperfine":
@@ -59861,7 +59916,11 @@ function detectFormat(input) {
     if (/^Benchmark\w.*\s+\d+\s+[\d.]+\s+\w+\/\w+/m.test(trimmed)) {
         return "go";
     }
-    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, benchmark-action, hyperfine.");
+    // Check for Rust benchmark lines
+    if (/^test\s+\S+\s+\.\.\.\s+bench:/m.test(trimmed)) {
+        return "rust";
+    }
+    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine.");
 }
 //# sourceMappingURL=parse.js.map
 

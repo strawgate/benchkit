@@ -36,6 +36,7 @@ omitted or `"auto"`, the parser inspects the input and picks the right strategy:
 | JSON object with a `results` array (Hyperfine) | `hyperfine` |
 | JSON array of `{name, value, unit}` objects | `benchmark-action` |
 | Lines matching `Benchmark…  N  value unit` | `go` |
+| Lines matching `test … ... bench: value unit` | `rust` |
 
 ```ts
 import { parse } from "@benchkit/format";
@@ -45,6 +46,20 @@ const result = parse(goOutput, "go");
 
 // Auto-detect (default)
 const result = parse(unknownInput);
+```
+
+### `parseRustBench(input)`
+
+Parses Rust `cargo bench` (libtest) text output. Each benchmark line produces one
+`Benchmark` entry.
+
+```ts
+import { parseRustBench } from "@benchkit/format";
+
+const result = parseRustBench(
+  "test sort::bench_sort   ... bench:         320 ns/iter (+/- 42)"
+);
+// result.benchmarks[0].metrics => { ns_per_iter: { value: 320, unit: "ns/iter", range: 42 } }
 ```
 
 If auto-detection fails, `parse` throws with a message listing the supported
@@ -226,7 +241,7 @@ rules:
 | `MB/s` | `mb_per_s` | Known alias |
 
 General algorithm: replace every `/` with `_per_`, replace spaces with `_`,
-then lowercase. Specific aliases (`B/op` → `bytes_per_op`, `MB/s` → `mb_per_s`)
+then lowercase. Specific aliases (`B/op` → `bytes_per_op`, `MB/s` → `mb_per_s`, `ns/iter` → `ns_per_iter`)
 take precedence.
 
 In the native format, metric names are passed through unchanged — the keys of

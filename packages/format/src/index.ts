@@ -25,6 +25,8 @@ export { inferDirection } from "./infer-direction.js";
 export { parseNative } from "./parse-native.js";
 /** Parse Go testing/benchmark output text. */
 export { parseGoBench } from "./parse-go.js";
+/** Parse Rust cargo bench (libtest) output text. */
+export { parseRustBench } from "./parse-rust.js";
 /** Parse benchmark-action/github-action-benchmark JSON format. */
 export { parseBenchmarkAction } from "./parse-benchmark-action.js";
 /** Parse Hyperfine JSON format. */
