@@ -6,54 +6,6 @@
     "http-throughput": {
       "points": [
         {
-          "timestamp": "2026-03-30T23:10:55.348Z",
-          "value": 15230,
-          "commit": "c76ee7e5680e3d72e62daf2b1dded9623c14a9f3",
-          "run_id": "test-native-23772179883-1"
-        },
-        {
-          "timestamp": "2026-03-30T23:14:31.506Z",
-          "value": 15230,
-          "commit": "c8b28c2d5966eb5d2fb971753d7415ebcd8cc020",
-          "run_id": "test-native-23772291064-1"
-        },
-        {
-          "timestamp": "2026-03-30T23:34:16.267Z",
-          "value": 15230,
-          "commit": "94a7830149e26136b37faa6c574c2c30614c287e",
-          "run_id": "test-native-23772901045-1"
-        },
-        {
-          "timestamp": "2026-03-30T23:54:42.616Z",
-          "value": 15230,
-          "commit": "79847fc7ed72167442f493a1f2547e3e94ef349f",
-          "run_id": "test-native-23773512429-1"
-        },
-        {
-          "timestamp": "2026-03-31T01:29:35.141Z",
-          "value": 15230,
-          "commit": "92f7796dca77ff1f9502521caf3b22a73058f41f",
-          "run_id": "test-native-23776087457-1"
-        },
-        {
-          "timestamp": "2026-03-31T01:49:33.547Z",
-          "value": 15230,
-          "commit": "6ae4daf7411095cea664e4217fdb02ab4fe9dcbd",
-          "run_id": "test-native-23776591540-1"
-        },
-        {
-          "timestamp": "2026-03-31T01:50:50.204Z",
-          "value": 15230,
-          "commit": "8aad856e00179fd4c096156a6e1f0b6565dfa040",
-          "run_id": "test-native-23776622590-1"
-        },
-        {
-          "timestamp": "2026-03-31T01:51:37.607Z",
-          "value": 15230,
-          "commit": "a65647f790093a817265f70919efdac51bb7ceb0",
-          "run_id": "test-native-23776641410-1"
-        },
-        {
           "timestamp": "2026-03-31T01:52:01.267Z",
           "value": 15230,
           "commit": "a1f69ae44a2a8ff9c5dbdaae3b0b39ef629a8737",
