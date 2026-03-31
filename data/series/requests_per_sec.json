@@ -10,6 +10,12 @@
           "value": 15230,
           "commit": "39a9cbd4611c96f678b5163bdb9b1036472a896b",
           "run_id": "test-native-23779037014-1"
+        },
+        {
+          "timestamp": "2026-03-31T03:30:10.193Z",
+          "value": 15230,
+          "commit": "a2c3ef78c0c5deccb659981aaf9b05dae818347c",
+          "run_id": "test-native-23779073389-1"
         }
       ]
     }
