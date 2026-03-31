@@ -124,7 +124,7 @@ import { Dashboard } from "@benchkit/chart";
 export function App() {
   return (
     <Dashboard
-      dataSource={{
+      source={{
         owner: "your-org",
         repo: "your-repo",
         branch: "bench-data",  // optional, this is the default
