@@ -17,6 +17,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Validate schemas
+        run: node --test schema/schema.test.mjs
+
       - name: Build format package
         run: npm run build --workspace=packages/format
 
