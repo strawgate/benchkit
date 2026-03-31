@@ -1,13 +1,15 @@
-import type { IndexFile } from "@benchkit/format";
+import type { IndexFile, RunEntry } from "@benchkit/format";
 
 export interface RunTableProps {
   index: IndexFile;
   maxRows?: number;
   onSelectRun?: (runId: string) => void;
+  /** Link commits to GitHub or other VCS */
+  commitHref?: (commit: string, run: RunEntry) => string | undefined;
   class?: string;
 }
 
-export function RunTable({ index, maxRows, onSelectRun, class: className }: RunTableProps) {
+export function RunTable({ index, maxRows, onSelectRun, commitHref, class: className }: RunTableProps) {
   const runs = maxRows ? index.runs.slice(0, maxRows) : index.runs;
 
   return (
@@ -35,7 +37,11 @@ export function RunTable({ index, maxRows, onSelectRun, class: className }: RunT
             <td style={tdStyle}>{formatTime(run.timestamp)}</td>
             <td style={tdStyle}>
               {run.commit ? (
-                <code style={{ fontSize: "12px" }}>{run.commit.slice(0, 8)}</code>
+                (() => {
+                  const href = commitHref?.(run.commit, run);
+                  const code = <code style={{ fontSize: "12px" }}>{run.commit.slice(0, 8)}</code>;
+                  return href ? <a href={href} target="_blank" rel="noopener noreferrer">{code}</a> : code;
+                })()
               ) : (
                 "—"
               )}

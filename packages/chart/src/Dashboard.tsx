@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "preact/hooks";
-import type { IndexFile, SeriesFile } from "@benchkit/format";
+import type { IndexFile, SeriesFile, SeriesEntry, RunEntry } from "@benchkit/format";
 import { fetchIndex, fetchSeries, type DataSource } from "./fetch.js";
 import { TrendChart } from "./components/TrendChart.js";
 import { ComparisonBar } from "./components/ComparisonBar.js";
@@ -8,11 +8,29 @@ import { RunTable } from "./components/RunTable.js";
 export interface DashboardProps {
   source: DataSource;
   class?: string;
+  /** Max data points per sparkline (default: 20) */
+  maxPoints?: number;
+  /** Max run rows in the table (default: 20) */
+  maxRuns?: number;
+  /** Custom metric label renderer */
+  metricLabelFormatter?: (metric: string) => string;
+  /** Custom series name renderer */
+  seriesNameFormatter?: (name: string, entry: SeriesEntry) => string;
+  /** Link commits to GitHub or other VCS */
+  commitHref?: (commit: string, run: RunEntry) => string | undefined;
 }
 
 type View = "overview" | { metric: string };
 
-export function Dashboard({ source, class: className }: DashboardProps) {
+export function Dashboard({
+  source,
+  class: className,
+  maxPoints = 20,
+  maxRuns = 20,
+  metricLabelFormatter,
+  seriesNameFormatter,
+  commitHref,
+}: DashboardProps) {
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [seriesMap, setSeriesMap] = useState<Map<string, SeriesFile>>(new Map());
   const [view, setView] = useState<View>("overview");
@@ -73,16 +91,24 @@ export function Dashboard({ source, class: className }: DashboardProps) {
               fontSize: "13px",
             }}
           >
-            {m}
+            {metricLabelFormatter ? metricLabelFormatter(m) : m}
           </button>
         ))}
       </div>
 
       {selectedSeries ? (
         <div>
-          <TrendChart series={selectedSeries} title={selectedSeries.metric} />
+          <TrendChart
+            series={selectedSeries}
+            title={metricLabelFormatter ? metricLabelFormatter(selectedSeries.metric) : selectedSeries.metric}
+            seriesNameFormatter={seriesNameFormatter}
+          />
           <div style={{ marginTop: "16px" }}>
-            <ComparisonBar series={selectedSeries} title={`Latest: ${selectedSeries.metric}`} />
+            <ComparisonBar
+              series={selectedSeries}
+              title={`Latest: ${metricLabelFormatter ? metricLabelFormatter(selectedSeries.metric) : selectedSeries.metric}`}
+              seriesNameFormatter={seriesNameFormatter}
+            />
           </div>
         </div>
       ) : (
@@ -93,7 +119,13 @@ export function Dashboard({ source, class: className }: DashboardProps) {
               onClick={() => handleMetricClick(metric)}
               style={{ cursor: "pointer", padding: "12px", border: "1px solid #e5e7eb", borderRadius: "8px" }}
             >
-              <TrendChart series={sf} title={metric} height={200} maxPoints={20} />
+              <TrendChart
+                series={sf}
+                title={metricLabelFormatter ? metricLabelFormatter(metric) : metric}
+                height={200}
+                maxPoints={maxPoints}
+                seriesNameFormatter={seriesNameFormatter}
+              />
             </div>
           ))}
         </div>
@@ -101,7 +133,7 @@ export function Dashboard({ source, class: className }: DashboardProps) {
 
       <div style={{ marginTop: "24px" }}>
         <h3 style={{ fontSize: "14px", margin: "0 0 8px" }}>Recent Runs</h3>
-        <RunTable index={index} maxRows={20} />
+        <RunTable index={index} maxRows={maxRuns} commitHref={commitHref} />
       </div>
     </div>
   );
