@@ -17,11 +17,15 @@
     "lint": "tsc --noEmit",
     "test": "node --test dist/*.test.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "license": "MIT",
   "dependencies": {
+    "@benchkit/format": "*",
     "chart.js": "^4.4.0",
-    "@benchkit/format": "*"
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "date-fns": "^4.1.0"
   },
   "peerDependencies": {
     "preact": "^10.0.0"

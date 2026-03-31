@@ -12,6 +12,7 @@ import {
   type ChartData,
   type ChartOptions,
 } from "chart.js";
+import "chartjs-adapter-date-fns";
 import type { SeriesFile } from "@benchkit/format";
 
 Chart.register(
