@@ -152,17 +152,21 @@ function runMonitor(cfg: MonitorConfig): void {
   // Safety: also exit on SIGTERM
   process.on("SIGTERM", () => {
     clearInterval(timer);
-    writeOutput(cfg, tracked, {
-      cpuUserTotal,
-      cpuSystemTotal,
-      cpuTotalTicks,
-      memAvailableMinMB:
-        memAvailableMinMB === Infinity ? 0 : memAvailableMinMB,
-      loadAvg1mMax,
-      startTime,
-      endTime: Date.now(),
-      pollCount,
-    });
+    try {
+      writeOutput(cfg, tracked, {
+        cpuUserTotal,
+        cpuSystemTotal,
+        cpuTotalTicks,
+        memAvailableMinMB:
+          memAvailableMinMB === Infinity ? 0 : memAvailableMinMB,
+        loadAvg1mMax,
+        startTime,
+        endTime: Date.now(),
+        pollCount,
+      });
+    } catch (err) {
+      process.stderr.write(`monitor: failed to write output on SIGTERM: ${err}\n`);
+    }
     process.exit(0);
   });
 }
