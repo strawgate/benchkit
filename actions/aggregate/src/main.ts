@@ -3,13 +3,14 @@ import * as exec from "@actions/exec";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import type {
-  BenchmarkResult,
-  IndexFile,
-  RunEntry,
-  SeriesFile,
-  DataPoint,
-} from "@benchkit/format";
+import type { BenchmarkResult } from "@benchkit/format";
+import {
+  type ParsedRun,
+  sortRuns,
+  pruneRuns,
+  buildIndex,
+  buildSeries,
+} from "./aggregate.js";
 
 async function run(): Promise<void> {
   const dataBranch = core.getInput("data-branch") || "bench-data";
@@ -63,10 +64,6 @@ async function run(): Promise<void> {
   core.info(`Found ${runFiles.length} run file(s)`);
 
   // Parse all runs
-  interface ParsedRun {
-    id: string;
-    result: BenchmarkResult;
-  }
   const runs: ParsedRun[] = [];
   for (const file of runFiles) {
     const content = fs.readFileSync(path.join(runsDir, file), "utf-8");
@@ -75,118 +72,19 @@ async function run(): Promise<void> {
   }
 
   // Sort by timestamp (oldest first)
-  runs.sort((a, b) => {
-    const ta = a.result.context?.timestamp ?? "";
-    const tb = b.result.context?.timestamp ?? "";
-    return ta.localeCompare(tb);
-  });
+  sortRuns(runs);
 
   // Prune old runs
-  if (maxRuns > 0 && runs.length > maxRuns) {
-    const toRemove = runs.splice(0, runs.length - maxRuns);
-    for (const r of toRemove) {
-      fs.unlinkSync(path.join(runsDir, `${r.id}.json`));
-      core.info(`Pruned old run: ${r.id}`);
-    }
+  const pruned = pruneRuns(runs, maxRuns);
+  for (const id of pruned) {
+    fs.unlinkSync(path.join(runsDir, `${id}.json`));
+    core.info(`Pruned old run: ${id}`);
   }
 
-  // Collect metrics and build index
-  const allMetrics = new Set<string>();
-  const indexRuns: RunEntry[] = runs.map((r) => {
-    const metricNames = new Set<string>();
-    const benchNames = new Set<string>();
-    for (const b of r.result.benchmarks) {
-      benchNames.add(b.name);
-      for (const m of Object.keys(b.metrics)) {
-        metricNames.add(m);
-        allMetrics.add(m);
-      }
-    }
-    return {
-      id: r.id,
-      timestamp: r.result.context?.timestamp ?? new Date().toISOString(),
-      commit: r.result.context?.commit,
-      ref: r.result.context?.ref,
-      benchmarks: benchNames.size,
-      metrics: Array.from(metricNames).sort(),
-    };
-  });
-
-  const index: IndexFile = {
-    runs: [...indexRuns].reverse(), // newest first
-    metrics: Array.from(allMetrics).sort(),
-  };
-
-  // Build series files per metric
-  // When a run has multiple benchmarks with the same name (e.g. -count=N),
-  // average their values and compute range from the spread.
-  const seriesMap = new Map<string, SeriesFile>();
-  for (const r of runs) {
-    // Group benchmarks by (name + tags) within this run
-    const groups = new Map<
-      string,
-      { name: string; tags?: Record<string, string>; values: Map<string, { sum: number; count: number; min: number; max: number; unit?: string; direction?: "bigger_is_better" | "smaller_is_better" }> }
-    >();
-
-    for (const bench of r.result.benchmarks) {
-      const tagsStr = bench.tags
-        ? Object.entries(bench.tags)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([k, v]) => `${k}=${v}`)
-            .join(",")
-        : "";
-      const groupKey = tagsStr ? `${bench.name} [${tagsStr}]` : bench.name;
-
-      let group = groups.get(groupKey);
-      if (!group) {
-        group = { name: bench.name, tags: bench.tags, values: new Map() };
-        groups.set(groupKey, group);
-      }
-
-      for (const [metricName, metric] of Object.entries(bench.metrics)) {
-        let agg = group.values.get(metricName);
-        if (!agg) {
-          agg = { sum: 0, count: 0, min: Infinity, max: -Infinity, unit: metric.unit, direction: metric.direction };
-          group.values.set(metricName, agg);
-        }
-        agg.sum += metric.value;
-        agg.count++;
-        agg.min = Math.min(agg.min, metric.value);
-        agg.max = Math.max(agg.max, metric.value);
-      }
-    }
-
-    // Now emit one point per (seriesKey, metric) per run
-    for (const [seriesKey, group] of groups) {
-      for (const [metricName, agg] of group.values) {
-        let series = seriesMap.get(metricName);
-        if (!series) {
-          series = {
-            metric: metricName,
-            unit: agg.unit,
-            direction: agg.direction,
-            series: {},
-          };
-          seriesMap.set(metricName, series);
-        }
-
-        if (!series.series[seriesKey]) {
-          series.series[seriesKey] = { tags: group.tags, points: [] };
-        }
-
-        const avg = agg.sum / agg.count;
-        const range = agg.count > 1 ? agg.max - agg.min : undefined;
-        const point: DataPoint = {
-          timestamp: r.result.context?.timestamp ?? new Date().toISOString(),
-          value: Math.round(avg * 100) / 100,
-          commit: r.result.context?.commit,
-          run_id: r.id,
-          range: range != null ? Math.round(range * 100) / 100 : undefined,
-        };
-        series.series[seriesKey].points.push(point);
-      }
-    }
-  }
+  // Build index and series
+  const index = buildIndex(runs);
+  const allMetrics = index.metrics ?? [];
+  const seriesMap = buildSeries(runs);
 
   // Write index
   const dataDir = path.join(worktree, "data");
@@ -195,7 +93,7 @@ async function run(): Promise<void> {
     JSON.stringify(index, null, 2) + "\n",
   );
   core.info(
-    `Wrote index.json (${index.runs.length} runs, ${allMetrics.size} metrics)`,
+    `Wrote index.json (${index.runs.length} runs, ${allMetrics.length} metrics)`,
   );
 
   // Write series files
@@ -250,7 +148,7 @@ async function run(): Promise<void> {
 
   // Outputs
   core.setOutput("run-count", String(runs.length));
-  core.setOutput("metrics", Array.from(allMetrics).sort().join(","));
+  core.setOutput("metrics", allMetrics.join(","));
 }
 
 run().catch((err) => {

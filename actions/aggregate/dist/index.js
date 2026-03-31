@@ -1,6 +1,138 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 7756:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.sortRuns = sortRuns;
+exports.pruneRuns = pruneRuns;
+exports.buildIndex = buildIndex;
+exports.buildSeries = buildSeries;
+/** Sort runs by timestamp (oldest first). */
+function sortRuns(runs) {
+    runs.sort((a, b) => {
+        const ta = a.result.context?.timestamp ?? "";
+        const tb = b.result.context?.timestamp ?? "";
+        return ta.localeCompare(tb);
+    });
+}
+/**
+ * Remove the oldest runs so that at most `maxRuns` remain.
+ * Returns the IDs of the pruned runs.
+ */
+function pruneRuns(runs, maxRuns) {
+    if (maxRuns <= 0 || runs.length <= maxRuns)
+        return [];
+    const removed = runs.splice(0, runs.length - maxRuns);
+    return removed.map((r) => r.id);
+}
+/** Build the index file from a set of runs (assumes runs are already sorted oldest-first). */
+function buildIndex(runs) {
+    const allMetrics = new Set();
+    const indexRuns = runs.map((r) => {
+        const metricNames = new Set();
+        const benchNames = new Set();
+        for (const b of r.result.benchmarks) {
+            benchNames.add(b.name);
+            for (const m of Object.keys(b.metrics)) {
+                metricNames.add(m);
+                allMetrics.add(m);
+            }
+        }
+        return {
+            id: r.id,
+            timestamp: r.result.context?.timestamp ?? new Date().toISOString(),
+            commit: r.result.context?.commit,
+            ref: r.result.context?.ref,
+            benchmarks: benchNames.size,
+            metrics: Array.from(metricNames).sort(),
+        };
+    });
+    return {
+        runs: [...indexRuns].reverse(), // newest first
+        metrics: Array.from(allMetrics).sort(),
+    };
+}
+/**
+ * Build series files from runs. When a run has multiple benchmarks with the
+ * same name (e.g. Go `-count=N`), their metric values are averaged and the
+ * range is computed from the spread.
+ */
+function buildSeries(runs) {
+    const seriesMap = new Map();
+    for (const r of runs) {
+        // Group benchmarks by (name + tags) within this run
+        const groups = new Map();
+        for (const bench of r.result.benchmarks) {
+            const tagsStr = bench.tags
+                ? Object.entries(bench.tags)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(",")
+                : "";
+            const groupKey = tagsStr ? `${bench.name} [${tagsStr}]` : bench.name;
+            let group = groups.get(groupKey);
+            if (!group) {
+                group = { name: bench.name, tags: bench.tags, values: new Map() };
+                groups.set(groupKey, group);
+            }
+            for (const [metricName, metric] of Object.entries(bench.metrics)) {
+                let agg = group.values.get(metricName);
+                if (!agg) {
+                    agg = {
+                        sum: 0,
+                        count: 0,
+                        min: Infinity,
+                        max: -Infinity,
+                        unit: metric.unit,
+                        direction: metric.direction,
+                    };
+                    group.values.set(metricName, agg);
+                }
+                agg.sum += metric.value;
+                agg.count++;
+                agg.min = Math.min(agg.min, metric.value);
+                agg.max = Math.max(agg.max, metric.value);
+            }
+        }
+        // Emit one point per (seriesKey, metric) per run
+        for (const [seriesKey, group] of groups) {
+            for (const [metricName, agg] of group.values) {
+                let series = seriesMap.get(metricName);
+                if (!series) {
+                    series = {
+                        metric: metricName,
+                        unit: agg.unit,
+                        direction: agg.direction,
+                        series: {},
+                    };
+                    seriesMap.set(metricName, series);
+                }
+                if (!series.series[seriesKey]) {
+                    series.series[seriesKey] = { tags: group.tags, points: [] };
+                }
+                const avg = agg.sum / agg.count;
+                const range = agg.count > 1 ? agg.max - agg.min : undefined;
+                const point = {
+                    timestamp: r.result.context?.timestamp ?? new Date().toISOString(),
+                    value: Math.round(avg * 100) / 100,
+                    commit: r.result.context?.commit,
+                    run_id: r.id,
+                    range: range != null ? Math.round(range * 100) / 100 : undefined,
+                };
+                series.series[seriesKey].points.push(point);
+            }
+        }
+    }
+    return seriesMap;
+}
+//# sourceMappingURL=aggregate.js.map
+
+/***/ }),
+
 /***/ 6786:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -45,6 +177,7 @@ const exec = __importStar(__nccwpck_require__(9192));
 const fs = __importStar(__nccwpck_require__(3024));
 const path = __importStar(__nccwpck_require__(6760));
 const os = __importStar(__nccwpck_require__(8161));
+const aggregate_js_1 = __nccwpck_require__(7756);
 async function run() {
     const dataBranch = core.getInput("data-branch") || "bench-data";
     const token = core.getInput("github-token", { required: true });
@@ -87,6 +220,7 @@ async function run() {
         .filter((f) => f.endsWith(".json"))
         .sort();
     core.info(`Found ${runFiles.length} run file(s)`);
+    // Parse all runs
     const runs = [];
     for (const file of runFiles) {
         const content = fs.readFileSync(path.join(runsDir, file), "utf-8");
@@ -94,109 +228,21 @@ async function run() {
         runs.push({ id: path.basename(file, ".json"), result });
     }
     // Sort by timestamp (oldest first)
-    runs.sort((a, b) => {
-        const ta = a.result.context?.timestamp ?? "";
-        const tb = b.result.context?.timestamp ?? "";
-        return ta.localeCompare(tb);
-    });
+    (0, aggregate_js_1.sortRuns)(runs);
     // Prune old runs
-    if (maxRuns > 0 && runs.length > maxRuns) {
-        const toRemove = runs.splice(0, runs.length - maxRuns);
-        for (const r of toRemove) {
-            fs.unlinkSync(path.join(runsDir, `${r.id}.json`));
-            core.info(`Pruned old run: ${r.id}`);
-        }
+    const pruned = (0, aggregate_js_1.pruneRuns)(runs, maxRuns);
+    for (const id of pruned) {
+        fs.unlinkSync(path.join(runsDir, `${id}.json`));
+        core.info(`Pruned old run: ${id}`);
     }
-    // Collect metrics and build index
-    const allMetrics = new Set();
-    const indexRuns = runs.map((r) => {
-        const metricNames = new Set();
-        const benchNames = new Set();
-        for (const b of r.result.benchmarks) {
-            benchNames.add(b.name);
-            for (const m of Object.keys(b.metrics)) {
-                metricNames.add(m);
-                allMetrics.add(m);
-            }
-        }
-        return {
-            id: r.id,
-            timestamp: r.result.context?.timestamp ?? new Date().toISOString(),
-            commit: r.result.context?.commit,
-            ref: r.result.context?.ref,
-            benchmarks: benchNames.size,
-            metrics: Array.from(metricNames).sort(),
-        };
-    });
-    const index = {
-        runs: [...indexRuns].reverse(), // newest first
-        metrics: Array.from(allMetrics).sort(),
-    };
-    // Build series files per metric
-    // When a run has multiple benchmarks with the same name (e.g. -count=N),
-    // average their values and compute range from the spread.
-    const seriesMap = new Map();
-    for (const r of runs) {
-        // Group benchmarks by (name + tags) within this run
-        const groups = new Map();
-        for (const bench of r.result.benchmarks) {
-            const tagsStr = bench.tags
-                ? Object.entries(bench.tags)
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([k, v]) => `${k}=${v}`)
-                    .join(",")
-                : "";
-            const groupKey = tagsStr ? `${bench.name} [${tagsStr}]` : bench.name;
-            let group = groups.get(groupKey);
-            if (!group) {
-                group = { name: bench.name, tags: bench.tags, values: new Map() };
-                groups.set(groupKey, group);
-            }
-            for (const [metricName, metric] of Object.entries(bench.metrics)) {
-                let agg = group.values.get(metricName);
-                if (!agg) {
-                    agg = { sum: 0, count: 0, min: Infinity, max: -Infinity, unit: metric.unit, direction: metric.direction };
-                    group.values.set(metricName, agg);
-                }
-                agg.sum += metric.value;
-                agg.count++;
-                agg.min = Math.min(agg.min, metric.value);
-                agg.max = Math.max(agg.max, metric.value);
-            }
-        }
-        // Now emit one point per (seriesKey, metric) per run
-        for (const [seriesKey, group] of groups) {
-            for (const [metricName, agg] of group.values) {
-                let series = seriesMap.get(metricName);
-                if (!series) {
-                    series = {
-                        metric: metricName,
-                        unit: agg.unit,
-                        direction: agg.direction,
-                        series: {},
-                    };
-                    seriesMap.set(metricName, series);
-                }
-                if (!series.series[seriesKey]) {
-                    series.series[seriesKey] = { tags: group.tags, points: [] };
-                }
-                const avg = agg.sum / agg.count;
-                const range = agg.count > 1 ? agg.max - agg.min : undefined;
-                const point = {
-                    timestamp: r.result.context?.timestamp ?? new Date().toISOString(),
-                    value: Math.round(avg * 100) / 100,
-                    commit: r.result.context?.commit,
-                    run_id: r.id,
-                    range: range != null ? Math.round(range * 100) / 100 : undefined,
-                };
-                series.series[seriesKey].points.push(point);
-            }
-        }
-    }
+    // Build index and series
+    const index = (0, aggregate_js_1.buildIndex)(runs);
+    const allMetrics = index.metrics ?? [];
+    const seriesMap = (0, aggregate_js_1.buildSeries)(runs);
     // Write index
     const dataDir = path.join(worktree, "data");
     fs.writeFileSync(path.join(dataDir, "index.json"), JSON.stringify(index, null, 2) + "\n");
-    core.info(`Wrote index.json (${index.runs.length} runs, ${allMetrics.size} metrics)`);
+    core.info(`Wrote index.json (${index.runs.length} runs, ${allMetrics.length} metrics)`);
     // Write series files
     const seriesDir = path.join(dataDir, "series");
     fs.mkdirSync(seriesDir, { recursive: true });
@@ -238,7 +284,7 @@ async function run() {
     await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
     // Outputs
     core.setOutput("run-count", String(runs.length));
-    core.setOutput("metrics", Array.from(allMetrics).sort().join(","));
+    core.setOutput("metrics", allMetrics.join(","));
 }
 run().catch((err) => {
     core.setFailed(err instanceof Error ? err.message : String(err));

@@ -1,0 +1,162 @@
+import type {
+  BenchmarkResult,
+  IndexFile,
+  RunEntry,
+  SeriesFile,
+  DataPoint,
+} from "@benchkit/format";
+
+/** A parsed benchmark run with its identifier. */
+export interface ParsedRun {
+  id: string;
+  result: BenchmarkResult;
+}
+
+/** Sort runs by timestamp (oldest first). */
+export function sortRuns(runs: ParsedRun[]): void {
+  runs.sort((a, b) => {
+    const ta = a.result.context?.timestamp ?? "";
+    const tb = b.result.context?.timestamp ?? "";
+    return ta.localeCompare(tb);
+  });
+}
+
+/**
+ * Remove the oldest runs so that at most `maxRuns` remain.
+ * Returns the IDs of the pruned runs.
+ */
+export function pruneRuns(runs: ParsedRun[], maxRuns: number): string[] {
+  if (maxRuns <= 0 || runs.length <= maxRuns) return [];
+  const removed = runs.splice(0, runs.length - maxRuns);
+  return removed.map((r) => r.id);
+}
+
+/** Build the index file from a set of runs (assumes runs are already sorted oldest-first). */
+export function buildIndex(runs: ParsedRun[]): IndexFile {
+  const allMetrics = new Set<string>();
+  const indexRuns: RunEntry[] = runs.map((r) => {
+    const metricNames = new Set<string>();
+    const benchNames = new Set<string>();
+    for (const b of r.result.benchmarks) {
+      benchNames.add(b.name);
+      for (const m of Object.keys(b.metrics)) {
+        metricNames.add(m);
+        allMetrics.add(m);
+      }
+    }
+    return {
+      id: r.id,
+      timestamp: r.result.context?.timestamp ?? new Date().toISOString(),
+      commit: r.result.context?.commit,
+      ref: r.result.context?.ref,
+      benchmarks: benchNames.size,
+      metrics: Array.from(metricNames).sort(),
+    };
+  });
+
+  return {
+    runs: [...indexRuns].reverse(), // newest first
+    metrics: Array.from(allMetrics).sort(),
+  };
+}
+
+/**
+ * Build series files from runs. When a run has multiple benchmarks with the
+ * same name (e.g. Go `-count=N`), their metric values are averaged and the
+ * range is computed from the spread.
+ */
+export function buildSeries(runs: ParsedRun[]): Map<string, SeriesFile> {
+  const seriesMap = new Map<string, SeriesFile>();
+
+  for (const r of runs) {
+    // Group benchmarks by (name + tags) within this run
+    const groups = new Map<
+      string,
+      {
+        name: string;
+        tags?: Record<string, string>;
+        values: Map<
+          string,
+          {
+            sum: number;
+            count: number;
+            min: number;
+            max: number;
+            unit?: string;
+            direction?: "bigger_is_better" | "smaller_is_better";
+          }
+        >;
+      }
+    >();
+
+    for (const bench of r.result.benchmarks) {
+      const tagsStr = bench.tags
+        ? Object.entries(bench.tags)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([k, v]) => `${k}=${v}`)
+            .join(",")
+        : "";
+      const groupKey = tagsStr ? `${bench.name} [${tagsStr}]` : bench.name;
+
+      let group = groups.get(groupKey);
+      if (!group) {
+        group = { name: bench.name, tags: bench.tags, values: new Map() };
+        groups.set(groupKey, group);
+      }
+
+      for (const [metricName, metric] of Object.entries(bench.metrics)) {
+        let agg = group.values.get(metricName);
+        if (!agg) {
+          agg = {
+            sum: 0,
+            count: 0,
+            min: Infinity,
+            max: -Infinity,
+            unit: metric.unit,
+            direction: metric.direction,
+          };
+          group.values.set(metricName, agg);
+        }
+        agg.sum += metric.value;
+        agg.count++;
+        agg.min = Math.min(agg.min, metric.value);
+        agg.max = Math.max(agg.max, metric.value);
+      }
+    }
+
+    // Emit one point per (seriesKey, metric) per run
+    for (const [seriesKey, group] of groups) {
+      for (const [metricName, agg] of group.values) {
+        let series = seriesMap.get(metricName);
+        if (!series) {
+          series = {
+            metric: metricName,
+            unit: agg.unit,
+            direction: agg.direction,
+            series: {},
+          };
+          seriesMap.set(metricName, series);
+        }
+
+        if (!series.series[seriesKey]) {
+          series.series[seriesKey] = { tags: group.tags, points: [] };
+        }
+
+        const avg = agg.sum / agg.count;
+        const range = agg.count > 1 ? agg.max - agg.min : undefined;
+        const point: DataPoint = {
+          timestamp:
+            r.result.context?.timestamp ?? new Date().toISOString(),
+          value: Math.round(avg * 100) / 100,
+          commit: r.result.context?.commit,
+          run_id: r.id,
+          range:
+            range != null ? Math.round(range * 100) / 100 : undefined,
+        };
+        series.series[seriesKey].points.push(point);
+      }
+    }
+  }
+
+  return seriesMap;
+}
