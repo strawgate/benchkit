@@ -102,9 +102,12 @@ export interface ComparisonEntry {
 export interface ComparisonResult {
   entries: ComparisonEntry[];
   hasRegression: boolean;
+  warnings?: string[];
 }
 
+export type ThresholdTest = "percentage" | "z-score" | "t-test";
+
 export interface ThresholdConfig {
-  test: "percentage";
+  test: ThresholdTest;
   threshold: number;
 }

@@ -5,6 +5,7 @@ import type {
   ThresholdConfig,
 } from "./types.js";
 import { inferDirection } from "./infer-direction.js";
+import { zScoreTest, tTest } from "./stats.js";
 
 const DEFAULT_THRESHOLD: ThresholdConfig = { test: "percentage", threshold: 5 };
 
@@ -49,6 +50,7 @@ export function compare(
   }
 
   const entries: ComparisonEntry[] = [];
+  const warnings: string[] = [];
 
   for (const bench of current.benchmarks) {
     const baselineMetrics = baselineMap.get(bench.name);
@@ -69,23 +71,53 @@ export function compare(
 
       const rawChange = ((metric.value - baselineAvg) / baselineAvg) * 100;
 
-      // For smaller_is_better: positive change = worse (regressed)
-      // For bigger_is_better: negative change = worse (regressed)
-      const isWorse =
-        direction === "smaller_is_better" ? rawChange > 0 : rawChange < 0;
-      const isBetter =
-        direction === "smaller_is_better" ? rawChange < 0 : rawChange > 0;
-
-      const absChange = Math.abs(rawChange);
       let status: ComparisonEntry["status"];
-      if (absChange <= config.threshold) {
-        status = "stable";
-      } else if (isWorse) {
-        status = "regressed";
-      } else if (isBetter) {
-        status = "improved";
+      let currentConfig = config;
+
+      // Graceful fallback for statistical tests
+      if (config.test === "z-score" && baselineValues.length < 30) {
+        warnings.push(
+          `Insufficient data for z-score test (${baselineValues.length}/30 points) for ${bench.name} ${metricName}. Falling back to 5% percentage test.`,
+        );
+        currentConfig = DEFAULT_THRESHOLD;
+      } else if (config.test === "t-test" && baselineValues.length < 2) {
+        warnings.push(
+          `Insufficient data for t-test (${baselineValues.length}/2 points) for ${bench.name} ${metricName}. Falling back to 5% percentage test.`,
+        );
+        currentConfig = DEFAULT_THRESHOLD;
+      }
+
+      if (currentConfig.test === "z-score") {
+        status = zScoreTest(
+          metric.value,
+          baselineValues,
+          currentConfig.threshold,
+          direction,
+        );
+      } else if (currentConfig.test === "t-test") {
+        status = tTest(
+          metric.value,
+          baselineValues,
+          currentConfig.threshold,
+          direction,
+        );
       } else {
-        status = "stable";
+        // Percentage test
+        const isWorse =
+          direction === "smaller_is_better" ? rawChange > 0 : rawChange < 0;
+        const isBetter =
+          direction === "smaller_is_better" ? rawChange < 0 : rawChange > 0;
+
+        const absChange = Math.abs(rawChange);
+        if (absChange <= currentConfig.threshold) {
+          status = "stable";
+        } else if (isWorse) {
+          status = "regressed";
+        } else if (isBetter) {
+          status = "improved";
+        } else {
+          status = "stable";
+        }
       }
 
       entries.push({
@@ -104,5 +136,6 @@ export function compare(
   return {
     entries,
     hasRegression: entries.some((e) => e.status === "regressed"),
+    warnings: warnings.length > 0 ? Array.from(new Set(warnings)) : undefined,
   };
 }
