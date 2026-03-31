@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { buildResult, parseBenchmarkFiles, readMonitorOutput } from "./stash.js";
+import { buildResult, parseBenchmarkFiles, parseBenchmarks, readMonitorOutput } from "./stash.js";
 import type { Benchmark, BenchmarkResult } from "@benchkit/format";
 
 // ── buildResult ─────────────────────────────────────────────────────
@@ -127,6 +127,76 @@ describe("parseBenchmarkFiles", () => {
   });
 });
 
+// ── parseBenchmarks failure paths ────────────────────────────────────
+
+describe("parseBenchmarks", () => {
+  it("throws a descriptive error for malformed native JSON", () => {
+    assert.throws(
+      () => parseBenchmarks("{ not valid json }", "native", "results.json"),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.ok(
+          err.message.includes("results.json"),
+          `Expected filename in error: ${err.message}`,
+        );
+        return true;
+      },
+    );
+  });
+
+  it("throws when native JSON is missing benchmarks array", () => {
+    const content = JSON.stringify({ context: { timestamp: "2024-01-01T00:00:00Z" } });
+    assert.throws(
+      () => parseBenchmarks(content, "native", "bench.json"),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.ok(
+          err.message.includes("bench.json"),
+          `Expected filename in error: ${err.message}`,
+        );
+        return true;
+      },
+    );
+  });
+
+  it("throws for an unknown format", () => {
+    assert.throws(
+      () => parseBenchmarks("any content", "unknown" as never, "file.txt"),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.ok(
+          err.message.includes("file.txt"),
+          `Expected filename in error: ${err.message}`,
+        );
+        return true;
+      },
+    );
+  });
+
+  it("returns benchmarks for valid native JSON", () => {
+    const content = JSON.stringify({
+      benchmarks: [
+        { name: "BenchSort", metrics: { ns_per_op: { value: 320, unit: "ns/op" } } },
+      ],
+    });
+    const benchmarks = parseBenchmarks(content, "native", "results.json");
+    assert.equal(benchmarks.length, 1);
+    assert.equal(benchmarks[0].name, "BenchSort");
+  });
+
+  it("returns benchmarks when auto-detecting Go format", () => {
+    const goOutput = [
+      "goos: linux",
+      "goarch: amd64",
+      "BenchmarkSort-8   1000   1234 ns/op   48 B/op   2 allocs/op",
+      "PASS",
+    ].join("\n");
+    const benchmarks = parseBenchmarks(goOutput, "auto", "bench.txt");
+    assert.ok(benchmarks.length >= 1);
+    assert.equal(benchmarks[0].name, "BenchmarkSort");
+  });
+});
+
 // ── readMonitorOutput ───────────────────────────────────────────────
 
 describe("readMonitorOutput", () => {
@@ -149,7 +219,50 @@ describe("readMonitorOutput", () => {
     fs.rmSync(tmpDir, { recursive: true });
   });
 
-  it("throws when file does not exist", () => {
-    assert.throws(() => readMonitorOutput("/nonexistent/path.json"), /Monitor file not found/);
+  it("throws when the monitor file does not exist", () => {
+    const missing = path.join(os.tmpdir(), `benchkit-no-monitor-${Date.now()}.json`);
+    assert.throws(
+      () => readMonitorOutput(missing),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.ok(
+          err.message.includes("Monitor file not found"),
+          `Expected 'Monitor file not found' in: ${err.message}`,
+        );
+        return true;
+      },
+    );
+  });
+
+  it("throws on invalid JSON content", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-stash-test-"));
+    const filePath = path.join(tmpDir, "monitor.json");
+    try {
+      fs.writeFileSync(filePath, "{ not valid json }");
+      assert.throws(() => readMonitorOutput(filePath), SyntaxError);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("throws when benchmarks key is missing", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-stash-test-"));
+    const filePath = path.join(tmpDir, "monitor.json");
+    try {
+      fs.writeFileSync(filePath, JSON.stringify({ context: { timestamp: "2024-01-01T00:00:00Z" } }));
+      assert.throws(
+        () => readMonitorOutput(filePath),
+        (err: unknown) => {
+          assert.ok(err instanceof Error);
+          assert.ok(
+            err.message.includes("benchmarks"),
+            `Expected 'benchmarks' in error message: ${err.message}`,
+          );
+          return true;
+        },
+      );
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
   });
 });

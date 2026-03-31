@@ -333,3 +333,154 @@ describe("writeOutput", () => {
     fs.rmSync(tmpDir, { recursive: true });
   });
 });
+
+// ── buildOutput failure paths ────────────────────────────────────────
+
+describe("buildOutput: empty processes", () => {
+  it("produces only the system entry when no processes are tracked", () => {
+    const tracked = new Map<number, TrackedProcess>();
+
+    const system: SystemTotals = {
+      cpuUserTotal: 500,
+      cpuSystemTotal: 100,
+      cpuTotalTicks: 1000,
+      memAvailableMinMB: 4096,
+      loadAvg1mMax: 1.2,
+      startTime: 0,
+      endTime: 3000,
+      pollCount: 10,
+    };
+
+    const result = buildOutput({ pollIntervalMs: 300, ignoreCommands: [] }, tracked, system);
+    assert.equal(result.benchmarks.length, 1);
+    assert.equal(result.benchmarks[0].name, "_monitor/system");
+  });
+
+  it("computes zero cpu percentages when cpuTotalTicks is zero", () => {
+    const tracked = new Map<number, TrackedProcess>();
+
+    const system: SystemTotals = {
+      cpuUserTotal: 999,
+      cpuSystemTotal: 999,
+      cpuTotalTicks: 0,
+      memAvailableMinMB: 2048,
+      loadAvg1mMax: 0,
+      startTime: 0,
+      endTime: 1000,
+      pollCount: 5,
+    };
+
+    const result = buildOutput({ pollIntervalMs: 250, ignoreCommands: [] }, tracked, system);
+    const systemEntry = result.benchmarks.find((b) => b.name === "_monitor/system");
+    assert.ok(systemEntry);
+    assert.equal(systemEntry.metrics.cpu_user_pct.value, 0);
+    assert.equal(systemEntry.metrics.cpu_system_pct.value, 0);
+  });
+});
+
+// ── writeOutput failure paths ────────────────────────────────────────
+
+describe("writeOutput: failure paths", () => {
+  it("creates parent directories when they do not exist", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "monitor-test-"));
+    const nested = path.join(tmpDir, "a", "b", "c", "output.json");
+
+    const config: MonitorConfig = {
+      pollIntervalMs: 250,
+      outputPath: nested,
+      ignoreCommands: [],
+      sentinelPath: path.join(tmpDir, "sentinel"),
+      statePath: path.join(tmpDir, "state"),
+    };
+
+    const system: SystemTotals = {
+      cpuUserTotal: 0,
+      cpuSystemTotal: 0,
+      cpuTotalTicks: 1,
+      memAvailableMinMB: 8000,
+      loadAvg1mMax: 0,
+      startTime: 0,
+      endTime: 1000,
+      pollCount: 5,
+    };
+
+    writeOutput(config, new Map(), system);
+    assert.ok(fs.existsSync(nested), "Output file should be created in nested directories");
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+});
+
+// ── Sentinel file lifecycle ─────────────────────────────────────────
+
+describe("sentinel file lifecycle", () => {
+  it("writeOutput runs to completion and sentinel is absent by default", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "monitor-sentinel-test-"));
+    const outputPath = path.join(tmpDir, "output.json");
+    const sentinelPath = path.join(tmpDir, ".benchkit-monitor.stop");
+
+    const config: MonitorConfig = {
+      pollIntervalMs: 250,
+      outputPath,
+      ignoreCommands: [],
+      sentinelPath,
+      statePath: path.join(tmpDir, "state"),
+    };
+
+    const system: SystemTotals = {
+      cpuUserTotal: 0,
+      cpuSystemTotal: 0,
+      cpuTotalTicks: 1,
+      memAvailableMinMB: 8000,
+      loadAvg1mMax: 0,
+      startTime: 0,
+      endTime: 1000,
+      pollCount: 5,
+    };
+
+    // Verify sentinel is not present before or after writeOutput
+    assert.ok(!fs.existsSync(sentinelPath), "Sentinel should not exist before writeOutput");
+    writeOutput(config, new Map(), system);
+    assert.ok(!fs.existsSync(sentinelPath), "Sentinel should not be created by writeOutput");
+    assert.ok(fs.existsSync(outputPath), "Output file should exist after writeOutput");
+
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it("sentinel file written before writeOutput does not prevent output from being written", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "monitor-sentinel-test-"));
+    const outputPath = path.join(tmpDir, "output.json");
+    const sentinelPath = path.join(tmpDir, ".benchkit-monitor.stop");
+
+    const config: MonitorConfig = {
+      pollIntervalMs: 250,
+      outputPath,
+      ignoreCommands: [],
+      sentinelPath,
+      statePath: path.join(tmpDir, "state"),
+    };
+
+    const system: SystemTotals = {
+      cpuUserTotal: 100,
+      cpuSystemTotal: 20,
+      cpuTotalTicks: 1000,
+      memAvailableMinMB: 4096,
+      loadAvg1mMax: 0.5,
+      startTime: 0,
+      endTime: 2000,
+      pollCount: 8,
+    };
+
+    // Write sentinel to simulate a stop signal
+    fs.writeFileSync(sentinelPath, "stop");
+
+    // writeOutput itself does not check the sentinel; the worker loop does
+    writeOutput(config, new Map(), system);
+    assert.ok(fs.existsSync(outputPath), "Output should still be written regardless of sentinel");
+
+    // Verify sentinel can be cleaned up
+    fs.unlinkSync(sentinelPath);
+    assert.ok(!fs.existsSync(sentinelPath), "Sentinel should be gone after cleanup");
+
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+});

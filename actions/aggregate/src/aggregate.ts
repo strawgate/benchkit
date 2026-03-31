@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type {
   BenchmarkResult,
   IndexFile,
@@ -160,4 +162,32 @@ export function buildSeries(runs: ParsedRun[]): Map<string, SeriesFile> {
   }
 
   return seriesMap;
+}
+
+/**
+ * Read all run JSON files from `runsDir`.
+ * Throws on corrupted (non-parseable) run files so the caller can surface
+ * a clear error message including the offending file name.
+ */
+export function readRuns(runsDir: string): ParsedRun[] {
+  if (!fs.existsSync(runsDir)) return [];
+  const runFiles = fs.readdirSync(runsDir).filter((f) => f.endsWith(".json")).sort();
+  return runFiles.map((file) => {
+    const filePath = path.join(runsDir, file);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    } catch (err) {
+      throw new Error(
+        `Failed to parse run file '${file}': ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      );
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      throw new Error(
+        `Run file '${file}' must contain a JSON object, got ${parsed === null ? "null" : Array.isArray(parsed) ? "array" : typeof parsed}`,
+      );
+    }
+    return { id: path.basename(file, ".json"), result: parsed as BenchmarkResult };
+  });
 }
