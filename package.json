@@ -8,13 +8,16 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present"
+    "lint": "eslint . && npm run lint --workspaces --if-present"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
     "@vercel/ncc": "^0.38.4",
     "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
-    "typescript": "^5.7.0"
+    "eslint": "^10.1.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.58.0"
   }
 }

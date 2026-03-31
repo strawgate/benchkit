@@ -59441,7 +59441,7 @@ function parseGoBench(input) {
         const m = line.match(re);
         if (!m?.groups)
             continue;
-        const { name, procs, iters, rest } = m.groups;
+        const { name, procs, iters: _iters, rest } = m.groups;
         const tags = {};
         if (procs)
             tags.procs = procs;

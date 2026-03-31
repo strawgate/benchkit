@@ -19,7 +19,7 @@ export function parseGoBench(input: string): BenchmarkResult {
     const m = line.match(re);
     if (!m?.groups) continue;
 
-    const { name, procs, iters, rest } = m.groups;
+    const { name, procs, iters: _iters, rest } = m.groups;
     const tags: Record<string, string> = {};
     if (procs) tags.procs = procs;
 

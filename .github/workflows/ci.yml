@@ -17,6 +17,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Lint
+        run: npx eslint .
+
       - name: Validate schemas
         run: node --test schema/schema.test.mjs
 
