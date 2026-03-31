@@ -187,16 +187,27 @@ interface Context {
 
 ---
 
-## Dashboard Enhancements
+## Roadmap (Issue Tracker)
 
-### Phase 1: Monitor Metrics Display
-- Detect `_monitor/` prefix, render in "Runner Metrics" section
-- Show runner context in run detail view
+| Wave | Milestone | Issues | Status |
+|------|-----------|--------|--------|
+| 1 | Core Infrastructure | #16 Monitor action, #3 Chart test coverage | Copilot working (PR #19) |
+| 2 | Chart Hardening | #22 Date adapter fix, #20 fetch baseUrl+AbortSignal, #21 DashboardProps | Copilot assigned |
+| 3 | Integration | #17 Stash ← monitor merge | Blocked on Wave 1 |
+| 4 | Dashboard Patterns | #18 (parent) → #23 monitor section, #24 tag filtering, #25 leaderboard, #26 regression detection | Blocked on Wave 2 |
+| 5 | Polish & Examples | #7 Integration examples | Blocked on Wave 3–4 |
 
-### Phase 2: Competitive Pattern Support
-- Leaderboard/ranking view for latest run
-- Winner indicator with direction awareness
-- Side-by-side comparison with percentage diff
+### Dependency Graph
+
+```
+Wave 1: #16 monitor ──┬──► Wave 3: #17 stash integration ──► Wave 5: #7 examples
+        #3 chart tests │
+                       │
+Wave 2: #22 date adapter ─┬──► Wave 4: #23 monitor section
+        #20 fetch layer ──┤              #24 tag filtering
+        #21 DashboardProps┘              #25 leaderboard
+                                         #26 regression detection
+```
 
 ### Phase 3: Evolution Pattern Support
 - Tag-based grouping and filtering
