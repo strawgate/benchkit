@@ -9,9 +9,10 @@ Benchkit is a modular toolkit for recording, aggregating, and visualising benchm
 | Component | Path | Description |
 |-----------|------|-------------|
 | **@benchkit/format** | [`packages/format`](packages/format) | TypeScript types and parsers that normalise Go bench, benchmark-action, and native JSON formats into a common `BenchmarkResult` shape. |
-| **@benchkit/chart** | [`packages/chart`](packages/chart) | Preact components (`TrendChart`, `ComparisonBar`, `RunTable`) that fetch pre-aggregated data and render interactive dashboards. |
-| **Benchkit Stash** | [`actions/stash`](actions/stash) | GitHub Action — parses benchmark output and commits the result to the data branch. |
+| **@benchkit/chart** | [`packages/chart`](packages/chart) | Preact components (`TrendChart`, `ComparisonBar`, `RunTable`, `Leaderboard`, `TagFilter`, `MonitorSection`) that fetch pre-aggregated data and render interactive dashboards. |
+| **Benchkit Stash** | [`actions/stash`](actions/stash) | GitHub Action — parses benchmark output, optionally attaches monitor data, and commits the result to the data branch. |
 | **Benchkit Aggregate** | [`actions/aggregate`](actions/aggregate) | GitHub Action — reads every stored run and rebuilds `index.json` plus per-metric `series/*.json` files. |
+| **Benchkit Monitor** | [`actions/monitor`](actions/monitor) | GitHub Action — runs a background process that samples system metrics (`cpu`, `mem`, `load`) via `/proc` during your benchmark step and emits them as `_monitor/` benchmarks. |
 
 ## Architecture
 
@@ -95,6 +96,36 @@ Add a step to your existing CI workflow:
 
 This parses the output, writes `data/runs/{run-id}.json` to the `bench-data` branch, and exposes `run-id` and `file-path` as step outputs.
 
+### Optional: Capture system metrics with the monitor action
+
+Wrap your benchmark step with `monitor` start/stop to record CPU, memory, and load average alongside your results:
+
+```yaml
+- name: Start monitor
+  uses: strawgate/benchkit/actions/monitor@main
+  with:
+    mode: start
+    poll-interval: 250    # ms between /proc samples (default: 250)
+    output: monitor.json
+
+- name: Run benchmarks
+  run: go test -bench=. -benchmem ./... | tee bench.txt
+
+- name: Stop monitor
+  uses: strawgate/benchkit/actions/monitor@main
+  with:
+    mode: stop
+
+- name: Stash results
+  uses: strawgate/benchkit/actions/stash@main
+  with:
+    results: bench.txt
+    monitor: monitor.json   # attach monitor output
+    format: auto
+```
+
+Monitor data is stored as `_monitor/system` and `_monitor/process/{name}` benchmarks and rendered in a separate **Runner Metrics** section in the dashboard. The monitor action only works on Linux runners (macOS/Windows are a no-op).
+
 ### 2. Aggregate into index and series files
 
 Run the aggregate action after stashing (or on a schedule):
@@ -129,6 +160,12 @@ export function App() {
         repo: "your-repo",
         branch: "bench-data",  // optional, this is the default
       }}
+      // Optional customization:
+      metricLabelFormatter={(m) => m.replace(/_/g, " ")}  // pretty-print metric names
+      seriesNameFormatter={(name) => name.replace(/^Benchmark/, "")}  // trim Go prefix
+      commitHref={(sha, run) => `https://github.com/your-org/your-repo/commit/${sha}`}
+      regressionThreshold={10}  // flag series that increased/decreased >10% vs rolling average
+      regressionWindow={5}       // number of preceding runs to average
     />
   );
 }
@@ -165,6 +202,8 @@ jobs:
         uses: strawgate/benchkit/actions/aggregate@main
 ```
 
+See [actions/monitor](actions/monitor) for the full monitor workflow example including per-process tracking.
+
 ## Schemas
 
 The full JSON schemas for each data file are in the [`schema/`](schema/) directory:
@@ -178,9 +217,10 @@ The full JSON schemas for each data file are in the [`schema/`](schema/) directo
 ## Current limitations
 
 - **GitHub-only data storage** — the bench-data branch model relies on GitHub raw-content URLs. Self-hosted Git servers are not supported by the chart package out of the box.
-- **No built-in alerting** — benchkit tracks and visualises trends but does not raise alerts on regressions.
+- **Regression detection is visual only** — the `regressionThreshold` prop highlights regressions in the dashboard but does not fail CI or send notifications.
 - **Single-repo scope** — each repository maintains its own bench-data branch; there is no cross-repo aggregation.
 - **Node 24 runtime** — the GitHub Actions require a Node 24+ runner (GitHub-hosted runners support this by default).
+- **Monitor requires Linux** — `actions/monitor` reads `/proc` and is a no-op on macOS and Windows runners.
 
 ## Development
 
