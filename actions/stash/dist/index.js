@@ -59430,13 +59430,110 @@ module.exports = {
 
 /***/ }),
 
+/***/ 2016:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.compare = compare;
+const infer_direction_js_1 = __nccwpck_require__(5083);
+const DEFAULT_THRESHOLD = { test: "percentage", threshold: 5 };
+/**
+ * Compare a current benchmark run against one or more baseline runs.
+ *
+ * Baseline values are averaged across the provided runs. For each
+ * benchmark+metric pair in `current`, the function computes a percentage
+ * change and applies the threshold test to classify the result as
+ * improved, stable, or regressed.
+ *
+ * Benchmarks in `current` that have no matching baseline are skipped
+ * (new benchmarks cannot regress).
+ */
+function compare(current, baseline, config = DEFAULT_THRESHOLD) {
+    if (baseline.length === 0) {
+        return { entries: [], hasRegression: false };
+    }
+    // Build a lookup: benchmark name → metric name → values[]
+    const baselineMap = new Map();
+    for (const run of baseline) {
+        for (const bench of run.benchmarks) {
+            let metricMap = baselineMap.get(bench.name);
+            if (!metricMap) {
+                metricMap = new Map();
+                baselineMap.set(bench.name, metricMap);
+            }
+            for (const [metricName, metric] of Object.entries(bench.metrics)) {
+                let values = metricMap.get(metricName);
+                if (!values) {
+                    values = [];
+                    metricMap.set(metricName, values);
+                }
+                values.push(metric.value);
+            }
+        }
+    }
+    const entries = [];
+    for (const bench of current.benchmarks) {
+        const baselineMetrics = baselineMap.get(bench.name);
+        if (!baselineMetrics)
+            continue; // new benchmark — no baseline to compare
+        for (const [metricName, metric] of Object.entries(bench.metrics)) {
+            const baselineValues = baselineMetrics.get(metricName);
+            if (!baselineValues || baselineValues.length === 0)
+                continue;
+            const baselineAvg = baselineValues.reduce((a, b) => a + b, 0) / baselineValues.length;
+            // Avoid division by zero
+            if (baselineAvg === 0)
+                continue;
+            const direction = metric.direction ?? (0, infer_direction_js_1.inferDirection)(metric.unit ?? metricName);
+            const rawChange = ((metric.value - baselineAvg) / baselineAvg) * 100;
+            // For smaller_is_better: positive change = worse (regressed)
+            // For bigger_is_better: negative change = worse (regressed)
+            const isWorse = direction === "smaller_is_better" ? rawChange > 0 : rawChange < 0;
+            const isBetter = direction === "smaller_is_better" ? rawChange < 0 : rawChange > 0;
+            const absChange = Math.abs(rawChange);
+            let status;
+            if (absChange <= config.threshold) {
+                status = "stable";
+            }
+            else if (isWorse) {
+                status = "regressed";
+            }
+            else if (isBetter) {
+                status = "improved";
+            }
+            else {
+                status = "stable";
+            }
+            entries.push({
+                benchmark: bench.name,
+                metric: metricName,
+                unit: metric.unit,
+                direction,
+                baseline: baselineAvg,
+                current: metric.value,
+                percentChange: Math.round(rawChange * 100) / 100,
+                status,
+            });
+        }
+    }
+    return {
+        entries,
+        hasRegression: entries.some((e) => e.status === "regressed"),
+    };
+}
+//# sourceMappingURL=compare.js.map
+
+/***/ }),
+
 /***/ 7575:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+exports.compare = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
@@ -59455,6 +59552,9 @@ Object.defineProperty(exports, "parseBenchmarkAction", ({ enumerable: true, get:
 /** Parse Hyperfine JSON format. */
 var parse_hyperfine_js_1 = __nccwpck_require__(9347);
 Object.defineProperty(exports, "parseHyperfine", ({ enumerable: true, get: function () { return parse_hyperfine_js_1.parseHyperfine; } }));
+/** Compare a current benchmark run against baseline runs to detect regressions. */
+var compare_js_1 = __nccwpck_require__(2016);
+Object.defineProperty(exports, "compare", ({ enumerable: true, get: function () { return compare_js_1.compare; } }));
 //# sourceMappingURL=index.js.map
 
 /***/ }),

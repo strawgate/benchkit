@@ -10,6 +10,10 @@ export type {
   DataPoint,
   IndexFile,
   RunEntry,
+  ComparisonResult,
+  ComparisonEntry,
+  ComparisonStatus,
+  ThresholdConfig,
 } from "./types.js";
 
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
@@ -25,3 +29,5 @@ export { parseGoBench } from "./parse-go.js";
 export { parseBenchmarkAction } from "./parse-benchmark-action.js";
 /** Parse Hyperfine JSON format. */
 export { parseHyperfine } from "./parse-hyperfine.js";
+/** Compare a current benchmark run against baseline runs to detect regressions. */
+export { compare } from "./compare.js";
