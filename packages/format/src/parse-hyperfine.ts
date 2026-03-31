@@ -18,6 +18,17 @@ import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
  *   ]
  * }
  */
+
+interface HyperfineResult {
+  command: string;
+  mean: number;
+  stddev: number;
+  median: number;
+  min: number;
+  max: number;
+  times?: number[];
+}
+
 export function parseHyperfine(input: string): BenchmarkResult {
   const parsed = JSON.parse(input);
 
@@ -25,45 +36,47 @@ export function parseHyperfine(input: string): BenchmarkResult {
     throw new Error("Hyperfine format must have a 'results' array.");
   }
 
-  const benchmarks: Benchmark[] = parsed.results.map((result: any) => {
-    if (typeof result.command !== "string") {
-      throw new Error("Each Hyperfine result must have a 'command' string.");
-    }
+  const benchmarks: Benchmark[] = (parsed.results as HyperfineResult[]).map(
+    (result) => {
+      if (typeof result.command !== "string") {
+        throw new Error("Each Hyperfine result must have a 'command' string.");
+      }
 
-    const metrics: Record<string, Metric> = {
-      mean: {
-        value: result.mean,
-        unit: "s",
-        direction: "smaller_is_better",
-        range: result.stddev,
-      },
-      stddev: {
-        value: result.stddev,
-        unit: "s",
-        direction: "smaller_is_better",
-      },
-      median: {
-        value: result.median,
-        unit: "s",
-        direction: "smaller_is_better",
-      },
-      min: {
-        value: result.min,
-        unit: "s",
-        direction: "smaller_is_better",
-      },
-      max: {
-        value: result.max,
-        unit: "s",
-        direction: "smaller_is_better",
-      },
-    };
+      const metrics: Record<string, Metric> = {
+        mean: {
+          value: result.mean,
+          unit: "s",
+          direction: "smaller_is_better",
+          range: result.stddev,
+        },
+        stddev: {
+          value: result.stddev,
+          unit: "s",
+          direction: "smaller_is_better",
+        },
+        median: {
+          value: result.median,
+          unit: "s",
+          direction: "smaller_is_better",
+        },
+        min: {
+          value: result.min,
+          unit: "s",
+          direction: "smaller_is_better",
+        },
+        max: {
+          value: result.max,
+          unit: "s",
+          direction: "smaller_is_better",
+        },
+      };
 
-    return {
-      name: result.command,
-      metrics,
-    };
-  });
+      return {
+        name: result.command,
+        metrics,
+      };
+    },
+  );
 
   return { benchmarks };
 }

@@ -183,8 +183,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.buildResult = buildResult;
 exports.parseBenchmarkFiles = parseBenchmarkFiles;
+exports.parseBenchmarks = parseBenchmarks;
 exports.readMonitorOutput = readMonitorOutput;
 const fs = __importStar(__nccwpck_require__(3024));
+const path = __importStar(__nccwpck_require__(6760));
 const format_1 = __nccwpck_require__(7575);
 /** Assemble a BenchmarkResult from parsed benchmarks, optional monitor data, and CI context. */
 function buildResult(opts) {
@@ -203,7 +205,7 @@ function buildResult(opts) {
     };
     return { benchmarks, context };
 }
-/** Parse all benchmark files matching a glob pattern (synchronous file reads). */
+/** Parse all benchmark files (synchronous file reads). Throws if the list is empty. */
 function parseBenchmarkFiles(files, format) {
     if (files.length === 0) {
         throw new Error("No benchmark result files provided");
@@ -211,10 +213,23 @@ function parseBenchmarkFiles(files, format) {
     const benchmarks = [];
     for (const file of files) {
         const content = fs.readFileSync(file, "utf-8");
-        const result = (0, format_1.parse)(content, format);
-        benchmarks.push(...result.benchmarks);
+        benchmarks.push(...parseBenchmarks(content, format, file));
     }
     return benchmarks;
+}
+/**
+ * Parse a single benchmark file's content in the given format.
+ * Throws a descriptive error including the filename if parsing fails.
+ */
+function parseBenchmarks(content, format, fileName) {
+    let result;
+    try {
+        result = (0, format_1.parse)(content, format);
+    }
+    catch (err) {
+        throw new Error(`Failed to parse '${path.basename(fileName)}': ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
+    return result.benchmarks;
 }
 /** Read and parse a monitor output file. */
 function readMonitorOutput(monitorPath) {
@@ -59421,17 +59436,25 @@ module.exports = {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseBenchmarkAction = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+/** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
+/** Infer the `direction` ("smaller_is_better" / "bigger_is_better") from a metric unit string. */
 var infer_direction_js_1 = __nccwpck_require__(5083);
 Object.defineProperty(exports, "inferDirection", ({ enumerable: true, get: function () { return infer_direction_js_1.inferDirection; } }));
+/** Parse a native JSON benchmark result (benchkit format). */
 var parse_native_js_1 = __nccwpck_require__(1470);
 Object.defineProperty(exports, "parseNative", ({ enumerable: true, get: function () { return parse_native_js_1.parseNative; } }));
+/** Parse Go testing/benchmark output text. */
 var parse_go_js_1 = __nccwpck_require__(8303);
 Object.defineProperty(exports, "parseGoBench", ({ enumerable: true, get: function () { return parse_go_js_1.parseGoBench; } }));
+/** Parse benchmark-action/github-action-benchmark JSON format. */
 var parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 Object.defineProperty(exports, "parseBenchmarkAction", ({ enumerable: true, get: function () { return parse_benchmark_action_js_1.parseBenchmarkAction; } }));
+/** Parse Hyperfine JSON format. */
+var parse_hyperfine_js_1 = __nccwpck_require__(9347);
+Object.defineProperty(exports, "parseHyperfine", ({ enumerable: true, get: function () { return parse_hyperfine_js_1.parseHyperfine; } }));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
@@ -59573,6 +59596,61 @@ function unitToMetricName(unit) {
 
 /***/ }),
 
+/***/ 9347:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseHyperfine = parseHyperfine;
+function parseHyperfine(input) {
+    const parsed = JSON.parse(input);
+    if (!parsed.results || !Array.isArray(parsed.results)) {
+        throw new Error("Hyperfine format must have a 'results' array.");
+    }
+    const benchmarks = parsed.results.map((result) => {
+        if (typeof result.command !== "string") {
+            throw new Error("Each Hyperfine result must have a 'command' string.");
+        }
+        const metrics = {
+            mean: {
+                value: result.mean,
+                unit: "s",
+                direction: "smaller_is_better",
+                range: result.stddev,
+            },
+            stddev: {
+                value: result.stddev,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            median: {
+                value: result.median,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            min: {
+                value: result.min,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            max: {
+                value: result.max,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+        };
+        return {
+            name: result.command,
+            metrics,
+        };
+    });
+    return { benchmarks };
+}
+//# sourceMappingURL=parse-hyperfine.js.map
+
+/***/ }),
+
 /***/ 1470:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -59623,6 +59701,7 @@ exports.parse = parse;
 const parse_go_js_1 = __nccwpck_require__(8303);
 const parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 const parse_native_js_1 = __nccwpck_require__(1470);
+const parse_hyperfine_js_1 = __nccwpck_require__(9347);
 /**
  * Detect the input format and parse into the native BenchmarkResult.
  */
@@ -59637,6 +59716,8 @@ function parse(input, format = "auto") {
             return (0, parse_go_js_1.parseGoBench)(input);
         case "benchmark-action":
             return (0, parse_benchmark_action_js_1.parseBenchmarkAction)(input);
+        case "hyperfine":
+            return (0, parse_hyperfine_js_1.parseHyperfine)(input);
         default:
             throw new Error(`Unknown format: ${format}`);
     }
@@ -59645,6 +59726,7 @@ function parse(input, format = "auto") {
  * Auto-detect format from content.
  *
  * - If it parses as JSON with a "benchmarks" key → native
+ * - If it parses as JSON with a "results" key containing objects with "command" → hyperfine
  * - If it parses as a JSON array of objects with "name"/"value"/"unit" → benchmark-action
  * - If it contains lines matching "Benchmark...\s+\d+" → go
  * - Otherwise → error
@@ -59657,6 +59739,12 @@ function detectFormat(input) {
             const parsed = JSON.parse(trimmed);
             if (parsed.benchmarks && Array.isArray(parsed.benchmarks)) {
                 return "native";
+            }
+            if (parsed.results &&
+                Array.isArray(parsed.results) &&
+                parsed.results.length > 0 &&
+                typeof parsed.results[0].command === "string") {
+                return "hyperfine";
             }
             if (Array.isArray(parsed) &&
                 parsed.length > 0 &&
@@ -59673,7 +59761,7 @@ function detectFormat(input) {
     if (/^Benchmark\w.*\s+\d+\s+[\d.]+\s+\w+\/\w+/m.test(trimmed)) {
         return "go";
     }
-    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, benchmark-action.");
+    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, benchmark-action, hyperfine.");
 }
 //# sourceMappingURL=parse.js.map
 

@@ -2,15 +2,51 @@ require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 7756:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.sortRuns = sortRuns;
 exports.pruneRuns = pruneRuns;
 exports.buildIndex = buildIndex;
 exports.buildSeries = buildSeries;
+exports.readRuns = readRuns;
+const fs = __importStar(__nccwpck_require__(3024));
+const path = __importStar(__nccwpck_require__(6760));
 /** Sort runs by timestamp (oldest first). */
 function sortRuns(runs) {
     runs.sort((a, b) => {
@@ -130,6 +166,30 @@ function buildSeries(runs) {
     }
     return seriesMap;
 }
+/**
+ * Read all run JSON files from `runsDir`.
+ * Throws on corrupted (non-parseable) run files so the caller can surface
+ * a clear error message including the offending file name.
+ */
+function readRuns(runsDir) {
+    if (!fs.existsSync(runsDir))
+        return [];
+    const runFiles = fs.readdirSync(runsDir).filter((f) => f.endsWith(".json")).sort();
+    return runFiles.map((file) => {
+        const filePath = path.join(runsDir, file);
+        let parsed;
+        try {
+            parsed = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        }
+        catch (err) {
+            throw new Error(`Failed to parse run file '${file}': ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+        }
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+            throw new Error(`Run file '${file}' must contain a JSON object, got ${parsed === null ? "null" : Array.isArray(parsed) ? "array" : typeof parsed}`);
+        }
+        return { id: path.basename(file, ".json"), result: parsed };
+    });
+}
 //# sourceMappingURL=aggregate.js.map
 
 /***/ }),
@@ -183,6 +243,9 @@ async function run() {
     const dataBranch = core.getInput("data-branch") || "bench-data";
     const token = core.getInput("github-token", { required: true });
     const maxRuns = parseInt(core.getInput("max-runs") || "0", 10);
+    if (maxRuns < 0 || maxRuns > 10_000) {
+        throw new Error(`max-runs must be between 0 and 10000, got ${maxRuns}`);
+    }
     await configureGit(token);
     // Fetch data branch
     const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
@@ -203,7 +266,7 @@ async function run() {
         await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
         return;
     }
-    const runs = readRuns(runsDir);
+    const runs = (0, aggregate_js_1.readRuns)(runsDir);
     core.info(`Found ${runs.length} run file(s)`);
     // Sort, prune, aggregate
     (0, aggregate_js_1.sortRuns)(runs);
@@ -249,14 +312,6 @@ async function configureGit(token) {
         "http.https://github.com/.extraheader",
         `AUTHORIZATION: basic ${basicAuth}`,
     ]);
-}
-function readRuns(runsDir) {
-    const runFiles = fs.readdirSync(runsDir).filter((f) => f.endsWith(".json")).sort();
-    return runFiles.map((file) => {
-        const content = fs.readFileSync(path.join(runsDir, file), "utf-8");
-        const result = JSON.parse(content);
-        return { id: path.basename(file, ".json"), result };
-    });
 }
 function writeAggregatedFiles(worktree, index, seriesMap) {
     const dataDir = path.join(worktree, "data");
