@@ -1,0 +1,148 @@
+{
+  "benchmarks": [
+    {
+      "name": "BenchmarkSort",
+      "tags": {
+        "procs": "4"
+      },
+      "metrics": {
+        "ns_per_op": {
+          "value": 300,
+          "unit": "ns/op",
+          "direction": "smaller_is_better"
+        },
+        "bytes_per_op": {
+          "value": 48,
+          "unit": "B/op",
+          "direction": "smaller_is_better"
+        },
+        "allocs_per_op": {
+          "value": 2,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better"
+        }
+      }
+    },
+    {
+      "name": "BenchmarkSort",
+      "tags": {
+        "procs": "4"
+      },
+      "metrics": {
+        "ns_per_op": {
+          "value": 320,
+          "unit": "ns/op",
+          "direction": "smaller_is_better"
+        },
+        "bytes_per_op": {
+          "value": 48,
+          "unit": "B/op",
+          "direction": "smaller_is_better"
+        },
+        "allocs_per_op": {
+          "value": 2,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better"
+        }
+      }
+    },
+    {
+      "name": "BenchmarkSort",
+      "tags": {
+        "procs": "4"
+      },
+      "metrics": {
+        "ns_per_op": {
+          "value": 310,
+          "unit": "ns/op",
+          "direction": "smaller_is_better"
+        },
+        "bytes_per_op": {
+          "value": 48,
+          "unit": "B/op",
+          "direction": "smaller_is_better"
+        },
+        "allocs_per_op": {
+          "value": 2,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better"
+        }
+      }
+    },
+    {
+      "name": "BenchmarkSearch",
+      "tags": {
+        "procs": "4"
+      },
+      "metrics": {
+        "ns_per_op": {
+          "value": 100,
+          "unit": "ns/op",
+          "direction": "smaller_is_better"
+        },
+        "bytes_per_op": {
+          "value": 0,
+          "unit": "B/op",
+          "direction": "smaller_is_better"
+        },
+        "allocs_per_op": {
+          "value": 0,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better"
+        }
+      }
+    },
+    {
+      "name": "BenchmarkSearch",
+      "tags": {
+        "procs": "4"
+      },
+      "metrics": {
+        "ns_per_op": {
+          "value": 120,
+          "unit": "ns/op",
+          "direction": "smaller_is_better"
+        },
+        "bytes_per_op": {
+          "value": 0,
+          "unit": "B/op",
+          "direction": "smaller_is_better"
+        },
+        "allocs_per_op": {
+          "value": 0,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better"
+        }
+      }
+    },
+    {
+      "name": "BenchmarkSearch",
+      "tags": {
+        "procs": "4"
+      },
+      "metrics": {
+        "ns_per_op": {
+          "value": 110,
+          "unit": "ns/op",
+          "direction": "smaller_is_better"
+        },
+        "bytes_per_op": {
+          "value": 0,
+          "unit": "B/op",
+          "direction": "smaller_is_better"
+        },
+        "allocs_per_op": {
+          "value": 0,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better"
+        }
+      }
+    }
+  ],
+  "context": {
+    "commit": "2305a5779d36038e88fefc08b23cad689c3c9f0e",
+    "ref": "refs/heads/main",
+    "timestamp": "2026-03-31T03:28:29.330Z",
+    "runner": "Linux/X64"
+  }
+}
