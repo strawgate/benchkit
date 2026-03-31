@@ -17,11 +17,7 @@ describe("stats", () => {
   });
 
   describe("zScoreTest", () => {
-    const baseline = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]; // 30 points
-
     it("detects regression (smaller_is_better)", () => {
-      // Mean 100, SD 10. Current 130 -> Z=3. Threshold 1.96 (95%)
-      const values = Array(30).fill(100).concat([110, 90]); // Still mean 100
       // To keep it simple, let's use values that clearly have a mean and SD
       const simpleBaseline = [90, 110, 90, 110, 90, 110, 90, 110, 90, 110, 90, 110, 90, 110, 90, 110, 90, 110, 90, 110, 90, 110, 90, 110, 90, 110, 90, 110, 90, 110];
       // mean=100, sd=10.34
