@@ -41,15 +41,6 @@ export function Leaderboard({ series, seriesNameFormatter, class: className }: L
   const ranked = rankSeries(series);
 
   if (ranked.length === 0) return null;
-  if (ranked.length === 1) {
-    const [r] = ranked;
-    const label = seriesNameFormatter ? seriesNameFormatter(r.name, r.entry) : r.name;
-    return (
-      <div class={className} style={{ fontSize: "13px", color: "#374151" }}>
-        {label}: {r.latestValue} {series.unit ?? ""}
-      </div>
-    );
-  }
 
   return (
     <div class={className}>

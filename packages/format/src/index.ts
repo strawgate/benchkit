@@ -12,9 +12,14 @@ export type {
   RunEntry,
 } from "./types.js";
 
+/** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 export { parse } from "./parse.js";
 export type { Format } from "./parse.js";
+/** Infer the `direction` ("smaller_is_better" / "bigger_is_better") from a metric unit string. */
 export { inferDirection } from "./infer-direction.js";
+/** Parse a native JSON benchmark result (benchkit format). */
 export { parseNative } from "./parse-native.js";
+/** Parse Go testing/benchmark output text. */
 export { parseGoBench } from "./parse-go.js";
+/** Parse benchmark-action/github-action-benchmark JSON format. */
 export { parseBenchmarkAction } from "./parse-benchmark-action.js";

@@ -71,4 +71,45 @@ describe("parseGoBench", () => {
     const result = parseGoBench(input);
     assert.equal(result.benchmarks.length, 0);
   });
+
+  it("parses sub-benchmark names with slashes", () => {
+    const input = `BenchmarkSort/asc-8    10000    100 ns/op`;
+    const result = parseGoBench(input);
+    assert.equal(result.benchmarks.length, 1);
+    assert.equal(result.benchmarks[0].name, "BenchmarkSort/asc");
+  });
+
+  it("parses benchmark names with special characters", () => {
+    const input = `BenchmarkParse/json(100)-8    5000    200 ns/op`;
+    const result = parseGoBench(input);
+    assert.equal(result.benchmarks.length, 1);
+    assert.equal(result.benchmarks[0].name, "BenchmarkParse/json(100)");
+  });
+
+  it("skips lines where benchmark name contains spaces (unsupported)", () => {
+    // Go does not allow spaces in benchmark function names; such lines don't match
+    const input = `Benchmark Has Spaces-8    1000    100 ns/op`;
+    const result = parseGoBench(input);
+    assert.equal(result.benchmarks.length, 0);
+  });
+
+  it("handles custom metric units via fallback key", () => {
+    const input = `BenchmarkEncode-4    2000    512 ns/op    1234 bytes`;
+    const result = parseGoBench(input);
+    assert.equal(result.benchmarks.length, 1);
+    assert.ok("bytes" in result.benchmarks[0].metrics, "custom unit should produce metric keyed by unit name");
+    assert.equal(result.benchmarks[0].metrics["bytes"].value, 1234);
+  });
+
+  it("ignores PASS/FAIL/ok summary lines", () => {
+    const input = [
+      "PASS",
+      "FAIL\tgithub.com/example/pkg",
+      "ok  \tgithub.com/example/pkg\t1.234s",
+      "BenchmarkOk-8    1000    99 ns/op",
+    ].join("\n");
+    const result = parseGoBench(input);
+    assert.equal(result.benchmarks.length, 1);
+    assert.equal(result.benchmarks[0].name, "BenchmarkOk");
+  });
 });
