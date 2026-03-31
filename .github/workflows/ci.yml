@@ -44,6 +44,12 @@ jobs:
       - name: Test aggregate action
         run: npm run test --workspace=actions/aggregate
 
+      - name: Build monitor action
+        run: npm run build --workspace=actions/monitor
+
+      - name: Test monitor action
+        run: npm run test --workspace=actions/monitor
+
       - name: Verify action bundles are up-to-date
         run: |
           if [[ -n "$(git status --porcelain actions/*/dist/)" ]]; then
