@@ -15,6 +15,9 @@ async function run(): Promise<void> {
   const dataBranch = core.getInput("data-branch") || "bench-data";
   const token = core.getInput("github-token", { required: true });
   const maxRuns = parseInt(core.getInput("max-runs") || "0", 10);
+  if (maxRuns < 0 || maxRuns > 10_000) {
+    throw new Error(`max-runs must be between 0 and 10000, got ${maxRuns}`);
+  }
 
   await configureGit(token);
 

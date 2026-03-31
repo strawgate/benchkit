@@ -52,7 +52,7 @@ export function detectRegressions(
     const mean = sum / actualWindow;
 
     // Avoid division by zero.
-    if (mean === 0) continue;
+    if (mean < 1e-10) continue;
 
     const percentChange = ((latest.value - mean) / mean) * 100;
 

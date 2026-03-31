@@ -52,6 +52,15 @@ export function RunTable({ index, maxRows, onSelectRun, commitHref, class: class
           </tr>
         ))}
       </tbody>
+      {maxRows && index.runs.length > maxRows && (
+        <tfoot>
+          <tr>
+            <td colSpan={6} style={{ padding: "6px 12px", color: "#6b7280", fontSize: "12px" }}>
+              Showing {maxRows} of {index.runs.length} runs
+            </td>
+          </tr>
+        </tfoot>
+      )}
     </table>
   );
 }
