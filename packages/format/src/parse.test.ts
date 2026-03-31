@@ -33,6 +33,14 @@ describe("parse (auto-detect)", () => {
     assert.equal(result.benchmarks[0].name, "sort::bench_sort");
   });
 
+  it("detects Hyperfine format", () => {
+    const input = JSON.stringify({
+      results: [{ command: "sleep 1", mean: 1.0 }],
+    });
+    const result = parse(input);
+    assert.equal(result.benchmarks[0].name, "sleep 1");
+  });
+
   it("throws on unrecognized input", () => {
     assert.throws(() => parse("totally unknown format"), {
       message: /Could not auto-detect/,

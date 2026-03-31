@@ -83,3 +83,28 @@ export interface RunEntry {
   metrics?: string[];
   monitor?: MonitorContext;
 }
+
+/** Comparison types — produced by compare(). */
+
+export type ComparisonStatus = "improved" | "stable" | "regressed";
+
+export interface ComparisonEntry {
+  benchmark: string;
+  metric: string;
+  unit?: string;
+  direction: "bigger_is_better" | "smaller_is_better";
+  baseline: number;
+  current: number;
+  percentChange: number;
+  status: ComparisonStatus;
+}
+
+export interface ComparisonResult {
+  entries: ComparisonEntry[];
+  hasRegression: boolean;
+}
+
+export interface ThresholdConfig {
+  test: "percentage";
+  threshold: number;
+}

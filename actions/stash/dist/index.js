@@ -59430,13 +59430,110 @@ module.exports = {
 
 /***/ }),
 
+/***/ 2016:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.compare = compare;
+const infer_direction_js_1 = __nccwpck_require__(5083);
+const DEFAULT_THRESHOLD = { test: "percentage", threshold: 5 };
+/**
+ * Compare a current benchmark run against one or more baseline runs.
+ *
+ * Baseline values are averaged across the provided runs. For each
+ * benchmark+metric pair in `current`, the function computes a percentage
+ * change and applies the threshold test to classify the result as
+ * improved, stable, or regressed.
+ *
+ * Benchmarks in `current` that have no matching baseline are skipped
+ * (new benchmarks cannot regress).
+ */
+function compare(current, baseline, config = DEFAULT_THRESHOLD) {
+    if (baseline.length === 0) {
+        return { entries: [], hasRegression: false };
+    }
+    // Build a lookup: benchmark name → metric name → values[]
+    const baselineMap = new Map();
+    for (const run of baseline) {
+        for (const bench of run.benchmarks) {
+            let metricMap = baselineMap.get(bench.name);
+            if (!metricMap) {
+                metricMap = new Map();
+                baselineMap.set(bench.name, metricMap);
+            }
+            for (const [metricName, metric] of Object.entries(bench.metrics)) {
+                let values = metricMap.get(metricName);
+                if (!values) {
+                    values = [];
+                    metricMap.set(metricName, values);
+                }
+                values.push(metric.value);
+            }
+        }
+    }
+    const entries = [];
+    for (const bench of current.benchmarks) {
+        const baselineMetrics = baselineMap.get(bench.name);
+        if (!baselineMetrics)
+            continue; // new benchmark — no baseline to compare
+        for (const [metricName, metric] of Object.entries(bench.metrics)) {
+            const baselineValues = baselineMetrics.get(metricName);
+            if (!baselineValues || baselineValues.length === 0)
+                continue;
+            const baselineAvg = baselineValues.reduce((a, b) => a + b, 0) / baselineValues.length;
+            // Avoid division by zero
+            if (baselineAvg === 0)
+                continue;
+            const direction = metric.direction ?? (0, infer_direction_js_1.inferDirection)(metric.unit ?? metricName);
+            const rawChange = ((metric.value - baselineAvg) / baselineAvg) * 100;
+            // For smaller_is_better: positive change = worse (regressed)
+            // For bigger_is_better: negative change = worse (regressed)
+            const isWorse = direction === "smaller_is_better" ? rawChange > 0 : rawChange < 0;
+            const isBetter = direction === "smaller_is_better" ? rawChange < 0 : rawChange > 0;
+            const absChange = Math.abs(rawChange);
+            let status;
+            if (absChange <= config.threshold) {
+                status = "stable";
+            }
+            else if (isWorse) {
+                status = "regressed";
+            }
+            else if (isBetter) {
+                status = "improved";
+            }
+            else {
+                status = "stable";
+            }
+            entries.push({
+                benchmark: bench.name,
+                metric: metricName,
+                unit: metric.unit,
+                direction,
+                baseline: baselineAvg,
+                current: metric.value,
+                percentChange: Math.round(rawChange * 100) / 100,
+                status,
+            });
+        }
+    }
+    return {
+        entries,
+        hasRegression: entries.some((e) => e.status === "regressed"),
+    };
+}
+//# sourceMappingURL=compare.js.map
+
+/***/ }),
+
 /***/ 7575:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+exports.compare = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
@@ -59455,6 +59552,12 @@ Object.defineProperty(exports, "parseRustBench", ({ enumerable: true, get: funct
 /** Parse benchmark-action/github-action-benchmark JSON format. */
 var parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 Object.defineProperty(exports, "parseBenchmarkAction", ({ enumerable: true, get: function () { return parse_benchmark_action_js_1.parseBenchmarkAction; } }));
+/** Parse Hyperfine JSON format. */
+var parse_hyperfine_js_1 = __nccwpck_require__(9347);
+Object.defineProperty(exports, "parseHyperfine", ({ enumerable: true, get: function () { return parse_hyperfine_js_1.parseHyperfine; } }));
+/** Compare a current benchmark run against baseline runs to detect regressions. */
+var compare_js_1 = __nccwpck_require__(2016);
+Object.defineProperty(exports, "compare", ({ enumerable: true, get: function () { return compare_js_1.compare; } }));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
@@ -59596,6 +59699,61 @@ function unitToMetricName(unit) {
 
 /***/ }),
 
+/***/ 9347:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseHyperfine = parseHyperfine;
+function parseHyperfine(input) {
+    const parsed = JSON.parse(input);
+    if (!parsed.results || !Array.isArray(parsed.results)) {
+        throw new Error("Hyperfine format must have a 'results' array.");
+    }
+    const benchmarks = parsed.results.map((result) => {
+        if (typeof result.command !== "string") {
+            throw new Error("Each Hyperfine result must have a 'command' string.");
+        }
+        const metrics = {
+            mean: {
+                value: result.mean,
+                unit: "s",
+                direction: "smaller_is_better",
+                range: result.stddev,
+            },
+            stddev: {
+                value: result.stddev,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            median: {
+                value: result.median,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            min: {
+                value: result.min,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            max: {
+                value: result.max,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+        };
+        return {
+            name: result.command,
+            metrics,
+        };
+    });
+    return { benchmarks };
+}
+//# sourceMappingURL=parse-hyperfine.js.map
+
+/***/ }),
+
 /***/ 1470:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -59696,6 +59854,7 @@ const parse_go_js_1 = __nccwpck_require__(8303);
 const parse_rust_js_1 = __nccwpck_require__(7215);
 const parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 const parse_native_js_1 = __nccwpck_require__(1470);
+const parse_hyperfine_js_1 = __nccwpck_require__(9347);
 /**
  * Detect the input format and parse into the native BenchmarkResult.
  */
@@ -59712,6 +59871,8 @@ function parse(input, format = "auto") {
             return (0, parse_rust_js_1.parseRustBench)(input);
         case "benchmark-action":
             return (0, parse_benchmark_action_js_1.parseBenchmarkAction)(input);
+        case "hyperfine":
+            return (0, parse_hyperfine_js_1.parseHyperfine)(input);
         default:
             throw new Error(`Unknown format: ${format}`);
     }
@@ -59720,6 +59881,7 @@ function parse(input, format = "auto") {
  * Auto-detect format from content.
  *
  * - If it parses as JSON with a "benchmarks" key → native
+ * - If it parses as JSON with a "results" key containing objects with "command" → hyperfine
  * - If it parses as a JSON array of objects with "name"/"value"/"unit" → benchmark-action
  * - If it contains lines matching "Benchmark...\s+\d+" → go
  * - Otherwise → error
@@ -59732,6 +59894,12 @@ function detectFormat(input) {
             const parsed = JSON.parse(trimmed);
             if (parsed.benchmarks && Array.isArray(parsed.benchmarks)) {
                 return "native";
+            }
+            if (parsed.results &&
+                Array.isArray(parsed.results) &&
+                parsed.results.length > 0 &&
+                typeof parsed.results[0].command === "string") {
+                return "hyperfine";
             }
             if (Array.isArray(parsed) &&
                 parsed.length > 0 &&
@@ -59752,7 +59920,7 @@ function detectFormat(input) {
     if (/^test\s+\S+\s+\.\.\.\s+bench:/m.test(trimmed)) {
         return "rust";
     }
-    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action.");
+    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine.");
 }
 //# sourceMappingURL=parse.js.map
 
