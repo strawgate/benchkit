@@ -12,3 +12,5 @@ export { fetchIndex, fetchSeries, fetchRun, type DataSource } from "./fetch.js";
 
 // Ranking utilities
 export { rankSeries, getWinner, type RankedEntry } from "./leaderboard.js";
+// Utilities
+export { detectRegressions, regressionTooltip, type RegressionResult } from "./utils.js";
