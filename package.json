@@ -13,6 +13,8 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@vercel/ncc": "^0.38.4",
+    "ajv": "^8.18.0",
+    "ajv-formats": "^3.0.1",
     "typescript": "^5.7.0"
   }
 }
