@@ -1,6 +1,6 @@
 {
   "name": "@benchkit/stash",
-  "version": "0.1.0",
+  "version": "0.1.1-beta.0",
   "private": true,
   "description": "GitHub Action: parse benchmark results and commit to a data branch.",
   "scripts": {

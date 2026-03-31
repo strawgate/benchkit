@@ -1,6 +1,6 @@
 {
   "name": "@benchkit/format",
-  "version": "0.1.0",
+  "version": "0.1.1-beta.0",
   "description": "Benchmark result types and format parsers (Go bench, benchmark-action, OTLP, native).",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,6 +9,13 @@
     "test": "node --test dist/*.test.js",
     "lint": "tsc --noEmit"
   },
-  "files": ["dist"],
-  "license": "MIT"
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/strawgate/benchkit.git",
+    "directory": "packages/format"
+  }
 }

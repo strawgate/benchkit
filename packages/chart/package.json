@@ -1,6 +1,6 @@
 {
   "name": "@benchkit/chart",
-  "version": "0.1.0",
+  "version": "0.1.1-beta.0",
   "description": "Preact components for rendering benchkit benchmark dashboards.",
   "type": "module",
   "main": "dist/index.js",
@@ -21,6 +21,11 @@
     "dist"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/strawgate/benchkit.git",
+    "directory": "packages/chart"
+  },
   "dependencies": {
     "@benchkit/format": "*",
     "chart.js": "^4.4.0",
