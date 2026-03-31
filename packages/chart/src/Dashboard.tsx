@@ -49,6 +49,7 @@ export function Dashboard({
 }: DashboardProps) {
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [seriesMap, setSeriesMap] = useState<Map<string, SeriesFile>>(new Map());
+  const [seriesErrors, setSeriesErrors] = useState<Map<string, string>>(new Map());
   const [view, setView] = useState<View>("overview");
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -63,13 +64,21 @@ export function Dashboard({
       .then(async (idx) => {
         setIndex(idx);
         if (idx.metrics) {
-          const entries = await Promise.all(
+          const results = await Promise.allSettled(
             idx.metrics.map(async (m) => {
               const s = await fetchSeries(source, m, signal);
               return [m, s] as const;
             }),
           );
-          setSeriesMap(new Map(entries));
+          const map = new Map<string, SeriesFile>();
+          const errs = new Map<string, string>();
+          results.forEach((r, i) => {
+            const metric = idx.metrics![i];
+            if (r.status === "fulfilled") map.set(metric, r.value[1]);
+            else errs.set(metric, String(r.reason));
+          });
+          setSeriesMap(map);
+          setSeriesErrors(errs);
         }
       })
       .catch((err) => {
@@ -107,6 +116,7 @@ export function Dashboard({
   const userMetricNames = (index.metrics ?? []).filter((m) => !isMonitorMetric(m));
 
   const selectedSeries = typeof view === "object" ? seriesMap.get(view.metric) : null;
+  const selectedMetricError = typeof view === "object" ? (seriesErrors.get(view.metric) ?? null) : null;
   const selectedRegressions = typeof view === "object" ? (regressionMap.get(view.metric) ?? []) : [];
 
   return (
@@ -131,7 +141,11 @@ export function Dashboard({
         ))}
       </div>
 
-      {selectedSeries ? (
+      {selectedMetricError ? (
+        <div style={{ color: "#ef4444", padding: "12px", border: "1px solid #fca5a5", borderRadius: "8px" }}>
+          Failed to load metric data: {selectedMetricError}
+        </div>
+      ) : selectedSeries ? (
         <div>
           <TrendChart
             series={filterSeriesFile(selectedSeries, activeFilters)}
@@ -157,7 +171,27 @@ export function Dashboard({
         <div>
           <TagFilter seriesMap={new Map(userMetrics)} activeFilters={activeFilters} onFilterChange={setActiveFilters} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "16px" }}>
-            {userMetrics.map(([metric, sf]) => {
+            {userMetricNames.map((metric) => {
+              const metricErr = seriesErrors.get(metric);
+              if (metricErr) {
+                return (
+                  <div
+                    key={metric}
+                    style={{
+                      padding: "12px",
+                      border: "1px solid #fca5a5",
+                      borderRadius: "8px",
+                      color: "#ef4444",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <strong>{metricLabelFormatter ? metricLabelFormatter(metric) : metric}</strong>
+                    <div style={{ marginTop: "4px" }}>Failed to load: {metricErr}</div>
+                  </div>
+                );
+              }
+              const sf = seriesMap.get(metric);
+              if (!sf) return null;
               const seriesNames = Object.keys(sf.series);
               const isCompetitive = seriesNames.length > 1;
               const winnerName = isCompetitive ? getWinner(sf) : undefined;
