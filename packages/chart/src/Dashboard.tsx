@@ -20,24 +20,31 @@ export function Dashboard({ source, class: className }: DashboardProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
     setLoading(true);
     setError(null);
-    fetchIndex(source)
+    fetchIndex(source, signal)
       .then(async (idx) => {
         setIndex(idx);
         if (idx.metrics) {
           const entries = await Promise.all(
             idx.metrics.map(async (m) => {
-              const s = await fetchSeries(source, m);
+              const s = await fetchSeries(source, m, signal);
               return [m, s] as const;
             }),
           );
           setSeriesMap(new Map(entries));
         }
       })
-      .catch((err) => setError(String(err)))
-      .finally(() => setLoading(false));
-  }, [source.owner, source.repo, source.branch]);
+      .catch((err) => {
+        if (!signal.aborted) setError(String(err));
+      })
+      .finally(() => {
+        if (!signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [source.owner, source.repo, source.branch, source.baseUrl]);
 
   const handleMetricClick = useCallback((metric: string) => {
     setView((v) => (typeof v === "object" && v.metric === metric ? "overview" : { metric }));

@@ -1,13 +1,29 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
 
+// Inline rawUrl logic for unit testing without ESM bundler complications.
+interface DataSource {
+  owner?: string;
+  repo?: string;
+  branch?: string;
+  baseUrl?: string;
+}
+
+function rawUrl(ds: DataSource, path: string): string {
+  if (ds.baseUrl) {
+    return `${ds.baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+  }
+  if (!ds.owner || !ds.repo) {
+    throw new Error("DataSource must have either baseUrl or owner+repo");
+  }
+  const branch = ds.branch ?? "bench-data";
+  return `https://raw.githubusercontent.com/${ds.owner}/${ds.repo}/${branch}/${path}`;
+}
+
 describe("fetch", () => {
-  it("constructs correct raw URLs", async () => {
-    // We can't import the ESM directly in node:test easily without bundler,
-    // so we verify the URL logic inline.
-    const ds = { owner: "strawgate", repo: "benchkit", branch: "bench-data" };
-    const branch = ds.branch ?? "bench-data";
-    const url = `https://raw.githubusercontent.com/${ds.owner}/${ds.repo}/${branch}/data/index.json`;
+  it("constructs correct raw URLs", () => {
+    const ds: DataSource = { owner: "strawgate", repo: "benchkit", branch: "bench-data" };
+    const url = rawUrl(ds, "data/index.json");
     assert.equal(
       url,
       "https://raw.githubusercontent.com/strawgate/benchkit/bench-data/data/index.json",
@@ -15,8 +31,50 @@ describe("fetch", () => {
   });
 
   it("defaults to bench-data branch", () => {
-    const ds: { owner: string; repo: string; branch?: string } = { owner: "foo", repo: "bar" };
-    const branch = ds.branch ?? "bench-data";
-    assert.equal(branch, "bench-data");
+    const ds: DataSource = { owner: "foo", repo: "bar" };
+    const url = rawUrl(ds, "data/index.json");
+    assert.equal(
+      url,
+      "https://raw.githubusercontent.com/foo/bar/bench-data/data/index.json",
+    );
+  });
+
+  it("baseUrl overrides GitHub raw URL construction", () => {
+    const ds: DataSource = { baseUrl: "https://my-server.example.com/data" };
+    const url = rawUrl(ds, "data/index.json");
+    assert.equal(url, "https://my-server.example.com/data/data/index.json");
+  });
+
+  it("baseUrl ignores owner/repo/branch when set", () => {
+    const ds: DataSource = {
+      owner: "strawgate",
+      repo: "benchkit",
+      branch: "main",
+      baseUrl: "https://custom.host/files",
+    };
+    const url = rawUrl(ds, "data/series/ns_per_op.json");
+    assert.equal(url, "https://custom.host/files/data/series/ns_per_op.json");
+  });
+
+  it("baseUrl with trailing slashes is normalized", () => {
+    const ds: DataSource = { baseUrl: "https://my-server.example.com/data///" };
+    const url = rawUrl(ds, "data/index.json");
+    assert.equal(url, "https://my-server.example.com/data/data/index.json");
+  });
+
+  it("throws when neither baseUrl nor owner+repo provided", () => {
+    const ds: DataSource = {};
+    assert.throws(
+      () => rawUrl(ds, "data/index.json"),
+      { message: "DataSource must have either baseUrl or owner+repo" },
+    );
+  });
+
+  it("throws when only owner is provided without repo", () => {
+    const ds: DataSource = { owner: "foo" };
+    assert.throws(
+      () => rawUrl(ds, "data/index.json"),
+      { message: "DataSource must have either baseUrl or owner+repo" },
+    );
   });
 });
