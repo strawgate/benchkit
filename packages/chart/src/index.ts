@@ -4,7 +4,11 @@ export { ComparisonBar, type ComparisonBarProps } from "./components/ComparisonB
 export { RunTable, type RunTableProps } from "./components/RunTable.js";
 export { MonitorSection, type MonitorSectionProps } from "./components/MonitorSection.js";
 export { TagFilter, type TagFilterProps, extractTags, filterSeriesFile } from "./components/TagFilter.js";
+export { Leaderboard, type LeaderboardProps } from "./components/Leaderboard.js";
 export { Dashboard, type DashboardProps } from "./Dashboard.js";
 
 // Data fetching
 export { fetchIndex, fetchSeries, fetchRun, type DataSource } from "./fetch.js";
+
+// Ranking utilities
+export { rankSeries, getWinner, type RankedEntry } from "./leaderboard.js";
