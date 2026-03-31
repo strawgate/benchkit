@@ -183,8 +183,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.buildResult = buildResult;
 exports.parseBenchmarkFiles = parseBenchmarkFiles;
+exports.parseBenchmarks = parseBenchmarks;
 exports.readMonitorOutput = readMonitorOutput;
 const fs = __importStar(__nccwpck_require__(3024));
+const path = __importStar(__nccwpck_require__(6760));
 const format_1 = __nccwpck_require__(7575);
 /** Assemble a BenchmarkResult from parsed benchmarks, optional monitor data, and CI context. */
 function buildResult(opts) {
@@ -203,7 +205,7 @@ function buildResult(opts) {
     };
     return { benchmarks, context };
 }
-/** Parse all benchmark files matching a glob pattern (synchronous file reads). */
+/** Parse all benchmark files (synchronous file reads). Throws if the list is empty. */
 function parseBenchmarkFiles(files, format) {
     if (files.length === 0) {
         throw new Error("No benchmark result files provided");
@@ -211,10 +213,23 @@ function parseBenchmarkFiles(files, format) {
     const benchmarks = [];
     for (const file of files) {
         const content = fs.readFileSync(file, "utf-8");
-        const result = (0, format_1.parse)(content, format);
-        benchmarks.push(...result.benchmarks);
+        benchmarks.push(...parseBenchmarks(content, format, file));
     }
     return benchmarks;
+}
+/**
+ * Parse a single benchmark file's content in the given format.
+ * Throws a descriptive error including the filename if parsing fails.
+ */
+function parseBenchmarks(content, format, fileName) {
+    let result;
+    try {
+        result = (0, format_1.parse)(content, format);
+    }
+    catch (err) {
+        throw new Error(`Failed to parse '${path.basename(fileName)}': ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
+    return result.benchmarks;
 }
 /** Read and parse a monitor output file. */
 function readMonitorOutput(monitorPath) {
@@ -59421,15 +59436,23 @@ module.exports = {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parseBenchmarkAction = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+/** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
+/** Infer the `direction` ("smaller_is_better" / "bigger_is_better") from a metric unit string. */
 var infer_direction_js_1 = __nccwpck_require__(5083);
 Object.defineProperty(exports, "inferDirection", ({ enumerable: true, get: function () { return infer_direction_js_1.inferDirection; } }));
+/** Parse a native JSON benchmark result (benchkit format). */
 var parse_native_js_1 = __nccwpck_require__(1470);
 Object.defineProperty(exports, "parseNative", ({ enumerable: true, get: function () { return parse_native_js_1.parseNative; } }));
+/** Parse Go testing/benchmark output text. */
 var parse_go_js_1 = __nccwpck_require__(8303);
 Object.defineProperty(exports, "parseGoBench", ({ enumerable: true, get: function () { return parse_go_js_1.parseGoBench; } }));
+/** Parse Rust cargo bench (libtest) output text. */
+var parse_rust_js_1 = __nccwpck_require__(7215);
+Object.defineProperty(exports, "parseRustBench", ({ enumerable: true, get: function () { return parse_rust_js_1.parseRustBench; } }));
+/** Parse benchmark-action/github-action-benchmark JSON format. */
 var parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 Object.defineProperty(exports, "parseBenchmarkAction", ({ enumerable: true, get: function () { return parse_benchmark_action_js_1.parseBenchmarkAction; } }));
 //# sourceMappingURL=index.js.map
@@ -59613,6 +59636,55 @@ function parseNative(input) {
 
 /***/ }),
 
+/***/ 7215:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseRustBench = parseRustBench;
+/**
+ * Parse Rust cargo bench (libtest) output into native format.
+ *
+ * Example:
+ *   test sort::bench_sort   ... bench:         320 ns/iter (+/- 42)
+ */
+function parseRustBench(input) {
+    const benchmarks = [];
+    const re = /^test\s+(?<name>\S+)\s+\.\.\.\s+bench:\s+(?<value>[\d,]+)\s+(?<unit>\S+)(?:\s+\(\+\/-\s+(?<range>[\d,]+)\))?/;
+    for (const line of input.split(/\r?\n/)) {
+        const trimmedLine = line.trim();
+        const m = trimmedLine.match(re);
+        if (!m?.groups)
+            continue;
+        const { name, value, unit, range } = m.groups;
+        const metrics = {};
+        const numericValue = parseFloat(value.replace(/,/g, ""));
+        const metric = {
+            value: numericValue,
+            unit,
+            direction: "smaller_is_better",
+        };
+        if (range) {
+            metric.range = parseFloat(range.replace(/,/g, ""));
+        }
+        metrics[unitToMetricName(unit)] = metric;
+        benchmarks.push({
+            name,
+            metrics,
+        });
+    }
+    return { benchmarks };
+}
+function unitToMetricName(unit) {
+    if (unit === "ns/iter")
+        return "ns_per_iter";
+    return unit.replace(/\//g, "_per_").replace(/\s+/g, "_").toLowerCase();
+}
+//# sourceMappingURL=parse-rust.js.map
+
+/***/ }),
+
 /***/ 9152:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -59621,6 +59693,7 @@ function parseNative(input) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parse = parse;
 const parse_go_js_1 = __nccwpck_require__(8303);
+const parse_rust_js_1 = __nccwpck_require__(7215);
 const parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 const parse_native_js_1 = __nccwpck_require__(1470);
 /**
@@ -59635,6 +59708,8 @@ function parse(input, format = "auto") {
             return (0, parse_native_js_1.parseNative)(input);
         case "go":
             return (0, parse_go_js_1.parseGoBench)(input);
+        case "rust":
+            return (0, parse_rust_js_1.parseRustBench)(input);
         case "benchmark-action":
             return (0, parse_benchmark_action_js_1.parseBenchmarkAction)(input);
         default:
@@ -59673,7 +59748,11 @@ function detectFormat(input) {
     if (/^Benchmark\w.*\s+\d+\s+[\d.]+\s+\w+\/\w+/m.test(trimmed)) {
         return "go";
     }
-    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, benchmark-action.");
+    // Check for Rust benchmark lines
+    if (/^test\s+\S+\s+\.\.\.\s+bench:/m.test(trimmed)) {
+        return "rust";
+    }
+    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action.");
 }
 //# sourceMappingURL=parse.js.map
 
