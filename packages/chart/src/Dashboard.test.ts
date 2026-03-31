@@ -4,7 +4,7 @@ import { h } from "preact";
 import render from "preact-render-to-string";
 import { Dashboard } from "./Dashboard.js";
 import type { DataSource } from "./fetch.js";
-import type { IndexFile, SeriesFile } from "@benchkit/format";
+import type { IndexFile } from "@benchkit/format";
 
 const source: DataSource = { owner: "test-owner", repo: "test-repo" };
 
@@ -25,16 +25,6 @@ const sampleIndex: IndexFile = {
     { id: "run-1", timestamp: "2024-06-15T10:30:00Z", commit: "abc12345", ref: "refs/heads/main", benchmarks: 2, metrics: ["ops"] },
   ],
   metrics: ["ops"],
-};
-
-const _sampleSeries: SeriesFile = {
-  metric: "ops",
-  unit: "ops/s",
-  series: {
-    "bench-a": {
-      points: [{ timestamp: "2024-01-01T00:00:00Z", value: 100 }],
-    },
-  },
 };
 
 describe("Dashboard", () => {
