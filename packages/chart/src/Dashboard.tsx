@@ -5,6 +5,7 @@ import { TrendChart } from "./components/TrendChart.js";
 import { ComparisonBar } from "./components/ComparisonBar.js";
 import { RunTable } from "./components/RunTable.js";
 import { MonitorSection } from "./components/MonitorSection.js";
+import { TagFilter, filterSeriesFile } from "./components/TagFilter.js";
 
 export interface DashboardProps {
   source: DataSource;
@@ -40,6 +41,7 @@ export function Dashboard({
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [seriesMap, setSeriesMap] = useState<Map<string, SeriesFile>>(new Map());
   const [view, setView] = useState<View>("overview");
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -112,35 +114,38 @@ export function Dashboard({
       {selectedSeries ? (
         <div>
           <TrendChart
-            series={selectedSeries}
+            series={filterSeriesFile(selectedSeries, activeFilters)}
             title={metricLabelFormatter ? metricLabelFormatter(selectedSeries.metric) : selectedSeries.metric}
             seriesNameFormatter={seriesNameFormatter}
           />
           <div style={{ marginTop: "16px" }}>
             <ComparisonBar
-              series={selectedSeries}
+              series={filterSeriesFile(selectedSeries, activeFilters)}
               title={`Latest: ${metricLabelFormatter ? metricLabelFormatter(selectedSeries.metric) : selectedSeries.metric}`}
               seriesNameFormatter={seriesNameFormatter}
             />
           </div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "16px" }}>
-          {userMetrics.map(([metric, sf]) => (
-            <div
-              key={metric}
-              onClick={() => handleMetricClick(metric)}
-              style={{ cursor: "pointer", padding: "12px", border: "1px solid #e5e7eb", borderRadius: "8px" }}
-            >
-              <TrendChart
-                series={sf}
-                title={metricLabelFormatter ? metricLabelFormatter(metric) : metric}
-                height={200}
-                maxPoints={maxPoints}
-                seriesNameFormatter={seriesNameFormatter}
-              />
-            </div>
-          ))}
+        <div>
+          <TagFilter seriesMap={new Map(userMetrics)} activeFilters={activeFilters} onFilterChange={setActiveFilters} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "16px" }}>
+            {userMetrics.map(([metric, sf]) => (
+              <div
+                key={metric}
+                onClick={() => handleMetricClick(metric)}
+                style={{ cursor: "pointer", padding: "12px", border: "1px solid #e5e7eb", borderRadius: "8px" }}
+              >
+                <TrendChart
+                  series={filterSeriesFile(sf, activeFilters)}
+                  title={metricLabelFormatter ? metricLabelFormatter(metric) : metric}
+                  height={200}
+                  maxPoints={maxPoints}
+                  seriesNameFormatter={seriesNameFormatter}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
