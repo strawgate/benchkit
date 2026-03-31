@@ -4,6 +4,7 @@ import { fetchIndex, fetchSeries, type DataSource } from "./fetch.js";
 import { TrendChart } from "./components/TrendChart.js";
 import { ComparisonBar } from "./components/ComparisonBar.js";
 import { RunTable } from "./components/RunTable.js";
+import { MonitorSection } from "./components/MonitorSection.js";
 
 export interface DashboardProps {
   source: DataSource;
@@ -21,6 +22,11 @@ export interface DashboardProps {
 }
 
 type View = "overview" | { metric: string };
+
+/** Returns true when the metric name belongs to the monitor action. */
+function isMonitorMetric(metric: string): boolean {
+  return metric.startsWith("_monitor/");
+}
 
 export function Dashboard({
   source,
@@ -72,12 +78,19 @@ export function Dashboard({
   if (error) return <div class={className} style={{ color: "red" }}>{error}</div>;
   if (!index) return <div class={className}>No data found.</div>;
 
+  // Partition metrics into user benchmarks and _monitor/ system metrics
+  const userMetrics = [...seriesMap.entries()].filter(([m]) => !isMonitorMetric(m));
+  const monitorMetrics = [...seriesMap.entries()].filter(([m]) => isMonitorMetric(m));
+  const monitorSeriesMap = new Map(monitorMetrics);
+
+  const userMetricNames = (index.metrics ?? []).filter((m) => !isMonitorMetric(m));
+
   const selectedSeries = typeof view === "object" ? seriesMap.get(view.metric) : null;
 
   return (
     <div class={className} style={{ fontFamily: "system-ui, sans-serif" }}>
       <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
-        {index.metrics?.map((m) => (
+        {userMetricNames.map((m) => (
           <button
             key={m}
             onClick={() => handleMetricClick(m)}
@@ -113,7 +126,7 @@ export function Dashboard({
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "16px" }}>
-          {[...seriesMap.entries()].map(([metric, sf]) => (
+          {userMetrics.map(([metric, sf]) => (
             <div
               key={metric}
               onClick={() => handleMetricClick(metric)}
@@ -131,6 +144,17 @@ export function Dashboard({
         </div>
       )}
 
+      {!selectedSeries && (
+        <MonitorSection
+          monitorSeriesMap={monitorSeriesMap}
+          index={index}
+          maxPoints={maxPoints}
+          metricLabelFormatter={metricLabelFormatter}
+          seriesNameFormatter={seriesNameFormatter}
+          onMetricClick={handleMetricClick}
+        />
+      )}
+
       <div style={{ marginTop: "24px" }}>
         <h3 style={{ fontSize: "14px", margin: "0 0 8px" }}>Recent Runs</h3>
         <RunTable index={index} maxRows={maxRuns} commitHref={commitHref} />
@@ -138,3 +162,4 @@ export function Dashboard({
     </div>
   );
 }
+

@@ -49,6 +49,7 @@ function buildIndex(runs) {
             ref: r.result.context?.ref,
             benchmarks: benchNames.size,
             metrics: Array.from(metricNames).sort(),
+            monitor: r.result.context?.monitor,
         };
     });
     return {
