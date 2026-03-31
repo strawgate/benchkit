@@ -1,9 +1,10 @@
 import type { BenchmarkResult } from "./types.js";
 import { parseGoBench } from "./parse-go.js";
+import { parseRustBench } from "./parse-rust.js";
 import { parseBenchmarkAction } from "./parse-benchmark-action.js";
 import { parseNative } from "./parse-native.js";
 
-export type Format = "native" | "go" | "benchmark-action" | "auto";
+export type Format = "native" | "go" | "benchmark-action" | "rust" | "auto";
 
 /**
  * Detect the input format and parse into the native BenchmarkResult.
@@ -18,6 +19,8 @@ export function parse(input: string, format: Format = "auto"): BenchmarkResult {
       return parseNative(input);
     case "go":
       return parseGoBench(input);
+    case "rust":
+      return parseRustBench(input);
     case "benchmark-action":
       return parseBenchmarkAction(input);
     default:
@@ -63,7 +66,12 @@ function detectFormat(input: string): Exclude<Format, "auto"> {
     return "go";
   }
 
+  // Check for Rust benchmark lines
+  if (/^test\s+\S+\s+\.\.\.\s+bench:/m.test(trimmed)) {
+    return "rust";
+  }
+
   throw new Error(
-    "Could not auto-detect format. Use the 'format' option to specify one of: native, go, benchmark-action.",
+    "Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action.",
   );
 }

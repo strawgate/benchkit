@@ -27,6 +27,12 @@ describe("parse (auto-detect)", () => {
     assert.equal(result.benchmarks[0].name, "BenchmarkFoo");
   });
 
+  it("detects Rust bench format", () => {
+    const input = `test sort::bench_sort   ... bench:         320 ns/iter (+/- 42)`;
+    const result = parse(input);
+    assert.equal(result.benchmarks[0].name, "sort::bench_sort");
+  });
+
   it("throws on unrecognized input", () => {
     assert.throws(() => parse("totally unknown format"), {
       message: /Could not auto-detect/,
