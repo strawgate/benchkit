@@ -1,0 +1,14 @@
+{
+  "name": "@benchkit/monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub Action: background system metrics collection via /proc polling.",
+  "scripts": {
+    "build": "tsc && ncc build lib/main.js -o dist -s && ncc build lib/monitor-worker.js -o dist/worker -s && mv dist/worker/index.js dist/monitor-worker.js && rm -rf dist/worker",
+    "test": "tsc && node --test lib/proc.test.js lib/monitor.test.js",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.0"
+  }
+}

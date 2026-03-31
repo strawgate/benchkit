@@ -1,0 +1,21 @@
+name: 'Benchkit Monitor'
+description: 'Background system metrics collection via /proc polling.'
+inputs:
+  mode:
+    description: 'Action mode: start or stop.'
+    required: true
+  poll-interval:
+    description: 'Poll interval in milliseconds.'
+    default: '250'
+  output:
+    description: 'Path to write the monitor JSON output.'
+    default: 'monitor.json'
+  ignore-commands:
+    description: 'Comma-separated list of command substrings to ignore.'
+    default: ''
+outputs:
+  output-file:
+    description: 'Path to the monitor output JSON file (set on stop).'
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
