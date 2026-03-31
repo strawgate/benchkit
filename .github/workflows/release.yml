@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build format package
+        run: npm run build --workspace=packages/format
+
+      - name: Test format package
+        run: npm run test --workspace=packages/format
+
+      - name: Build chart package
+        run: npm run build --workspace=packages/chart
+
+      - name: Test chart package
+        run: npm run test --workspace=packages/chart
+
+  publish:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      - name: Build format package
+        run: npm run build --workspace=packages/format
+
+      - name: Build chart package
+        run: npm run build --workspace=packages/chart
+
+      - name: Verify tag matches package versions
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          FORMAT_VERSION=$(node -p "require('./packages/format/package.json').version")
+          CHART_VERSION=$(node -p "require('./packages/chart/package.json').version")
+
+          echo "Tag version:    $TAG"
+          echo "Format version: $FORMAT_VERSION"
+          echo "Chart version:  $CHART_VERSION"
+
+          if [[ "$TAG" != "$FORMAT_VERSION" ]]; then
+            echo "::error::Tag v$TAG does not match @benchkit/format version $FORMAT_VERSION"
+            exit 1
+          fi
+          if [[ "$TAG" != "$CHART_VERSION" ]]; then
+            echo "::error::Tag v$TAG does not match @benchkit/chart version $CHART_VERSION"
+            exit 1
+          fi
+
+      - name: Publish @benchkit/format
+        run: npm publish --workspace=packages/format --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @benchkit/chart
+        run: npm publish --workspace=packages/chart --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | sed -n '2p' || true)
+
+          if [[ -n "$PREV_TAG" ]]; then
+            echo "Generating changelog from $PREV_TAG to $TAG"
+            LOG=$(git log "$PREV_TAG".."$TAG" --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "No previous tag found; listing all commits"
+            LOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          {
+            echo "notes<<EOF"
+            echo "## What's Changed"
+            echo ""
+            echo "$LOG"
+            echo ""
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG:-$(git rev-list --max-parents=0 HEAD)}...$TAG"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: tag,
+              body: ${{ toJSON(steps.notes.outputs.notes) }},
+              draft: false,
+              prerelease: tag.includes('-'),
+            });
