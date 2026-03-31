@@ -298,3 +298,107 @@ describe("series schema", () => {
     assert.equal(validate(data), false);
   });
 });
+
+/* ------------------------------------------------------------------ */
+/*  comparison-result.schema.json                                     */
+/* ------------------------------------------------------------------ */
+
+describe("comparison-result schema", () => {
+  const ajv = createValidator();
+  const schema = loadSchema("comparison-result.schema.json");
+  const validate = ajv.compile(schema);
+
+  it("accepts a valid comparison result", () => {
+    const data = {
+      entries: [
+        {
+          benchmark: "BenchmarkSort",
+          metric: "ns_per_op",
+          unit: "ns/op",
+          direction: "smaller_is_better",
+          baseline: 100,
+          current: 120,
+          percentChange: 20,
+          status: "regressed",
+        },
+      ],
+      hasRegression: true,
+    };
+    assert.equal(validate(data), true, JSON.stringify(validate.errors));
+  });
+
+  it("accepts an empty entries array", () => {
+    const data = { entries: [], hasRegression: false };
+    assert.equal(validate(data), true, JSON.stringify(validate.errors));
+  });
+
+  it("accepts entries without optional unit", () => {
+    const data = {
+      entries: [
+        {
+          benchmark: "Bench",
+          metric: "ops",
+          direction: "bigger_is_better",
+          baseline: 1000,
+          current: 1200,
+          percentChange: 20,
+          status: "improved",
+        },
+      ],
+      hasRegression: false,
+    };
+    assert.equal(validate(data), true, JSON.stringify(validate.errors));
+  });
+
+  it("rejects when entries is missing", () => {
+    assert.equal(validate({ hasRegression: false }), false);
+  });
+
+  it("rejects when hasRegression is missing", () => {
+    assert.equal(validate({ entries: [] }), false);
+  });
+
+  it("rejects an invalid status", () => {
+    const data = {
+      entries: [
+        {
+          benchmark: "Bench",
+          metric: "x",
+          direction: "smaller_is_better",
+          baseline: 100,
+          current: 100,
+          percentChange: 0,
+          status: "unknown",
+        },
+      ],
+      hasRegression: false,
+    };
+    assert.equal(validate(data), false);
+  });
+
+  it("rejects an invalid direction", () => {
+    const data = {
+      entries: [
+        {
+          benchmark: "Bench",
+          metric: "x",
+          direction: "invalid",
+          baseline: 100,
+          current: 100,
+          percentChange: 0,
+          status: "stable",
+        },
+      ],
+      hasRegression: false,
+    };
+    assert.equal(validate(data), false);
+  });
+
+  it("rejects an entry missing required fields", () => {
+    const data = {
+      entries: [{ benchmark: "Bench", metric: "x" }],
+      hasRegression: false,
+    };
+    assert.equal(validate(data), false);
+  });
+});

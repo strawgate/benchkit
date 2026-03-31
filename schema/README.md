@@ -99,6 +99,32 @@ Defines **pre-aggregated time-series** data for a single metric.
 
 Written to `data/series/{metricName}.json` by `bench-aggregate`.
 
+### `comparison-result.schema.json`
+
+Defines the output of `compare()` — per-benchmark per-metric comparison with
+regression detection.
+
+```jsonc
+{
+  "entries": [
+    {
+      "benchmark": "BenchmarkSort",
+      "metric": "ns_per_op",
+      "unit": "ns/op",
+      "direction": "smaller_is_better",
+      "baseline": 100,                    // averaged across baseline runs
+      "current": 120,
+      "percentChange": 20,               // positive = increased
+      "status": "regressed"              // "improved" | "stable" | "regressed"
+    }
+  ],
+  "hasRegression": true
+}
+```
+
+Produced by `compare()` in `@benchkit/format`. Used by `actions/compare` for
+PR comments and job summaries.
+
 ## Direction field
 
 The `direction` field on metrics and series declares whether higher or lower
