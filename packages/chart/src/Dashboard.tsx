@@ -6,6 +6,8 @@ import { ComparisonBar } from "./components/ComparisonBar.js";
 import { RunTable } from "./components/RunTable.js";
 import { MonitorSection } from "./components/MonitorSection.js";
 import { TagFilter, filterSeriesFile } from "./components/TagFilter.js";
+import { Leaderboard } from "./components/Leaderboard.js";
+import { getWinner } from "./leaderboard.js";
 
 export interface DashboardProps {
   source: DataSource;
@@ -125,17 +127,45 @@ export function Dashboard({
               seriesNameFormatter={seriesNameFormatter}
             />
           </div>
+          {Object.keys(selectedSeries.series).length > 1 && (
+            <div style={{ marginTop: "16px" }}>
+              <h3 style={{ fontSize: "14px", margin: "0 0 8px" }}>Leaderboard</h3>
+              <Leaderboard series={selectedSeries} seriesNameFormatter={seriesNameFormatter} />
+            </div>
+          )}
         </div>
       ) : (
         <div>
           <TagFilter seriesMap={new Map(userMetrics)} activeFilters={activeFilters} onFilterChange={setActiveFilters} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "16px" }}>
-            {userMetrics.map(([metric, sf]) => (
+            {userMetrics.map(([metric, sf]) => {
+              const seriesNames = Object.keys(sf.series);
+              const isCompetitive = seriesNames.length > 1;
+              const winnerName = isCompetitive ? getWinner(sf) : undefined;
+              const winnerLabel = winnerName
+                ? (seriesNameFormatter ? seriesNameFormatter(winnerName, sf.series[winnerName]) : winnerName)
+                : undefined;
+              return (
               <div
                 key={metric}
                 onClick={() => handleMetricClick(metric)}
                 style={{ cursor: "pointer", padding: "12px", border: "1px solid #e5e7eb", borderRadius: "8px" }}
               >
+                {winnerLabel && (
+                  <div style={{ marginBottom: "6px", fontSize: "12px" }}>
+                    <span
+                      style={{
+                        background: "#dcfce7",
+                        color: "#16a34a",
+                        borderRadius: "4px",
+                        padding: "2px 6px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      ★ {winnerLabel}
+                    </span>
+                  </div>
+                )}
                 <TrendChart
                   series={filterSeriesFile(sf, activeFilters)}
                   title={metricLabelFormatter ? metricLabelFormatter(metric) : metric}
@@ -144,7 +174,8 @@ export function Dashboard({
                   seriesNameFormatter={seriesNameFormatter}
                 />
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
