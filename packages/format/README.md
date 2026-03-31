@@ -158,6 +158,20 @@ interface Context {
   ref?: string;      // Git ref, e.g. "main"
   timestamp?: string; // ISO 8601 datetime, e.g. "2025-01-15T10:30:00Z"
   runner?: string;   // Runner label or machine description
+  monitor?: MonitorContext; // Present when monitor output is merged via stash action
+}
+
+interface MonitorContext {
+  monitor_version: string;  // Version of the monitor action
+  poll_interval_ms: number; // Polling interval in milliseconds
+  duration_ms: number;      // Total monitoring duration in milliseconds
+  runner_os?: string;       // Operating system of the runner
+  runner_arch?: string;     // Architecture of the runner
+  poll_count?: number;      // Number of polling cycles performed
+  kernel?: string;          // Kernel version string
+  cpu_model?: string;       // CPU model name
+  cpu_count?: number;       // Number of logical CPU cores
+  total_memory_mb?: number; // Total system memory in megabytes
 }
 ```
 

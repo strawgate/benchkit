@@ -24,11 +24,25 @@ export interface Sample {
   [metricName: string]: number;
 }
 
+export interface MonitorContext {
+  monitor_version: string;
+  poll_interval_ms: number;
+  duration_ms: number;
+  runner_os?: string;
+  runner_arch?: string;
+  poll_count?: number;
+  kernel?: string;
+  cpu_model?: string;
+  cpu_count?: number;
+  total_memory_mb?: number;
+}
+
 export interface Context {
   commit?: string;
   ref?: string;
   timestamp?: string;
   runner?: string;
+  monitor?: MonitorContext;
 }
 
 /** Series format — pre-aggregated data produced by bench-aggregate. */

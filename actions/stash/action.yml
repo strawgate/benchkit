@@ -16,6 +16,9 @@ inputs:
   run-id:
     description: 'Custom run identifier. Defaults to GITHUB_RUN_ID-GITHUB_RUN_ATTEMPT.'
     required: false
+  monitor:
+    description: 'Path to monitor.json produced by the monitor action. When provided, monitor benchmarks and context are merged into the stored result.'
+    required: false
 outputs:
   run-id:
     description: 'The run identifier used for this stash.'

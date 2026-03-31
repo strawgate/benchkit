@@ -4,13 +4,14 @@ import * as glob from "@actions/glob";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { parse, type Format, type BenchmarkResult } from "@benchkit/format";
+import { parse, parseNative, type Format, type BenchmarkResult } from "@benchkit/format";
 
 async function run(): Promise<void> {
   const resultsPattern = core.getInput("results", { required: true });
   const format = (core.getInput("format") || "auto") as Format;
   const dataBranch = core.getInput("data-branch") || "bench-data";
   const token = core.getInput("github-token", { required: true });
+  const monitorPath = core.getInput("monitor") || "";
   const runId =
     core.getInput("run-id") ||
     `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
@@ -34,6 +35,20 @@ async function run(): Promise<void> {
     );
   }
 
+  // Read and merge monitor output if provided
+  let monitorResult: BenchmarkResult | undefined;
+  if (monitorPath) {
+    if (!fs.existsSync(monitorPath)) {
+      throw new Error(`Monitor file not found: ${monitorPath}`);
+    }
+    const monitorContent = fs.readFileSync(monitorPath, "utf-8");
+    monitorResult = parseNative(monitorContent);
+    allBenchmarks.push(...monitorResult.benchmarks);
+    core.info(
+      `  ${path.basename(monitorPath)}: ${monitorResult.benchmarks.length} monitor benchmark(s)`,
+    );
+  }
+
   const result: BenchmarkResult = {
     benchmarks: allBenchmarks,
     context: {
@@ -43,6 +58,7 @@ async function run(): Promise<void> {
       runner: process.env.RUNNER_OS
         ? `${process.env.RUNNER_OS}/${process.env.RUNNER_ARCH}`
         : undefined,
+      monitor: monitorResult?.context?.monitor,
     },
   };
 
