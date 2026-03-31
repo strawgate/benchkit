@@ -108,6 +108,53 @@
         "runner": {
           "type": "string",
           "description": "GitHub Actions runner label or machine description."
+        },
+        "monitor": {
+          "type": "object",
+          "description": "Metadata from the monitor action, present when monitor output is merged.",
+          "required": ["monitor_version", "poll_interval_ms", "duration_ms"],
+          "properties": {
+            "monitor_version": {
+              "type": "string",
+              "description": "Version of the monitor action that produced this data."
+            },
+            "poll_interval_ms": {
+              "type": "number",
+              "description": "Polling interval in milliseconds."
+            },
+            "duration_ms": {
+              "type": "number",
+              "description": "Total monitoring duration in milliseconds."
+            },
+            "runner_os": {
+              "type": "string",
+              "description": "Operating system of the runner."
+            },
+            "runner_arch": {
+              "type": "string",
+              "description": "Architecture of the runner."
+            },
+            "poll_count": {
+              "type": "number",
+              "description": "Number of polling cycles performed."
+            },
+            "kernel": {
+              "type": "string",
+              "description": "Kernel version string."
+            },
+            "cpu_model": {
+              "type": "string",
+              "description": "CPU model name."
+            },
+            "cpu_count": {
+              "type": "number",
+              "description": "Number of logical CPU cores."
+            },
+            "total_memory_mb": {
+              "type": "number",
+              "description": "Total system memory in megabytes."
+            }
+          }
         }
       }
     }

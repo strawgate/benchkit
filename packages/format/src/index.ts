@@ -4,6 +4,7 @@ export type {
   Metric,
   Sample,
   Context,
+  MonitorContext,
   SeriesFile,
   SeriesEntry,
   DataPoint,

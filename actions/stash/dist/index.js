@@ -52,6 +52,7 @@ async function run() {
     const format = (core.getInput("format") || "auto");
     const dataBranch = core.getInput("data-branch") || "bench-data";
     const token = core.getInput("github-token", { required: true });
+    const monitorPath = core.getInput("monitor") || "";
     const runId = core.getInput("run-id") ||
         `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
     // Find result files
@@ -69,6 +70,17 @@ async function run() {
         allBenchmarks.push(...result.benchmarks);
         core.info(`  ${path.basename(file)}: ${result.benchmarks.length} benchmark(s)`);
     }
+    // Read and merge monitor output if provided
+    let monitorResult;
+    if (monitorPath) {
+        if (!fs.existsSync(monitorPath)) {
+            throw new Error(`Monitor file not found: ${monitorPath}`);
+        }
+        const monitorContent = fs.readFileSync(monitorPath, "utf-8");
+        monitorResult = (0, format_1.parseNative)(monitorContent);
+        allBenchmarks.push(...monitorResult.benchmarks);
+        core.info(`  ${path.basename(monitorPath)}: ${monitorResult.benchmarks.length} monitor benchmark(s)`);
+    }
     const result = {
         benchmarks: allBenchmarks,
         context: {
@@ -78,6 +90,7 @@ async function run() {
             runner: process.env.RUNNER_OS
                 ? `${process.env.RUNNER_OS}/${process.env.RUNNER_ARCH}`
                 : undefined,
+            monitor: monitorResult?.context?.monitor,
         },
     };
     // Configure git

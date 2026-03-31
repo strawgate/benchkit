@@ -67,6 +67,44 @@ describe("benchmark-result schema", () => {
     assert.equal(validate(data), true, JSON.stringify(validate.errors));
   });
 
+  it("accepts context with monitor metadata", () => {
+    const data = {
+      benchmarks: [
+        { name: "BenchmarkSort", metrics: { ns_per_op: { value: 1234 } } },
+      ],
+      context: {
+        commit: "abc123def456",
+        ref: "main",
+        timestamp: "2025-01-15T10:30:00Z",
+        runner: "ubuntu-latest",
+        monitor: {
+          monitor_version: "0.1.0",
+          poll_interval_ms: 250,
+          duration_ms: 5000,
+          runner_os: "Linux",
+          runner_arch: "X64",
+          poll_count: 20,
+        },
+      },
+    };
+    assert.equal(validate(data), true, JSON.stringify(validate.errors));
+  });
+
+  it("rejects monitor context missing required fields", () => {
+    const data = {
+      benchmarks: [
+        { name: "BenchmarkSort", metrics: { ns_per_op: { value: 1234 } } },
+      ],
+      context: {
+        monitor: {
+          poll_interval_ms: 250,
+          duration_ms: 5000,
+        },
+      },
+    };
+    assert.equal(validate(data), false);
+  });
+
   it("rejects when benchmarks array is missing", () => {
     assert.equal(validate({}), false);
   });
