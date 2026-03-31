@@ -90,9 +90,11 @@ async function startMonitor() {
         sentinelPath,
         statePath,
     };
-    // Fork the monitor process
+    // Fork the monitor process.
+    // Use spawn() instead of fork() because fork() always opens an IPC channel
+    // (fd 3) which keeps the parent's event loop alive even after unref().
     const monitorScript = path.join(__dirname, "monitor-worker.js");
-    const child = (0, node_child_process_1.fork)(monitorScript, [JSON.stringify(config)], {
+    const child = (0, node_child_process_1.spawn)(process.execPath, [monitorScript, JSON.stringify(config)], {
         detached: true,
         stdio: "ignore",
     });

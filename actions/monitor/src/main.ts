@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fork } from "node:child_process";
+import { spawn } from "node:child_process";
 import type { MonitorConfig, MonitorState } from "./types.js";
 
 const SENTINEL_NAME = ".benchkit-monitor.stop";
@@ -59,9 +59,11 @@ async function startMonitor(): Promise<void> {
     statePath,
   };
 
-  // Fork the monitor process
+  // Fork the monitor process.
+  // Use spawn() instead of fork() because fork() always opens an IPC channel
+  // (fd 3) which keeps the parent's event loop alive even after unref().
   const monitorScript = path.join(__dirname, "monitor-worker.js");
-  const child = fork(monitorScript, [JSON.stringify(config)], {
+  const child = spawn(process.execPath, [monitorScript, JSON.stringify(config)], {
     detached: true,
     stdio: "ignore",
   });
