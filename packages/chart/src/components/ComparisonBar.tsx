@@ -9,7 +9,7 @@ import {
   Legend,
   type ChartOptions,
 } from "chart.js";
-import type { SeriesFile } from "@benchkit/format";
+import type { SeriesFile, SeriesEntry } from "@benchkit/format";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -17,6 +17,8 @@ export interface ComparisonBarProps {
   series: SeriesFile;
   height?: number;
   title?: string;
+  /** Custom series name renderer */
+  seriesNameFormatter?: (name: string, entry: SeriesEntry) => string;
   class?: string;
 }
 
@@ -25,7 +27,7 @@ const COLORS = [
   "#06b6d4", "#ec4899", "#14b8a6", "#f97316", "#6366f1",
 ];
 
-export function ComparisonBar({ series, height = 250, title, class: className }: ComparisonBarProps) {
+export function ComparisonBar({ series, height = 250, title, seriesNameFormatter, class: className }: ComparisonBarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
 
@@ -41,7 +43,7 @@ export function ComparisonBar({ series, height = 250, title, class: className }:
     entries.forEach(([name, entry], idx) => {
       const latest = entry.points[entry.points.length - 1];
       if (!latest) return;
-      names.push(name);
+      names.push(seriesNameFormatter ? seriesNameFormatter(name, entry) : name);
       values.push(latest.value);
       errors.push(latest.range ?? null);
       colors.push(COLORS[idx % COLORS.length]);
