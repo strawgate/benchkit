@@ -3,13 +3,12 @@ import * as exec from "@actions/exec";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import type { BenchmarkResult } from "@benchkit/format";
 import {
-  type ParsedRun,
   sortRuns,
   pruneRuns,
   buildIndex,
   buildSeries,
+  readRuns,
 } from "./aggregate.js";
 
 async function run(): Promise<void> {
@@ -99,15 +98,6 @@ async function configureGit(token: string): Promise<void> {
     "http.https://github.com/.extraheader",
     `AUTHORIZATION: basic ${basicAuth}`,
   ]);
-}
-
-function readRuns(runsDir: string): ParsedRun[] {
-  const runFiles = fs.readdirSync(runsDir).filter((f) => f.endsWith(".json")).sort();
-  return runFiles.map((file) => {
-    const content = fs.readFileSync(path.join(runsDir, file), "utf-8");
-    const result = JSON.parse(content) as BenchmarkResult;
-    return { id: path.basename(file, ".json"), result };
-  });
 }
 
 function writeAggregatedFiles(

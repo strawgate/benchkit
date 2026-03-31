@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { parse, parseNative, type Format, type BenchmarkResult, type Benchmark, type Context, type MonitorContext } from "@benchkit/format";
 
 export interface StashContext {
@@ -35,7 +36,7 @@ export function buildResult(opts: BuildResultOptions): BenchmarkResult {
   return { benchmarks, context };
 }
 
-/** Parse all benchmark files matching a glob pattern (synchronous file reads). */
+/** Parse all benchmark files (synchronous file reads). Throws if the list is empty. */
 export function parseBenchmarkFiles(files: string[], format: Format): Benchmark[] {
   if (files.length === 0) {
     throw new Error("No benchmark result files provided");
@@ -43,10 +44,30 @@ export function parseBenchmarkFiles(files: string[], format: Format): Benchmark[
   const benchmarks: Benchmark[] = [];
   for (const file of files) {
     const content = fs.readFileSync(file, "utf-8");
-    const result = parse(content, format);
-    benchmarks.push(...result.benchmarks);
+    benchmarks.push(...parseBenchmarks(content, format, file));
   }
   return benchmarks;
+}
+
+/**
+ * Parse a single benchmark file's content in the given format.
+ * Throws a descriptive error including the filename if parsing fails.
+ */
+export function parseBenchmarks(
+  content: string,
+  format: Format,
+  fileName: string,
+): Benchmark[] {
+  let result: BenchmarkResult;
+  try {
+    result = parse(content, format);
+  } catch (err) {
+    throw new Error(
+      `Failed to parse '${path.basename(fileName)}': ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    );
+  }
+  return result.benchmarks;
 }
 
 /** Read and parse a monitor output file. */

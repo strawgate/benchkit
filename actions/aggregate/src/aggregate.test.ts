@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import Ajv from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
@@ -10,6 +11,7 @@ import {
   pruneRuns,
   buildIndex,
   buildSeries,
+  readRuns,
 } from "./aggregate.js";
 
 // ── Schema helpers ──────────────────────────────────────────────────
@@ -543,5 +545,188 @@ describe("end-to-end: aggregate and validate", () => {
     // Second point: single value 150, no range
     assert.equal(points[1].value, 150);
     assert.equal(points[1].range, undefined);
+  });
+});
+
+// ── Zero-run failure paths ───────────────────────────────────────────
+describe("buildIndex: zero runs", () => {
+  it("returns empty index when called with no runs", () => {
+    const index = buildIndex([]);
+    assert.equal(index.runs.length, 0);
+    assert.deepEqual(index.metrics, []);
+    assertValidIndex(index);
+  });
+});
+
+describe("buildSeries: zero runs", () => {
+  it("returns empty series map when called with no runs", () => {
+    const seriesMap = buildSeries([]);
+    assert.equal(seriesMap.size, 0);
+  });
+});
+
+// ── readRuns failure paths ──────────────────────────────────────────
+describe("readRuns", () => {
+  it("returns empty array for a non-existent directory", () => {
+    const missing = path.join(os.tmpdir(), `benchkit-no-such-dir-${Date.now()}`);
+    const runs = readRuns(missing);
+    assert.equal(runs.length, 0);
+  });
+
+  it("returns empty array for an empty directory", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-agg-test-"));
+    try {
+      const runs = readRuns(tmpDir);
+      assert.equal(runs.length, 0);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("reads valid run files correctly", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-agg-test-"));
+    try {
+      const result = {
+        benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } }],
+        context: { timestamp: "2024-01-01T00:00:00Z", commit: "abc" },
+      };
+      fs.writeFileSync(path.join(tmpDir, "run-001.json"), JSON.stringify(result));
+      const runs = readRuns(tmpDir);
+      assert.equal(runs.length, 1);
+      assert.equal(runs[0].id, "run-001");
+      assert.equal(runs[0].result.benchmarks.length, 1);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("throws a descriptive error on a corrupted JSON file", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-agg-test-"));
+    try {
+      fs.writeFileSync(path.join(tmpDir, "bad-run.json"), "{ not valid json }");
+      assert.throws(
+        () => readRuns(tmpDir),
+        (err: unknown) => {
+          assert.ok(err instanceof Error);
+          assert.ok(
+            err.message.includes("bad-run.json"),
+            `Expected message to include filename, got: ${err.message}`,
+          );
+          return true;
+        },
+      );
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("throws when a run file contains a non-object (null)", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-agg-test-")); 
+    try {
+      fs.writeFileSync(path.join(tmpDir, "null-run.json"), "null");
+      assert.throws(
+        () => readRuns(tmpDir),
+        (err: unknown) => {
+          assert.ok(err instanceof Error);
+          assert.ok(
+            err.message.includes("null-run.json"),
+            `Expected filename in error: ${err.message}`,
+          );
+          return true;
+        },
+      );
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("throws when a run file contains a JSON array instead of an object", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-agg-test-"));
+    try {
+      fs.writeFileSync(path.join(tmpDir, "array-run.json"), "[]");
+      assert.throws(
+        () => readRuns(tmpDir),
+        (err: unknown) => {
+          assert.ok(err instanceof Error);
+          assert.ok(
+            err.message.includes("array-run.json"),
+            `Expected filename in error: ${err.message}`,
+          );
+          return true;
+        },
+      );
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("ignores non-JSON files in the directory", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-agg-test-"));
+    try {
+      fs.writeFileSync(path.join(tmpDir, "notes.txt"), "not a run");
+      fs.writeFileSync(path.join(tmpDir, "run-001.json"), JSON.stringify({
+        benchmarks: [{ name: "B", metrics: { m: { value: 1 } } }],
+        context: { timestamp: "2024-01-01T00:00:00Z" },
+      }));
+      const runs = readRuns(tmpDir);
+      assert.equal(runs.length, 1);
+      assert.equal(runs[0].id, "run-001");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+});
+
+// ── Full stash-aggregate-read cycle ────────────────────────────────
+describe("stash-aggregate-read cycle", () => {
+  it("reads stash output files, builds index and series, all schemas valid", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-cycle-test-"));
+    try {
+      // Simulate two stash runs writing benchmark-result files to a runs directory
+      const run1 = {
+        benchmarks: [
+          { name: "BenchSort", metrics: { ns_per_op: { value: 320, unit: "ns/op", direction: "smaller_is_better" } } },
+        ],
+        context: { commit: "aaa", ref: "refs/heads/main", timestamp: "2024-01-01T00:00:00Z" },
+      };
+      const run2 = {
+        benchmarks: [
+          { name: "BenchSort", metrics: { ns_per_op: { value: 310, unit: "ns/op", direction: "smaller_is_better" } } },
+          { name: "BenchSearch", metrics: { ns_per_op: { value: 120, unit: "ns/op", direction: "smaller_is_better" } } },
+        ],
+        context: { commit: "bbb", ref: "refs/heads/main", timestamp: "2024-01-02T00:00:00Z" },
+      };
+
+      fs.writeFileSync(path.join(tmpDir, "run-001.json"), JSON.stringify(run1));
+      fs.writeFileSync(path.join(tmpDir, "run-002.json"), JSON.stringify(run2));
+
+      // Aggregate reads them
+      const runs = readRuns(tmpDir);
+      sortRuns(runs);
+      const index = buildIndex(runs);
+      const seriesMap = buildSeries(runs);
+
+      // Validate index
+      assertValidIndex(index);
+      assert.equal(index.runs.length, 2);
+      assert.deepEqual(index.metrics, ["ns_per_op"]);
+
+      // Validate all series
+      for (const [, series] of seriesMap) {
+        assertValidSeries(series);
+      }
+
+      // BenchSort appears in both runs
+      const ns = seriesMap.get("ns_per_op")!;
+      assert.ok(ns.series["BenchSort"]);
+      assert.equal(ns.series["BenchSort"].points.length, 2);
+
+      // BenchSearch only in run-002
+      assert.ok(ns.series["BenchSearch"]);
+      assert.equal(ns.series["BenchSearch"].points.length, 1);
+      assert.equal(ns.series["BenchSearch"].points[0].run_id, "run-002");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
   });
 });
