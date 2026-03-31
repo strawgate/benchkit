@@ -156,7 +156,7 @@ Optional metadata about the environment and commit that produced the results.
 interface Context {
   commit?: string;   // Full commit SHA
   ref?: string;      // Git ref, e.g. "main"
-  timestamp?: string; // ISO 8601
+  timestamp?: string; // ISO 8601 datetime, e.g. "2025-01-15T10:30:00Z"
   runner?: string;   // Runner label or machine description
 }
 ```
