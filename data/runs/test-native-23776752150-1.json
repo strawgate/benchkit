@@ -1,0 +1,25 @@
+{
+  "benchmarks": [
+    {
+      "name": "http-throughput",
+      "metrics": {
+        "requests_per_sec": {
+          "value": 15230,
+          "unit": "req/s",
+          "direction": "bigger_is_better"
+        },
+        "p99_latency_ms": {
+          "value": 12.4,
+          "unit": "ms",
+          "direction": "smaller_is_better"
+        }
+      }
+    }
+  ],
+  "context": {
+    "commit": "d7d1bffe28b867a1640c486c4e7d662d47998037",
+    "ref": "refs/heads/main",
+    "timestamp": "2026-03-31T01:56:08.190Z",
+    "runner": "Linux/X64"
+  }
+}
