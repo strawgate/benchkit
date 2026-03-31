@@ -131,6 +131,7 @@ function runMonitor(cfg: MonitorConfig): void {
 
     // Check sentinel
     if (fs.existsSync(cfg.sentinelPath)) {
+      clearInterval(timer);
       writeOutput(cfg, tracked, {
         cpuUserTotal,
         cpuSystemTotal,

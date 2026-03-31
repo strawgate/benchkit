@@ -150,6 +150,7 @@ function runMonitor(cfg) {
         cpuPrev = cpuNow;
         // Check sentinel
         if (fs.existsSync(cfg.sentinelPath)) {
+            clearInterval(timer);
             (0, monitor_js_1.writeOutput)(cfg, tracked, {
                 cpuUserTotal,
                 cpuSystemTotal,
@@ -361,14 +362,13 @@ function writeOutput(cfg, tracked, system) {
         benchmarks,
         context: {
             timestamp: new Date().toISOString(),
-            runner: process.env.RUNNER_OS
-                ? `${process.env.RUNNER_OS}/${process.env.RUNNER_ARCH}`
-                : undefined,
             monitor: {
                 monitor_version: "0.1.0",
                 poll_interval_ms: cfg.pollIntervalMs,
                 duration_ms: system.endTime - system.startTime,
                 poll_count: system.pollCount,
+                runner_os: process.env.RUNNER_OS || undefined,
+                runner_arch: process.env.RUNNER_ARCH || undefined,
             },
         },
     };
