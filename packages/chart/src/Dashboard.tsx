@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "preact/hooks";
+import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import type { IndexFile, SeriesFile, SeriesEntry, RunEntry } from "@benchkit/format";
 import { fetchIndex, fetchSeries, type DataSource } from "./fetch.js";
 import { TrendChart } from "./components/TrendChart.js";
@@ -8,6 +8,7 @@ import { MonitorSection } from "./components/MonitorSection.js";
 import { TagFilter, filterSeriesFile } from "./components/TagFilter.js";
 import { Leaderboard } from "./components/Leaderboard.js";
 import { getWinner } from "./leaderboard.js";
+import { detectRegressions, regressionTooltip, type RegressionResult } from "./utils.js";
 
 export interface DashboardProps {
   source: DataSource;
@@ -22,6 +23,10 @@ export interface DashboardProps {
   seriesNameFormatter?: (name: string, entry: SeriesEntry) => string;
   /** Link commits to GitHub or other VCS */
   commitHref?: (commit: string, run: RunEntry) => string | undefined;
+  /** Percentage change that triggers a regression warning (default: 10) */
+  regressionThreshold?: number;
+  /** Number of preceding data points to average for regression detection (default: 5) */
+  regressionWindow?: number;
 }
 
 type View = "overview" | { metric: string };
@@ -39,6 +44,8 @@ export function Dashboard({
   metricLabelFormatter,
   seriesNameFormatter,
   commitHref,
+  regressionThreshold = 10,
+  regressionWindow = 5,
 }: DashboardProps) {
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [seriesMap, setSeriesMap] = useState<Map<string, SeriesFile>>(new Map());
@@ -78,6 +85,16 @@ export function Dashboard({
     setView((v) => (typeof v === "object" && v.metric === metric ? "overview" : { metric }));
   }, []);
 
+  // Compute regressions for every loaded metric.
+  const regressionMap = useMemo<Map<string, RegressionResult[]>>(() => {
+    const map = new Map<string, RegressionResult[]>();
+    for (const [metric, sf] of seriesMap.entries()) {
+      const results = detectRegressions(sf, regressionThreshold, regressionWindow);
+      if (results.length > 0) map.set(metric, results);
+    }
+    return map;
+  }, [seriesMap, regressionThreshold, regressionWindow]);
+
   if (loading) return <div class={className}>Loading benchmark data…</div>;
   if (error) return <div class={className} style={{ color: "red" }}>{error}</div>;
   if (!index) return <div class={className}>No data found.</div>;
@@ -90,6 +107,7 @@ export function Dashboard({
   const userMetricNames = (index.metrics ?? []).filter((m) => !isMonitorMetric(m));
 
   const selectedSeries = typeof view === "object" ? seriesMap.get(view.metric) : null;
+  const selectedRegressions = typeof view === "object" ? (regressionMap.get(view.metric) ?? []) : [];
 
   return (
     <div class={className} style={{ fontFamily: "system-ui, sans-serif" }}>
@@ -119,6 +137,7 @@ export function Dashboard({
             series={filterSeriesFile(selectedSeries, activeFilters)}
             title={metricLabelFormatter ? metricLabelFormatter(selectedSeries.metric) : selectedSeries.metric}
             seriesNameFormatter={seriesNameFormatter}
+            regressions={selectedRegressions}
           />
           <div style={{ marginTop: "16px" }}>
             <ComparisonBar
@@ -145,35 +164,67 @@ export function Dashboard({
               const winnerLabel = winnerName
                 ? (seriesNameFormatter ? seriesNameFormatter(winnerName, sf.series[winnerName]) : winnerName)
                 : undefined;
+              const regressions = regressionMap.get(metric) ?? [];
+              const hasRegression = regressions.length > 0;
+              const tooltipText = hasRegression
+                ? regressions.map((r) => regressionTooltip(metric, r, metricLabelFormatter)).join("\n")
+                : undefined;
               return (
-              <div
-                key={metric}
-                onClick={() => handleMetricClick(metric)}
-                style={{ cursor: "pointer", padding: "12px", border: "1px solid #e5e7eb", borderRadius: "8px" }}
-              >
-                {winnerLabel && (
-                  <div style={{ marginBottom: "6px", fontSize: "12px" }}>
+                <div
+                  key={metric}
+                  onClick={() => handleMetricClick(metric)}
+                  title={tooltipText}
+                  style={{
+                    cursor: "pointer",
+                    padding: "12px",
+                    border: `1px solid ${hasRegression ? "#fca5a5" : "#e5e7eb"}`,
+                    borderRadius: "8px",
+                    position: "relative",
+                  }}
+                >
+                  {hasRegression && (
                     <span
                       style={{
-                        background: "#dcfce7",
-                        color: "#16a34a",
-                        borderRadius: "4px",
+                        position: "absolute",
+                        top: "8px",
+                        right: "8px",
+                        background: "#ef4444",
+                        color: "#fff",
+                        fontSize: "11px",
+                        fontWeight: "bold",
                         padding: "2px 6px",
-                        fontWeight: 600,
+                        borderRadius: "9999px",
+                        lineHeight: "1.4",
+                        zIndex: 1,
                       }}
                     >
-                      ★ {winnerLabel}
+                      ⚠ regression
                     </span>
-                  </div>
-                )}
-                <TrendChart
-                  series={filterSeriesFile(sf, activeFilters)}
-                  title={metricLabelFormatter ? metricLabelFormatter(metric) : metric}
-                  height={200}
-                  maxPoints={maxPoints}
-                  seriesNameFormatter={seriesNameFormatter}
-                />
-              </div>
+                  )}
+                  {winnerLabel && (
+                    <div style={{ marginBottom: "6px", fontSize: "12px" }}>
+                      <span
+                        style={{
+                          background: "#dcfce7",
+                          color: "#16a34a",
+                          borderRadius: "4px",
+                          padding: "2px 6px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        ★ {winnerLabel}
+                      </span>
+                    </div>
+                  )}
+                  <TrendChart
+                    series={filterSeriesFile(sf, activeFilters)}
+                    title={metricLabelFormatter ? metricLabelFormatter(metric) : metric}
+                    height={200}
+                    maxPoints={maxPoints}
+                    seriesNameFormatter={seriesNameFormatter}
+                    regressions={regressions}
+                  />
+                </div>
               );
             })}
           </div>

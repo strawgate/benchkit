@@ -15,6 +15,7 @@ import {
 import "chartjs-adapter-date-fns";
 import type { SeriesFile, SeriesEntry } from "@benchkit/format";
 import { COLORS } from "../colors.js";
+import type { RegressionResult } from "../utils.js";
 
 Chart.register(
   LineController,
@@ -37,9 +38,11 @@ export interface TrendChartProps {
   seriesNameFormatter?: (name: string, entry: SeriesEntry) => string;
   /** CSS class name */
   class?: string;
+  /** Regression results to highlight on the chart (last data point of each flagged series). */
+  regressions?: RegressionResult[];
 }
 
-export function TrendChart({ series, height = 300, title, maxPoints, seriesNameFormatter, class: className }: TrendChartProps) {
+export function TrendChart({ series, height = 300, title, maxPoints, seriesNameFormatter, class: className, regressions }: TrendChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
 
@@ -65,6 +68,20 @@ export function TrendChart({ series, height = 300, title, maxPoints, seriesNameF
       }
 
       const color = COLORS[idx % COLORS.length];
+      const isRegressed = regressions?.some((r) => r.seriesName === name) ?? false;
+      const lastIdx = pts.length - 1;
+
+      // Per-point colors: highlight the last point red when it is a regression.
+      const pointBackgroundColors = pts.map((_, i) =>
+        isRegressed && i === lastIdx ? "#ef4444" : color,
+      );
+      const pointRadii = pts.map((_, i) =>
+        isRegressed && i === lastIdx ? 6 : 3,
+      );
+      const pointBorderColors = pts.map((_, i) =>
+        isRegressed && i === lastIdx ? "#b91c1c" : color,
+      );
+
       datasets.push({
         label: seriesNameFormatter ? seriesNameFormatter(name, entry) : name,
         data: pts.map((p) => ({ x: p.timestamp as unknown as number, y: p.value })),
@@ -72,8 +89,10 @@ export function TrendChart({ series, height = 300, title, maxPoints, seriesNameF
         backgroundColor: color + "20",
         fill: entries.length === 1,
         tension: 0.3,
-        pointRadius: 3,
+        pointRadius: pointRadii,
         pointHoverRadius: 6,
+        pointBackgroundColor: pointBackgroundColors,
+        pointBorderColor: pointBorderColors,
       });
     });
 
@@ -134,7 +153,7 @@ export function TrendChart({ series, height = 300, title, maxPoints, seriesNameF
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-  }, [series, maxPoints, seriesNameFormatter]);
+  }, [series, maxPoints, seriesNameFormatter, regressions]);
 
   return (
     <div class={className} style={{ position: "relative", height: `${height}px` }}>
