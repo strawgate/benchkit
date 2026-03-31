@@ -5,7 +5,7 @@
   "description": "GitHub Action: rebuild index and series files from benchmark runs.",
   "scripts": {
     "build": "tsc && ncc build lib/main.js -o dist -s",
-    "test": "tsc && node --test lib/aggregate.test.js",
+    "test": "tsc && node --test lib/aggregate.test.js lib/integration.test.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

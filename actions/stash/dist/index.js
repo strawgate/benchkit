@@ -46,7 +46,7 @@ const glob = __importStar(__nccwpck_require__(2922));
 const fs = __importStar(__nccwpck_require__(3024));
 const path = __importStar(__nccwpck_require__(6760));
 const os = __importStar(__nccwpck_require__(8161));
-const format_1 = __nccwpck_require__(7575);
+const stash_js_1 = __nccwpck_require__(8990);
 async function run() {
     const resultsPattern = core.getInput("results", { required: true });
     const format = (core.getInput("format") || "auto");
@@ -56,15 +56,18 @@ async function run() {
     const runId = core.getInput("run-id") ||
         `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
     // Parse benchmark files
-    const allBenchmarks = await parseBenchmarkFiles(resultsPattern, format);
-    // Merge monitor output if provided
-    let monitorResult;
-    if (monitorPath) {
-        monitorResult = readMonitorOutput(monitorPath);
-        allBenchmarks.push(...monitorResult.benchmarks);
+    const globber = await glob.create(resultsPattern);
+    const files = await globber.glob();
+    if (files.length === 0) {
+        throw new Error(`No files matched pattern: ${resultsPattern}`);
     }
-    const result = {
-        benchmarks: allBenchmarks,
+    core.info(`Found ${files.length} result file(s)`);
+    const benchmarks = (0, stash_js_1.parseBenchmarkFiles)(files, format);
+    // Merge monitor output if provided
+    const monitorResult = monitorPath ? (0, stash_js_1.readMonitorOutput)(monitorPath) : undefined;
+    const result = (0, stash_js_1.buildResult)({
+        benchmarks,
+        monitorResult,
         context: {
             commit: process.env.GITHUB_SHA,
             ref: process.env.GITHUB_REF,
@@ -72,9 +75,9 @@ async function run() {
             runner: process.env.RUNNER_OS
                 ? `${process.env.RUNNER_OS}/${process.env.RUNNER_ARCH}`
                 : undefined,
-            monitor: monitorResult?.context?.monitor,
         },
-    };
+    });
+    core.info(`Parsed ${benchmarks.length} benchmark(s)${monitorResult ? ` + ${monitorResult.benchmarks.length} monitor benchmark(s)` : ""}`);
     // Git setup and push
     await configureGit(token);
     const worktree = await checkoutDataBranch(dataBranch);
@@ -91,31 +94,6 @@ async function run() {
     core.setOutput("file-path", `data/runs/${runId}.json`);
 }
 // ── Helpers ─────────────────────────────────────────────────────────
-async function parseBenchmarkFiles(pattern, format) {
-    const globber = await glob.create(pattern);
-    const files = await globber.glob();
-    if (files.length === 0) {
-        throw new Error(`No files matched pattern: ${pattern}`);
-    }
-    core.info(`Found ${files.length} result file(s)`);
-    const benchmarks = [];
-    for (const file of files) {
-        const content = fs.readFileSync(file, "utf-8");
-        const result = (0, format_1.parse)(content, format);
-        benchmarks.push(...result.benchmarks);
-        core.info(`  ${path.basename(file)}: ${result.benchmarks.length} benchmark(s)`);
-    }
-    return benchmarks;
-}
-function readMonitorOutput(monitorPath) {
-    if (!fs.existsSync(monitorPath)) {
-        throw new Error(`Monitor file not found: ${monitorPath}`);
-    }
-    const content = fs.readFileSync(monitorPath, "utf-8");
-    const result = (0, format_1.parseNative)(content);
-    core.info(`  ${path.basename(monitorPath)}: ${result.benchmarks.length} monitor benchmark(s)`);
-    return result;
-}
 async function configureGit(token) {
     await exec.exec("git", ["config", "user.name", "github-actions[bot]"]);
     await exec.exec("git", [
@@ -161,6 +139,92 @@ run().catch((err) => {
     core.setFailed(err instanceof Error ? err.message : String(err));
 });
 //# sourceMappingURL=main.js.map
+
+/***/ }),
+
+/***/ 8990:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.buildResult = buildResult;
+exports.parseBenchmarkFiles = parseBenchmarkFiles;
+exports.readMonitorOutput = readMonitorOutput;
+const fs = __importStar(__nccwpck_require__(3024));
+const format_1 = __nccwpck_require__(7575);
+/** Assemble a BenchmarkResult from parsed benchmarks, optional monitor data, and CI context. */
+function buildResult(opts) {
+    const benchmarks = [...opts.benchmarks];
+    let monitor;
+    if (opts.monitorResult) {
+        benchmarks.push(...opts.monitorResult.benchmarks);
+        monitor = opts.monitorResult.context?.monitor;
+    }
+    const context = {
+        commit: opts.context.commit,
+        ref: opts.context.ref,
+        timestamp: opts.context.timestamp,
+        runner: opts.context.runner || undefined,
+        monitor,
+    };
+    return { benchmarks, context };
+}
+/** Parse all benchmark files matching a glob pattern (synchronous file reads). */
+function parseBenchmarkFiles(files, format) {
+    if (files.length === 0) {
+        throw new Error("No benchmark result files provided");
+    }
+    const benchmarks = [];
+    for (const file of files) {
+        const content = fs.readFileSync(file, "utf-8");
+        const result = (0, format_1.parse)(content, format);
+        benchmarks.push(...result.benchmarks);
+    }
+    return benchmarks;
+}
+/** Read and parse a monitor output file. */
+function readMonitorOutput(monitorPath) {
+    if (!fs.existsSync(monitorPath)) {
+        throw new Error(`Monitor file not found: ${monitorPath}`);
+    }
+    const content = fs.readFileSync(monitorPath, "utf-8");
+    return (0, format_1.parseNative)(content);
+}
+//# sourceMappingURL=stash.js.map
 
 /***/ }),
 

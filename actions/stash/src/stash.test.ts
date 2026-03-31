@@ -1,0 +1,155 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+import { buildResult, parseBenchmarkFiles, readMonitorOutput } from "./stash.js";
+import type { Benchmark, BenchmarkResult } from "@benchkit/format";
+
+// ── buildResult ─────────────────────────────────────────────────────
+
+describe("buildResult", () => {
+  const baseBenchmarks: Benchmark[] = [
+    { name: "BenchmarkSort", metrics: { ns_per_op: { value: 320, unit: "ns/op" } } },
+  ];
+  const baseContext = {
+    commit: "abc123",
+    ref: "refs/heads/main",
+    timestamp: "2026-01-01T00:00:00Z",
+    runner: "Linux/X64",
+  };
+
+  it("builds a result from benchmarks and context", () => {
+    const result = buildResult({ benchmarks: baseBenchmarks, context: baseContext });
+    assert.equal(result.benchmarks.length, 1);
+    assert.equal(result.benchmarks[0].name, "BenchmarkSort");
+    assert.equal(result.context?.commit, "abc123");
+    assert.equal(result.context?.ref, "refs/heads/main");
+    assert.equal(result.context?.runner, "Linux/X64");
+    assert.equal(result.context?.monitor, undefined);
+  });
+
+  it("merges monitor benchmarks and context", () => {
+    const monitorResult: BenchmarkResult = {
+      benchmarks: [
+        { name: "_monitor/system", metrics: { cpu_user_pct: { value: 45 } } },
+      ],
+      context: {
+        monitor: {
+          monitor_version: "0.1.0",
+          poll_interval_ms: 250,
+          duration_ms: 5000,
+        },
+      },
+    };
+    const result = buildResult({
+      benchmarks: baseBenchmarks,
+      monitorResult,
+      context: baseContext,
+    });
+    assert.equal(result.benchmarks.length, 2);
+    assert.equal(result.benchmarks[0].name, "BenchmarkSort");
+    assert.equal(result.benchmarks[1].name, "_monitor/system");
+    assert.deepEqual(result.context?.monitor, {
+      monitor_version: "0.1.0",
+      poll_interval_ms: 250,
+      duration_ms: 5000,
+    });
+  });
+
+  it("does not mutate input benchmarks array", () => {
+    const input = [...baseBenchmarks];
+    const monitorResult: BenchmarkResult = {
+      benchmarks: [{ name: "_monitor/x", metrics: { m: { value: 1 } } }],
+    };
+    buildResult({ benchmarks: input, monitorResult, context: baseContext });
+    assert.equal(input.length, 1, "original array should not be modified");
+  });
+
+  it("omits runner from context when undefined", () => {
+    const result = buildResult({
+      benchmarks: baseBenchmarks,
+      context: { ...baseContext, runner: undefined },
+    });
+    assert.equal(result.context?.runner, undefined);
+  });
+});
+
+// ── parseBenchmarkFiles ─────────────────────────────────────────────
+
+describe("parseBenchmarkFiles", () => {
+  let tmpDir: string;
+
+  it("parses Go bench files", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "stash-test-"));
+    const goFile = path.join(tmpDir, "bench.txt");
+    fs.writeFileSync(goFile, [
+      "BenchmarkSort-4  5000000  320 ns/op  48 B/op  2 allocs/op",
+      "BenchmarkSearch-4  10000000  120 ns/op  0 B/op  0 allocs/op",
+    ].join("\n"));
+
+    const benchmarks = parseBenchmarkFiles([goFile], "go");
+    assert.equal(benchmarks.length, 2);
+    assert.equal(benchmarks[0].name, "BenchmarkSort");
+    assert.ok(benchmarks[0].metrics.ns_per_op);
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it("parses native JSON files", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "stash-test-"));
+    const nativeFile = path.join(tmpDir, "results.json");
+    fs.writeFileSync(nativeFile, JSON.stringify({
+      benchmarks: [
+        { name: "http-throughput", metrics: { rps: { value: 15230 } } },
+      ],
+    }));
+
+    const benchmarks = parseBenchmarkFiles([nativeFile], "native");
+    assert.equal(benchmarks.length, 1);
+    assert.equal(benchmarks[0].name, "http-throughput");
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it("concatenates benchmarks from multiple files", () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "stash-test-"));
+    const f1 = path.join(tmpDir, "a.txt");
+    const f2 = path.join(tmpDir, "b.txt");
+    fs.writeFileSync(f1, "BenchmarkA-4  1000  100 ns/op");
+    fs.writeFileSync(f2, "BenchmarkB-4  2000  200 ns/op");
+
+    const benchmarks = parseBenchmarkFiles([f1, f2], "go");
+    assert.equal(benchmarks.length, 2);
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it("throws on empty file list", () => {
+    assert.throws(() => parseBenchmarkFiles([], "go"), /No benchmark result files/);
+  });
+});
+
+// ── readMonitorOutput ───────────────────────────────────────────────
+
+describe("readMonitorOutput", () => {
+  it("reads and parses a monitor output file", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "stash-test-"));
+    const monitorFile = path.join(tmpDir, "monitor.json");
+    fs.writeFileSync(monitorFile, JSON.stringify({
+      benchmarks: [
+        { name: "_monitor/process/go", metrics: { peak_rss_kb: { value: 50000 } } },
+      ],
+      context: {
+        monitor: { monitor_version: "0.1.0", poll_interval_ms: 250, duration_ms: 3000 },
+      },
+    }));
+
+    const result = readMonitorOutput(monitorFile);
+    assert.equal(result.benchmarks.length, 1);
+    assert.equal(result.benchmarks[0].name, "_monitor/process/go");
+    assert.equal(result.context?.monitor?.poll_interval_ms, 250);
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it("throws when file does not exist", () => {
+    assert.throws(() => readMonitorOutput("/nonexistent/path.json"), /Monitor file not found/);
+  });
+});

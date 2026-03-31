@@ -4,7 +4,8 @@ import * as glob from "@actions/glob";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { parse, parseNative, type Format, type BenchmarkResult } from "@benchkit/format";
+import { buildResult, parseBenchmarkFiles, readMonitorOutput } from "./stash.js";
+import type { Format } from "@benchkit/format";
 
 async function run(): Promise<void> {
   const resultsPattern = core.getInput("results", { required: true });
@@ -17,17 +18,20 @@ async function run(): Promise<void> {
     `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
 
   // Parse benchmark files
-  const allBenchmarks = await parseBenchmarkFiles(resultsPattern, format);
+  const globber = await glob.create(resultsPattern);
+  const files = await globber.glob();
+  if (files.length === 0) {
+    throw new Error(`No files matched pattern: ${resultsPattern}`);
+  }
+  core.info(`Found ${files.length} result file(s)`);
+  const benchmarks = parseBenchmarkFiles(files, format);
 
   // Merge monitor output if provided
-  let monitorResult: BenchmarkResult | undefined;
-  if (monitorPath) {
-    monitorResult = readMonitorOutput(monitorPath);
-    allBenchmarks.push(...monitorResult.benchmarks);
-  }
+  const monitorResult = monitorPath ? readMonitorOutput(monitorPath) : undefined;
 
-  const result: BenchmarkResult = {
-    benchmarks: allBenchmarks,
+  const result = buildResult({
+    benchmarks,
+    monitorResult,
     context: {
       commit: process.env.GITHUB_SHA,
       ref: process.env.GITHUB_REF,
@@ -35,9 +39,10 @@ async function run(): Promise<void> {
       runner: process.env.RUNNER_OS
         ? `${process.env.RUNNER_OS}/${process.env.RUNNER_ARCH}`
         : undefined,
-      monitor: monitorResult?.context?.monitor,
     },
-  };
+  });
+
+  core.info(`Parsed ${benchmarks.length} benchmark(s)${monitorResult ? ` + ${monitorResult.benchmarks.length} monitor benchmark(s)` : ""}`);
 
   // Git setup and push
   await configureGit(token);
@@ -59,34 +64,6 @@ async function run(): Promise<void> {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
-
-async function parseBenchmarkFiles(pattern: string, format: Format): Promise<BenchmarkResult["benchmarks"]> {
-  const globber = await glob.create(pattern);
-  const files = await globber.glob();
-  if (files.length === 0) {
-    throw new Error(`No files matched pattern: ${pattern}`);
-  }
-  core.info(`Found ${files.length} result file(s)`);
-
-  const benchmarks: BenchmarkResult["benchmarks"] = [];
-  for (const file of files) {
-    const content = fs.readFileSync(file, "utf-8");
-    const result = parse(content, format);
-    benchmarks.push(...result.benchmarks);
-    core.info(`  ${path.basename(file)}: ${result.benchmarks.length} benchmark(s)`);
-  }
-  return benchmarks;
-}
-
-function readMonitorOutput(monitorPath: string): BenchmarkResult {
-  if (!fs.existsSync(monitorPath)) {
-    throw new Error(`Monitor file not found: ${monitorPath}`);
-  }
-  const content = fs.readFileSync(monitorPath, "utf-8");
-  const result = parseNative(content);
-  core.info(`  ${path.basename(monitorPath)}: ${result.benchmarks.length} monitor benchmark(s)`);
-  return result;
-}
 
 async function configureGit(token: string): Promise<void> {
   await exec.exec("git", ["config", "user.name", "github-actions[bot]"]);
