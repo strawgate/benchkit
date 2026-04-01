@@ -54,8 +54,12 @@ async function run() {
     const monitorPath = core.getInput("monitor") || "";
     const saveDataFile = core.getBooleanInput("save-data-file");
     const writeSummary = core.getBooleanInput("summary");
-    const runId = core.getInput("run-id") ||
-        `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
+    const runId = (0, stash_js_1.buildRunId)({
+        customRunId: core.getInput("run-id") || undefined,
+        githubRunId: process.env.GITHUB_RUN_ID,
+        githubRunAttempt: process.env.GITHUB_RUN_ATTEMPT,
+        githubJob: process.env.GITHUB_JOB,
+    });
     // Parse benchmark files
     const globber = await glob.create(resultsPattern);
     const files = await globber.glob();
@@ -200,6 +204,7 @@ exports.buildResult = buildResult;
 exports.parseBenchmarkFiles = parseBenchmarkFiles;
 exports.parseBenchmarks = parseBenchmarks;
 exports.readMonitorOutput = readMonitorOutput;
+exports.buildRunId = buildRunId;
 exports.writeResultFile = writeResultFile;
 exports.createTempResultPath = createTempResultPath;
 exports.formatResultSummaryMarkdown = formatResultSummaryMarkdown;
@@ -257,6 +262,34 @@ function readMonitorOutput(monitorPath) {
     }
     const content = fs.readFileSync(monitorPath, "utf-8");
     return (0, format_1.parseNative)(content);
+}
+/**
+ * Build a collision-resistant run identifier.
+ *
+ * Priority:
+ * 1. `customRunId` — use as-is when explicitly provided.
+ * 2. `{githubRunId}-{githubRunAttempt}--{sanitized(githubJob)}` — when a job
+ *    name is available, append it (separated by `--`) so that multiple jobs
+ *    within the same workflow run do not overwrite each other's raw data.
+ * 3. `{githubRunId}-{githubRunAttempt}` — fallback when no job name is set.
+ *
+ * The job segment is lower-cased and any characters outside `[a-z0-9-]` are
+ * replaced with `-`, with consecutive dashes collapsed and leading/trailing
+ * dashes stripped.
+ */
+function buildRunId(options) {
+    if (options.customRunId)
+        return options.customRunId;
+    const base = `${options.githubRunId ?? "local"}-${options.githubRunAttempt ?? "1"}`;
+    if (options.githubJob) {
+        const sanitized = options.githubJob
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+        if (sanitized)
+            return `${base}--${sanitized}`;
+    }
+    return base;
 }
 function writeResultFile(result, runId, outputPath) {
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
