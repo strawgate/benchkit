@@ -273,7 +273,7 @@ describe("integration: stash → aggregate pipeline", () => {
     assert.ok(metrics.includes("ns_per_op"), "should include ns_per_op");
     assert.ok(metrics.includes("bytes_per_op"), "should include bytes_per_op");
     assert.ok(metrics.includes("allocs_per_op"), "should include allocs_per_op");
-    assert.ok(metrics.includes("peak_rss_kb"), "should include peak_rss_kb from monitor");
+    assert.ok(metrics.includes("_monitor/peak_rss_kb"), "should include _monitor/peak_rss_kb from monitor");
     assert.ok(metrics.includes("requests_per_sec"), "should include requests_per_sec from native");
   });
 
@@ -302,9 +302,9 @@ describe("integration: stash → aggregate pipeline", () => {
     }
   });
 
-  it("peak_rss_kb series has 1 point (only run-001 had monitor)", () => {
-    const peakRss = pipeline.seriesMap.get("peak_rss_kb")!;
-    assert.equal(peakRss.metric, "peak_rss_kb");
+  it("_monitor/peak_rss_kb series has 1 point (only run-001 had monitor)", () => {
+    const peakRss = pipeline.seriesMap.get("_monitor/peak_rss_kb")!;
+    assert.equal(peakRss.metric, "_monitor/peak_rss_kb");
     const monitorEntry = Object.values(peakRss.series)[0];
     assert.equal(monitorEntry.points.length, 1);
     assert.equal(monitorEntry.points[0].value, 52480);

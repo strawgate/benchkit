@@ -33,6 +33,14 @@ export function pruneRuns(runs: ParsedRun[], maxRuns: number): string[] {
   return removed.map((r) => r.id);
 }
 
+/**
+ * When a benchmark name starts with `_monitor/`, prefix the metric name
+ * so Dashboard can partition monitor metrics from user benchmarks.
+ */
+function resolveMetricName(benchName: string, metricName: string): string {
+  return benchName.startsWith("_monitor/") ? `_monitor/${metricName}` : metricName;
+}
+
 /** Build the index file from a set of runs (assumes runs are already sorted oldest-first). */
 export function buildIndex(runs: ParsedRun[]): IndexFile {
   const allMetrics = new Set<string>();
@@ -42,8 +50,9 @@ export function buildIndex(runs: ParsedRun[]): IndexFile {
     for (const b of r.result.benchmarks) {
       benchNames.add(b.name);
       for (const m of Object.keys(b.metrics)) {
-        metricNames.add(m);
-        allMetrics.add(m);
+        const resolved = resolveMetricName(b.name, m);
+        metricNames.add(resolved);
+        allMetrics.add(resolved);
       }
     }
     return {
@@ -130,15 +139,16 @@ export function buildSeries(runs: ParsedRun[]): Map<string, SeriesFile> {
     // Emit one point per (seriesKey, metric) per run
     for (const [seriesKey, group] of groups) {
       for (const [metricName, agg] of group.values) {
-        let series = seriesMap.get(metricName);
+        const resolvedMetric = resolveMetricName(group.name, metricName);
+        let series = seriesMap.get(resolvedMetric);
         if (!series) {
           series = {
-            metric: metricName,
+            metric: resolvedMetric,
             unit: agg.unit,
             direction: agg.direction,
             series: {},
           };
-          seriesMap.set(metricName, series);
+          seriesMap.set(resolvedMetric, series);
         }
 
         if (!series.series[seriesKey]) {

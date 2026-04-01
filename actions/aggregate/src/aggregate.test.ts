@@ -237,6 +237,9 @@ describe("buildIndex", () => {
     assertValidIndex(index);
     assert.equal(index.runs.length, 1);
     assert.deepEqual(index.runs[0].monitor, monitorCtx);
+    // Monitor metrics should be prefixed with _monitor/
+    assert.deepEqual(index.runs[0].metrics, ["_monitor/cpu_user_pct"]);
+    assert.deepEqual(index.metrics, ["_monitor/cpu_user_pct"]);
   });
 
   it("omits monitor context when not present", () => {
@@ -562,6 +565,39 @@ describe("buildSeries: zero runs", () => {
   it("returns empty series map when called with no runs", () => {
     const seriesMap = buildSeries([]);
     assert.equal(seriesMap.size, 0);
+  });
+});
+
+describe("buildSeries: monitor metric prefixing", () => {
+  it("prefixes monitor benchmark metrics with _monitor/", () => {
+    const runs: ParsedRun[] = [
+      makeRun("r1", "2024-01-01T00:00:00Z", [
+        { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } },
+        { name: "_monitor/process/go", metrics: { peak_rss_kb: { value: 50000, unit: "KB" } } },
+      ]),
+    ];
+    const seriesMap = buildSeries(runs);
+    // Regular metric keeps its name
+    assert.ok(seriesMap.has("ns_per_op"));
+    // Monitor metric gets prefixed
+    assert.ok(seriesMap.has("_monitor/peak_rss_kb"));
+    assert.ok(!seriesMap.has("peak_rss_kb"), "monitor metric should not appear without prefix");
+    // Series file metric field should also be prefixed
+    assert.equal(seriesMap.get("_monitor/peak_rss_kb")!.metric, "_monitor/peak_rss_kb");
+    assertValidSeries(seriesMap.get("ns_per_op"));
+    assertValidSeries(seriesMap.get("_monitor/peak_rss_kb"));
+  });
+
+  it("keeps non-monitor metrics unprefixed", () => {
+    const runs: ParsedRun[] = [
+      makeRun("r1", "2024-01-01T00:00:00Z", [
+        { name: "BenchA", metrics: { ns_per_op: { value: 100 } } },
+        { name: "BenchB", metrics: { ns_per_op: { value: 200 } } },
+      ]),
+    ];
+    const seriesMap = buildSeries(runs);
+    assert.ok(seriesMap.has("ns_per_op"));
+    assert.ok(!seriesMap.has("_monitor/ns_per_op"));
   });
 });
 
