@@ -6,6 +6,7 @@ export { MonitorSection, type MonitorSectionProps } from "./components/MonitorSe
 export { TagFilter, type TagFilterProps, extractTags, filterSeriesFile } from "./components/TagFilter.js";
 export { Leaderboard, type LeaderboardProps } from "./components/Leaderboard.js";
 export { Dashboard, type DashboardProps } from "./Dashboard.js";
+export { RunDetail, type RunDetailProps, type RunMetricSnapshot, type RunComparisonEntry } from "./components/RunDetail.js";
 
 // Data fetching
 export { fetchIndex, fetchSeries, fetchRun, type DataSource } from "./fetch.js";

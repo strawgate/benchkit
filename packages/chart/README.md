@@ -65,6 +65,97 @@ import { Dashboard } from "@benchkit/chart";
 
 ---
 
+### `RunDetail`
+
+A first-class reusable surface for inspecting a single benchmark run. Can be embedded inside any dashboard shell — `RunDashboard`, `CompetitiveDashboard`, or a custom metric explorer — without modification.
+
+Renders:
+
+1. **Run metadata** — id, timestamp, commit SHA (optionally linked), Git ref, benchmark count, metric count.
+2. **Metric snapshots** — one sparkline + latest-value bar per user metric.
+3. **Runner metrics** — `_monitor/` series in a visually separated panel, consistent with the `MonitorSection` used in `Dashboard`.
+4. **Baseline comparison** — an optional delta table supplied by a parent view (e.g. `vs main`).
+
+```tsx
+import { RunDetail } from "@benchkit/chart";
+import type { RunMetricSnapshot, RunComparisonEntry } from "@benchkit/chart";
+
+// Prepare user-metric snapshots (non-monitor)
+const userSnapshots: RunMetricSnapshot[] = [
+  { metric: "ns_per_op", series: nsPerOpSeriesFile },
+  { metric: "allocs_per_op", series: allocsSeriesFile },
+];
+
+// Prepare monitor snapshots (optional)
+const monitorSnapshots: RunMetricSnapshot[] = [
+  { metric: "_monitor/cpu_user_pct", series: cpuSeriesFile },
+];
+
+// Prepare baseline comparison (optional — supplied by a parent view)
+const comparison: RunComparisonEntry[] = [
+  {
+    metric: "ns_per_op",
+    label: "ns/op",
+    current: 1100,
+    baseline: 1200,
+    unit: "ns/op",
+    direction: "smaller_is_better",
+  },
+];
+
+<RunDetail
+  run={selectedRun}
+  metricSnapshots={userSnapshots}
+  monitorSnapshots={monitorSnapshots}
+  comparisonEntries={comparison}
+  baselineLabel="main"
+  commitHref={(sha, run) => `https://github.com/your-org/your-repo/commit/${sha}`}
+  artifactHref={(run) => `https://github.com/your-org/your-repo/actions/runs/${run.id}`}
+  metricLabelFormatter={(m) => m.replace(/_/g, " ")}
+  seriesNameFormatter={(name) => name.replace(/^Benchmark/, "")}
+/>
+```
+
+#### `RunDetailProps`
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `run` | `RunEntry` | — | **Required.** The run to display. |
+| `metricSnapshots` | `RunMetricSnapshot[]` | `[]` | Pre-aggregated series files for user (non-monitor) metrics. |
+| `monitorSnapshots` | `RunMetricSnapshot[]` | `[]` | Pre-aggregated series files for `_monitor/` metrics. |
+| `comparisonEntries` | `RunComparisonEntry[]` | — | Baseline delta entries supplied by a parent view. |
+| `baselineLabel` | `string` | `"baseline"` | Label for the comparison context, e.g. `"main branch"`. |
+| `commitHref` | `(commit: string, run: RunEntry) => string \| undefined` | — | Builds a URL for the commit SHA in the metadata card. |
+| `artifactHref` | `(run: RunEntry) => string \| undefined` | — | Builds an external artifact link (e.g. CI run URL). |
+| `metricLabelFormatter` | `(metric: string) => string` | — | Custom metric label renderer. |
+| `seriesNameFormatter` | `(name: string, entry: SeriesEntry) => string` | — | Custom series name renderer. |
+| `maxPoints` | `number` | `20` | Max data points per sparkline. |
+| `class` | `string` | — | CSS class applied to the root element. |
+
+#### `RunMetricSnapshot`
+
+```ts
+interface RunMetricSnapshot {
+  metric: string;      // Metric name, e.g. "ns_per_op"
+  series: SeriesFile;  // Pre-aggregated series file for this metric
+}
+```
+
+#### `RunComparisonEntry`
+
+```ts
+interface RunComparisonEntry {
+  metric: string;                                          // Metric name
+  label?: string;                                          // Override display label
+  current: number;                                         // Value for the selected run
+  baseline: number;                                        // Value for the baseline run
+  unit?: string;                                           // Unit string, e.g. "ns/op"
+  direction?: "bigger_is_better" | "smaller_is_better";   // Default: smaller_is_better
+}
+```
+
+---
+
 ### `TrendChart`
 
 Renders a time-series line chart for a single metric. Optionally highlights regressed series with a red dot on their latest point.
