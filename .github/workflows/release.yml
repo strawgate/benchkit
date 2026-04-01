@@ -129,3 +129,23 @@ jobs:
               draft: false,
               prerelease: tag.includes('-'),
             });
+
+  update-major-tag:
+    needs: github-release
+    runs-on: ubuntu-latest
+    # Only update the major tag for stable (non-pre-release) versions
+    if: ${{ !contains(github.ref_name, '-') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update major version tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$TAG' does not match expected semver format v<major>.<minor>.<patch>; skipping major tag update"
+            exit 1
+          fi
+          MAJOR="v$(echo "${TAG#v}" | cut -d. -f1)"
+          echo "Updating $MAJOR to point to $TAG"
+          git tag -f "$MAJOR"
+          git push origin -f "refs/tags/$MAJOR"
