@@ -54,15 +54,21 @@ All benchmark data lives on a single orphan branch (default `bench-data`). The b
 bench-data
 └── data/
     ├── runs/
-    │   ├── 123456-1.json   # raw BenchmarkResult per CI run
-    │   └── 123457-1.json
-    ├── index.json           # metadata for every run (built by aggregate)
+    │   ├── 12345-1--bench.json  # {run_id}-{attempt}--{job}.json  (raw BenchmarkResult)
+    │   └── 12346-1--bench.json
+    ├── index.json               # metadata for every run (built by aggregate)
     └── series/
-        ├── ns_per_op.json   # pre-aggregated time-series per metric
+        ├── ns_per_op.json       # pre-aggregated time-series per metric
         └── allocs.json
 ```
 
-**Why pre-aggregate at write time?** The chart package fetches static JSON over GitHub's raw-content CDN. By computing `index.json` and `series/*.json` during aggregation, the dashboard needs only a handful of small fetches — no client-side joins, no server, and no database.
+**Collision-proof run naming:** The stash action's default run identifier is
+`{GITHUB_RUN_ID}-{GITHUB_RUN_ATTEMPT}--{GITHUB_JOB}`. Including the job name
+ensures that multiple concurrent jobs in the same workflow run each write a
+unique file. For matrix jobs, supply a custom `run-id` that incorporates the
+matrix key (e.g. `${{ github.run_id }}-${{ matrix.go-version }}`).
+
+**Why pre-aggregate?** The chart package fetches static JSON over GitHub's raw-content CDN. By computing `index.json` and `series/*.json` during aggregation, the dashboard needs only a handful of small fetches — no client-side joins, no server, and no database.
 
 ## Supported input formats
 
@@ -96,6 +102,8 @@ Add a step to your existing CI workflow:
 
 This parses the output, writes `data/runs/{run-id}.json` to the `bench-data` branch, and exposes `run-id` and `file-path` as step outputs.
 
+The default `run-id` is `{GITHUB_RUN_ID}-{GITHUB_RUN_ATTEMPT}--{GITHUB_JOB}`, which makes concurrent jobs collision-proof without any configuration.
+
 ### Optional: Capture system metrics with the monitor action
 
 Wrap your benchmark step with `monitor` start/stop to record CPU, memory, and load average alongside your results:
@@ -128,16 +136,37 @@ Monitor data is stored as `_monitor/system` and `_monitor/process/{name}` benchm
 
 ### 2. Aggregate into index and series files
 
-Run the aggregate action after stashing (or on a schedule):
+The recommended pattern is a **dedicated aggregate workflow** triggered when
+new run files land on `bench-data`. Scoping the trigger to `data/runs/**`
+means the aggregate workflow's own derived-file writes do **not** retrigger it.
 
 ```yaml
-- name: Aggregate
-  uses: strawgate/benchkit/actions/aggregate@main
-  with:
-    max-runs: 0   # 0 = keep all runs
+# .github/workflows/aggregate.yml
+name: Aggregate benchmarks
+on:
+  push:
+    branches:
+      - bench-data
+    paths:
+      - 'data/runs/**'   # only raw-run writes trigger aggregation
+
+permissions:
+  contents: write
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aggregate
+        uses: strawgate/benchkit/actions/aggregate@main
+        with:
+          max-runs: 0   # 0 = keep all runs
 ```
 
-This rebuilds `data/index.json` and one `data/series/{metric}.json` per metric, then pushes the changes to the data branch.
+Alternatively, you can call the aggregate action directly in your producer
+workflow (after the stash step), though the dedicated workflow is preferred
+when multiple producers write to the same branch.
 
 ### 3. Render a dashboard
 
@@ -175,7 +204,10 @@ The dashboard fetches `index.json` and `series/*.json` from `https://raw.githubu
 
 ### Complete workflow example
 
+Two separate workflow files implement the recommended producer/aggregate split:
+
 ```yaml
+# .github/workflows/bench.yml  — producer
 name: Benchmarks
 on:
   push:
@@ -197,12 +229,36 @@ jobs:
         uses: strawgate/benchkit/actions/stash@main
         with:
           results: bench.txt
+          # run-id defaults to {run_id}-{attempt}--bench (collision-proof)
+```
+
+```yaml
+# .github/workflows/aggregate.yml  — downstream aggregate
+name: Aggregate benchmarks
+on:
+  push:
+    branches:
+      - bench-data
+    paths:
+      - 'data/runs/**'   # derived-file writes do not retrigger this workflow
+
+permissions:
+  contents: write
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Aggregate
         uses: strawgate/benchkit/actions/aggregate@main
 ```
 
-See [actions/monitor](actions/monitor) for the full monitor workflow example including per-process tracking.
+See [`docs/workflow-architecture.md`](docs/workflow-architecture.md) for the full
+recommended architecture, matrix-job guidance, and migration notes. See
+[actions/monitor](actions/monitor) for the full monitor workflow example including
+per-process tracking.
 
 ## Schemas
 

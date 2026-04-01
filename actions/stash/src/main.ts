@@ -5,6 +5,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import {
   buildResult,
+  buildRunId,
   createTempResultPath,
   formatResultSummaryMarkdown,
   parseBenchmarkFiles,
@@ -21,9 +22,12 @@ async function run(): Promise<void> {
   const monitorPath = core.getInput("monitor") || "";
   const saveDataFile = core.getBooleanInput("save-data-file");
   const writeSummary = core.getBooleanInput("summary");
-  const runId =
-    core.getInput("run-id") ||
-    `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
+  const runId = buildRunId({
+    customRunId: core.getInput("run-id") || undefined,
+    githubRunId: process.env.GITHUB_RUN_ID,
+    githubRunAttempt: process.env.GITHUB_RUN_ATTEMPT,
+    githubJob: process.env.GITHUB_JOB,
+  });
 
   // Parse benchmark files
   const globber = await glob.create(resultsPattern);
