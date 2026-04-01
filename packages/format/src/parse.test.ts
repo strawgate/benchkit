@@ -52,4 +52,64 @@ describe("parse (auto-detect)", () => {
     const result = parse(input, "go");
     assert.equal(result.benchmarks[0].name, "BenchmarkBar");
   });
+
+  it("throws on empty input", () => {
+    assert.throws(() => parse(""), {
+      message: /Could not auto-detect/,
+    });
+  });
+
+  it("throws on whitespace-only input", () => {
+    assert.throws(() => parse("   \n\t  \n  "), {
+      message: /Could not auto-detect/,
+    });
+  });
+
+  it("throws on invalid JSON that looks like JSON", () => {
+    assert.throws(() => parse("[{malformed"), {
+      message: /Could not auto-detect/,
+    });
+  });
+
+  it("detects Go bench format with extra preamble lines", () => {
+    const input = [
+      "=== RUN   TestSomething",
+      "--- PASS: TestSomething (0.00s)",
+      "goos: linux",
+      "goarch: amd64",
+      "BenchmarkFoo-8    10000    1234 ns/op",
+      "ok      github.com/example/pkg  1.234s",
+    ].join("\n");
+    const result = parse(input);
+    assert.equal(result.benchmarks[0].name, "BenchmarkFoo");
+  });
+
+  it("throws on JSON with unexpected shape", () => {
+    assert.throws(() => parse(JSON.stringify({ foo: "bar" })), {
+      message: /Could not auto-detect/,
+    });
+  });
+
+  it("detects benchmark-action format with extra fields", () => {
+    const input = JSON.stringify([
+      { name: "Sort", value: 100, unit: "ns/op", group: "Group1", extra: "ignored" },
+    ]);
+    const result = parse(input);
+    assert.equal(result.benchmarks[0].name, "Sort");
+  });
+
+  it("detects native format with minimal valid structure", () => {
+    const input = JSON.stringify({
+      benchmarks: [{ name: "min", metrics: { value: { value: 1 } } }],
+    });
+    const result = parse(input);
+    assert.equal(result.benchmarks[0].name, "min");
+  });
+
+  it("throws when JSON is embedded in surrounding plain text", () => {
+    const input = `some preamble text\n${JSON.stringify({ benchmarks: [] })}\nsome trailing text`;
+    assert.throws(() => parse(input), {
+      message: /Could not auto-detect/,
+    });
+  });
 });
