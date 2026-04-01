@@ -23,29 +23,17 @@ jobs:
       - name: Validate schemas
         run: node --test schema/schema.test.mjs
 
-      - name: Build format package
-        run: npm run build --workspace=packages/format
+      - name: Build all packages and actions
+        run: npm run build
 
       - name: Test format package
         run: npm run test --workspace=packages/format
 
-      - name: Build chart package
-        run: npm run build --workspace=packages/chart
-
       - name: Test chart package
         run: npm run test --workspace=packages/chart
 
-      - name: Build stash action
-        run: npm run build --workspace=actions/stash
-
-      - name: Build aggregate action
-        run: npm run build --workspace=actions/aggregate
-
       - name: Test aggregate action
         run: npm run test --workspace=actions/aggregate
-
-      - name: Build monitor action
-        run: npm run build --workspace=actions/monitor
 
       - name: Test monitor action
         run: npm run test --workspace=actions/monitor
