@@ -30,13 +30,15 @@ for (const bench of result.benchmarks) {
 Main entry point. Accepts a string and an optional format hint. When `format` is
 omitted or `"auto"`, the parser inspects the input and picks the right strategy:
 
-| Detected shape | Format |
-|---|---|
-| JSON object with a `benchmarks` array | `native` |
-| JSON object with a `results` array (Hyperfine) | `hyperfine` |
-| JSON array of `{name, value, unit}` objects | `benchmark-action` |
-| Lines matching `Benchmark…  N  value unit` | `go` |
-| Lines matching `test … ... bench: value unit` | `rust` |
+| Detected shape | Trigger | Format |
+|---|---|---|
+| JSON object with a `benchmarks` array | Top-level `benchmarks` key present | `native` |
+| JSON object with a `results` array | Top-level `results` key with objects containing a `command` string | `hyperfine` |
+| JSON array of objects | Array whose first element has both a string `name` and a numeric `value` | `benchmark-action` |
+| Plain text lines | Lines matching `/^Benchmark\w.*\s+\d+\s+[\d.]+\s+\w+\/\w+/` | `go` |
+| Plain text lines | Lines matching `/^test\s+\S+\s+\.\.\.\s+bench:/` | `rust` |
+
+If auto-detection fails, `parse` throws with a message listing the supported formats.
 
 ```ts
 import { parse } from "@benchkit/format";
@@ -46,6 +48,186 @@ const result = parse(goOutput, "go");
 
 // Auto-detect (default)
 const result = parse(unknownInput);
+```
+
+### `parseGoBench(input)`
+
+Parses Go `testing.B` text output. Each benchmark line produces one `Benchmark`
+entry. The `-P` processor suffix is extracted into a `procs` tag. Multiple
+value/unit pairs on the same line produce separate named metrics.
+
+**Input** (typical `go test -bench=. -benchmem` output):
+
+```
+goos: linux
+goarch: amd64
+BenchmarkSort/small-8     500000     2345 ns/op     128 B/op     3 allocs/op
+BenchmarkSort/large-8       1000   987654 ns/op   65536 B/op   512 allocs/op
+BenchmarkHash-8          1000000      890 ns/op       0 B/op     0 allocs/op
+PASS
+ok  	example.com/mypackage	3.456s
+```
+
+**Call:**
+
+```ts
+import { parseGoBench } from "@benchkit/format";
+
+const input = `
+BenchmarkSort/small-8     500000     2345 ns/op     128 B/op     3 allocs/op
+BenchmarkSort/large-8       1000   987654 ns/op   65536 B/op   512 allocs/op
+BenchmarkHash-8          1000000      890 ns/op       0 B/op     0 allocs/op
+`.trim();
+
+const result = parseGoBench(input);
+```
+
+**Result** (abbreviated):
+
+```json
+{
+  "benchmarks": [
+    {
+      "name": "BenchmarkSort/small",
+      "tags": { "procs": "8" },
+      "metrics": {
+        "ns_per_op":     { "value": 2345,   "unit": "ns/op",     "direction": "smaller_is_better" },
+        "bytes_per_op":  { "value": 128,    "unit": "B/op",      "direction": "smaller_is_better" },
+        "allocs_per_op": { "value": 3,      "unit": "allocs/op", "direction": "smaller_is_better" }
+      }
+    },
+    {
+      "name": "BenchmarkSort/large",
+      "tags": { "procs": "8" },
+      "metrics": {
+        "ns_per_op":     { "value": 987654, "unit": "ns/op",     "direction": "smaller_is_better" },
+        "bytes_per_op":  { "value": 65536,  "unit": "B/op",      "direction": "smaller_is_better" },
+        "allocs_per_op": { "value": 512,    "unit": "allocs/op", "direction": "smaller_is_better" }
+      }
+    },
+    {
+      "name": "BenchmarkHash",
+      "tags": { "procs": "8" },
+      "metrics": {
+        "ns_per_op":     { "value": 890, "unit": "ns/op", "direction": "smaller_is_better" },
+        "bytes_per_op":  { "value": 0,   "unit": "B/op",  "direction": "smaller_is_better" },
+        "allocs_per_op": { "value": 0,   "unit": "allocs/op", "direction": "smaller_is_better" }
+      }
+    }
+  ]
+}
+```
+
+### `parseBenchmarkAction(input)`
+
+Parses the JSON array format used by
+[benchmark-action/github-action-benchmark](https://github.com/benchmark-action/github-action-benchmark).
+Each array entry becomes one `Benchmark` with a single metric called `value`.
+The `range` string (e.g. `"± 300"`) is parsed into a numeric `range` field.
+
+**Input** (JSON produced by the benchmark tool):
+
+```json
+[
+  { "name": "encode/small",  "value": 125430, "unit": "ops/sec", "range": "± 1200" },
+  { "name": "encode/medium", "value":  48200, "unit": "ops/sec", "range": "± 480" },
+  { "name": "decode/small",  "value":  98700, "unit": "ops/sec" },
+  { "name": "latency/p99",   "value":    4.2, "unit": "ms",      "range": "+/- 0.3" }
+]
+```
+
+**Call:**
+
+```ts
+import { parseBenchmarkAction } from "@benchkit/format";
+
+const result = parseBenchmarkAction(input);
+```
+
+**Result** (abbreviated):
+
+```json
+{
+  "benchmarks": [
+    {
+      "name": "encode/small",
+      "metrics": {
+        "value": { "value": 125430, "unit": "ops/sec", "direction": "bigger_is_better", "range": 1200 }
+      }
+    },
+    {
+      "name": "encode/medium",
+      "metrics": {
+        "value": { "value": 48200, "unit": "ops/sec", "direction": "bigger_is_better", "range": 480 }
+      }
+    },
+    {
+      "name": "decode/small",
+      "metrics": {
+        "value": { "value": 98700, "unit": "ops/sec", "direction": "bigger_is_better" }
+      }
+    },
+    {
+      "name": "latency/p99",
+      "metrics": {
+        "value": { "value": 4.2, "unit": "ms", "direction": "smaller_is_better", "range": 0.3 }
+      }
+    }
+  ]
+}
+```
+
+### `parseNative(input)`
+
+Parses the benchkit native JSON format. Validates that the input contains a
+`benchmarks` array where each entry has a string `name` and an object `metrics`
+whose values each have a numeric `value`. Direction, unit, range, tags, and
+samples are all optional. Returns the parsed object as-is after validation.
+
+**Input** (benchkit native JSON):
+
+```json
+{
+  "context": {
+    "commit": "abc123def456",
+    "ref": "main",
+    "timestamp": "2025-06-01T12:00:00Z"
+  },
+  "benchmarks": [
+    {
+      "name": "compress/gzip",
+      "tags": { "level": "6", "arch": "amd64" },
+      "metrics": {
+        "throughput": { "value": 312.5, "unit": "MB/s",   "direction": "bigger_is_better" },
+        "latency":    { "value":   3.2,  "unit": "ms",     "direction": "smaller_is_better" }
+      }
+    },
+    {
+      "name": "compress/zstd",
+      "tags": { "level": "3", "arch": "amd64" },
+      "metrics": {
+        "throughput": { "value": 498.0, "unit": "MB/s",   "direction": "bigger_is_better" },
+        "latency":    { "value":   2.1,  "unit": "ms",     "direction": "smaller_is_better" }
+      },
+      "samples": [
+        { "t": 0.0, "throughput": 490.0 },
+        { "t": 0.5, "throughput": 501.0 },
+        { "t": 1.0, "throughput": 503.0 }
+      ]
+    }
+  ]
+}
+```
+
+**Call:**
+
+```ts
+import { parseNative } from "@benchkit/format";
+import { readFileSync } from "node:fs";
+
+const result = parseNative(readFileSync("results.json", "utf-8"));
+// result.benchmarks[0].name => "compress/gzip"
+// result.benchmarks[0].metrics.throughput.value => 312.5
 ```
 
 ### `parseRustBench(input)`
@@ -60,55 +242,6 @@ const result = parseRustBench(
   "test sort::bench_sort   ... bench:         320 ns/iter (+/- 42)"
 );
 // result.benchmarks[0].metrics => { ns_per_iter: { value: 320, unit: "ns/iter", range: 42 } }
-```
-
-If auto-detection fails, `parse` throws with a message listing the supported
-formats.
-
-### `parseNative(input)`
-
-Parses the benchkit native JSON format. Validates that the input contains a
-`benchmarks` array with valid `name`, `metrics`, and optional `direction`
-fields. Returns the object as-is after validation.
-
-```ts
-import { parseNative } from "@benchkit/format";
-
-const result = parseNative(JSON.stringify({
-  benchmarks: [
-    { name: "Throughput", metrics: { eps: { value: 50000, direction: "bigger_is_better" } } }
-  ]
-}));
-```
-
-### `parseGoBench(input)`
-
-Parses Go `testing.B` text output. Each benchmark line produces one
-`Benchmark` entry. The `-P` processor suffix is extracted into a `procs` tag.
-Multiple value/unit pairs on the same line produce separate metrics.
-
-```ts
-import { parseGoBench } from "@benchkit/format";
-
-const result = parseGoBench(
-  "BenchmarkFib20-8   30000   41653 ns/op   4096 B/op   12 allocs/op"
-);
-// result.benchmarks[0].metrics => { ns_per_op, bytes_per_op, allocs_per_op }
-```
-
-### `parseBenchmarkAction(input)`
-
-Parses the JSON array format used by
-[benchmark-action/github-action-benchmark](https://github.com/benchmark-action/github-action-benchmark).
-Each entry becomes a benchmark with a single metric called `value`. The
-`range` string (e.g. `"± 300"`) is parsed into a numeric `range` field.
-
-```ts
-import { parseBenchmarkAction } from "@benchkit/format";
-
-const result = parseBenchmarkAction(JSON.stringify([
-  { name: "My Bench", value: 42000, unit: "ops/sec", range: "± 300" }
-]));
 ```
 
 ### `parseHyperfine(input)`
@@ -134,6 +267,35 @@ const result = parseHyperfine(JSON.stringify({
   ]
 }));
 ```
+
+### `inferDirection(unit)`
+
+Infers whether a unit string represents a "bigger is better" or "smaller is
+better" metric. Used internally by all parsers when no explicit `direction` is
+provided.
+
+```ts
+import { inferDirection } from "@benchkit/format";
+
+inferDirection("ops/sec");   // "bigger_is_better"
+inferDirection("MB/s");      // "bigger_is_better"
+inferDirection("throughput"); // "bigger_is_better"
+inferDirection("ns/op");     // "smaller_is_better"
+inferDirection("ms");        // "smaller_is_better"
+inferDirection("B/op");      // "smaller_is_better"
+```
+
+The heuristic scans the lowercased unit string for substrings:
+
+| Matched substring | Direction | Example units |
+|---|---|---|
+| `ops/s` | `bigger_is_better` | `ops/sec`, `ops/s` |
+| `op/s` | `bigger_is_better` | `op/sec`, `op/s` |
+| `/sec` | `bigger_is_better` | `req/sec`, `events/sec` |
+| `mb/s` | `bigger_is_better` | `MB/s`, `mb/s` |
+| `throughput` | `bigger_is_better` | `throughput` |
+| `events` | `bigger_is_better` | `events`, `events/sec` |
+| _(no match)_ | `smaller_is_better` | `ns/op`, `ms`, `B/op`, `allocs/op`, `ns/iter`, `bytes` |
 
 ## Types
 
@@ -253,26 +415,12 @@ Every metric may declare whether higher or lower values represent improvement.
 
 | Direction | Meaning | Examples |
 |---|---|---|
-| `bigger_is_better` | Higher values are improvements | throughput, events/sec, MB/s |
+| `bigger_is_better` | Higher values are improvements | throughput, ops/sec, MB/s |
 | `smaller_is_better` | Lower values are improvements | latency, ns/op, allocations |
 
-When direction is not specified, the parsers infer it from the unit string.
-Each parser recognizes a different set of patterns:
-
-**`parseGoBench`** — Go bench units:
-
-| Pattern | Direction |
-|---|---|
-| `ns/`, `ms/`, `us/`, `s/`, `B/op`, `allocs/` | `smaller_is_better` |
-| `ops/`, `MB/s` | `bigger_is_better` |
-| anything else | `smaller_is_better` (default) |
-
-**`parseBenchmarkAction`** — benchmark-action units:
-
-| Pattern | Direction |
-|---|---|
-| `ops/s`, `op/s`, `/sec`, `MB/s`, `throughput`, `events` | `bigger_is_better` |
-| anything else | `smaller_is_better` (default) |
+When direction is not specified in the input, all parsers call `inferDirection(unit)`
+to infer it from the unit string. See the [`inferDirection` section](#inferdirectionunit)
+for the full list of recognized unit patterns.
 
 If no unit is provided and no direction is set, consumers should treat the
 metric as `smaller_is_better`.
