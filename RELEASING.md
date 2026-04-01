@@ -61,10 +61,23 @@ a hyphen is automatically marked as a pre-release on GitHub.
 
    If any step fails the packages are **not** published.
 
+## Major version tags
+
+The actions in this repository follow the GitHub Actions convention of
+supporting a floating major version tag (e.g. `v1`) that always points to the
+latest stable release within that major line. This lets consumers pin to
+`strawgate/benchkit/actions/<name>@v1` and receive all patch and minor updates
+automatically.
+
+The `update-major-tag` job in the release workflow keeps this tag up to date.
+It runs after every stable (non-pre-release) tag push and force-updates the
+major tag to the new release commit. Pre-release tags (those containing `-`,
+e.g. `v1.2.0-beta.1`) are skipped.
+
 ## What the automation does
 
 The [release workflow](.github/workflows/release.yml) triggers on tags
-matching `v*`. It runs three jobs in sequence:
+matching `v*`. It runs four jobs in sequence:
 
 1. **build-and-test** — installs dependencies, builds, and tests
    `@benchkit/format` and `@benchkit/chart`. The release is aborted if
@@ -75,6 +88,9 @@ matching `v*`. It runs three jobs in sequence:
 3. **github-release** — generates a changelog from commit messages since the
    previous tag and creates a GitHub Release. Pre-release tags are
    automatically flagged.
+4. **update-major-tag** — force-updates the floating major version tag (e.g.
+   `v1`) to point to the latest stable release commit. Skipped for pre-release
+   tags.
 
 ## Troubleshooting
 
