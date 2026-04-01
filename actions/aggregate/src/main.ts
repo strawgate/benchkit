@@ -116,14 +116,15 @@ function writeAggregatedFiles(
 
   // Remove stale series files
   if (fs.existsSync(seriesDir)) {
-    for (const f of fs.readdirSync(seriesDir)) {
-      fs.unlinkSync(path.join(seriesDir, f));
-    }
+    fs.rmSync(seriesDir, { recursive: true, force: true });
   }
+  fs.mkdirSync(seriesDir, { recursive: true });
 
   for (const [metricName, series] of seriesMap) {
     const fileName = `${metricName}.json`;
-    fs.writeFileSync(path.join(seriesDir, fileName), JSON.stringify(series, null, 2) + "\n");
+    const filePath = path.join(seriesDir, fileName);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(series, null, 2) + "\n");
     core.info(`Wrote series/${fileName}`);
   }
 }
