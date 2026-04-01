@@ -1,5 +1,6 @@
 // Components
 export { TrendChart, type TrendChartProps } from "./components/TrendChart.js";
+export { ComparisonChart, type ComparisonChartProps } from "./components/ComparisonChart.js";
 export { ComparisonBar, type ComparisonBarProps } from "./components/ComparisonBar.js";
 export { RunTable, type RunTableProps } from "./components/RunTable.js";
 export { MonitorSection, type MonitorSectionProps } from "./components/MonitorSection.js";
@@ -15,3 +16,4 @@ export { rankSeries, getWinner, type RankedEntry } from "./leaderboard.js";
 // Utilities
 export { detectRegressions, regressionTooltip, type RegressionResult } from "./utils.js";
 export { defaultMetricLabel, defaultMonitorMetricLabel } from "./labels.js";
+export { samplesToDataPoints, dataPointsToComparisonData } from "./comparison-transforms.js";

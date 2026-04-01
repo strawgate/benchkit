@@ -74,7 +74,7 @@ export function transformSeriesDataset(
     entries = [...groups.entries()].map(([groupKey, groupEntries]) => [
       `${options.groupByTag}=${groupKey}`,
       {
-        tags: { [options.groupByTag]: groupKey },
+        tags: { [options.groupByTag!]: groupKey },
         points: aggregatePoints(groupEntries, aggregate),
       },
     ]);
