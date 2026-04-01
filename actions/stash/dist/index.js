@@ -59533,7 +59533,7 @@ function compare(current, baseline, config = DEFAULT_THRESHOLD) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.compare = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+exports.compare = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
@@ -59555,6 +59555,9 @@ Object.defineProperty(exports, "parseBenchmarkAction", ({ enumerable: true, get:
 /** Parse Hyperfine JSON format. */
 var parse_hyperfine_js_1 = __nccwpck_require__(9347);
 Object.defineProperty(exports, "parseHyperfine", ({ enumerable: true, get: function () { return parse_hyperfine_js_1.parseHyperfine; } }));
+/** Parse pytest-benchmark JSON format. */
+var parse_pytest_benchmark_js_1 = __nccwpck_require__(3956);
+Object.defineProperty(exports, "parsePytestBenchmark", ({ enumerable: true, get: function () { return parse_pytest_benchmark_js_1.parsePytestBenchmark; } }));
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 var compare_js_1 = __nccwpck_require__(2016);
 Object.defineProperty(exports, "compare", ({ enumerable: true, get: function () { return compare_js_1.compare; } }));
@@ -59794,6 +59797,74 @@ function parseNative(input) {
 
 /***/ }),
 
+/***/ 3956:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parsePytestBenchmark = parsePytestBenchmark;
+function parsePytestBenchmark(input) {
+    const parsed = JSON.parse(input);
+    if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
+        throw new Error("pytest-benchmark format must have a 'benchmarks' array.");
+    }
+    const benchmarks = parsed.benchmarks.map((entry) => {
+        if (typeof entry.name !== "string") {
+            throw new Error("Each pytest-benchmark entry must have a 'name' string.");
+        }
+        if (!entry.stats || typeof entry.stats !== "object") {
+            throw new Error(`pytest-benchmark entry '${entry.name}' must have a 'stats' object.`);
+        }
+        const stats = entry.stats;
+        const metrics = {
+            mean: {
+                value: stats.mean,
+                unit: "s",
+                direction: "smaller_is_better",
+                range: stats.stddev,
+            },
+            median: {
+                value: stats.median,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            min: {
+                value: stats.min,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            max: {
+                value: stats.max,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            stddev: {
+                value: stats.stddev,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            ops: {
+                value: stats.ops,
+                unit: "ops/s",
+                direction: "bigger_is_better",
+            },
+            rounds: {
+                value: stats.rounds,
+                direction: "bigger_is_better",
+            },
+        };
+        return {
+            name: entry.name,
+            metrics,
+        };
+    });
+    return { benchmarks };
+}
+//# sourceMappingURL=parse-pytest-benchmark.js.map
+
+/***/ }),
+
 /***/ 7215:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -59855,6 +59926,7 @@ const parse_rust_js_1 = __nccwpck_require__(7215);
 const parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 const parse_native_js_1 = __nccwpck_require__(1470);
 const parse_hyperfine_js_1 = __nccwpck_require__(9347);
+const parse_pytest_benchmark_js_1 = __nccwpck_require__(3956);
 /**
  * Detect the input format and parse into the native BenchmarkResult.
  */
@@ -59873,6 +59945,8 @@ function parse(input, format = "auto") {
             return (0, parse_benchmark_action_js_1.parseBenchmarkAction)(input);
         case "hyperfine":
             return (0, parse_hyperfine_js_1.parseHyperfine)(input);
+        case "pytest-benchmark":
+            return (0, parse_pytest_benchmark_js_1.parsePytestBenchmark)(input);
         default:
             throw new Error(`Unknown format: ${format}`);
     }
@@ -59880,6 +59954,7 @@ function parse(input, format = "auto") {
 /**
  * Auto-detect format from content.
  *
+ * - If it parses as JSON with a "benchmarks" key and entries with "stats" → pytest-benchmark
  * - If it parses as JSON with a "benchmarks" key → native
  * - If it parses as JSON with a "results" key containing objects with "command" → hyperfine
  * - If it parses as a JSON array of objects with "name"/"value"/"unit" → benchmark-action
@@ -59893,6 +59968,11 @@ function detectFormat(input) {
         try {
             const parsed = JSON.parse(trimmed);
             if (parsed.benchmarks && Array.isArray(parsed.benchmarks)) {
+                if (parsed.benchmarks.length > 0 &&
+                    parsed.benchmarks[0].stats &&
+                    typeof parsed.benchmarks[0].stats === "object") {
+                    return "pytest-benchmark";
+                }
                 return "native";
             }
             if (parsed.results &&
@@ -59920,7 +60000,7 @@ function detectFormat(input) {
     if (/^test\s+\S+\s+\.\.\.\s+bench:/m.test(trimmed)) {
         return "rust";
     }
-    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine.");
+    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine, pytest-benchmark.");
 }
 //# sourceMappingURL=parse.js.map
 
