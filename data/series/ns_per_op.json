@@ -9,20 +9,6 @@
       },
       "points": [
         {
-          "timestamp": "2026-04-01T15:57:46.684Z",
-          "value": 310,
-          "commit": "a28894075d09f7086a00591e9168eec1c56592f8",
-          "run_id": "test-count-23857928886-1",
-          "range": 20
-        },
-        {
-          "timestamp": "2026-04-01T16:01:48.636Z",
-          "value": 310,
-          "commit": "031e99f3192761d1415d6bf123cafd5d1e709a90",
-          "run_id": "test-count-23858119436-1",
-          "range": 20
-        },
-        {
           "timestamp": "2026-04-01T16:01:48.800Z",
           "value": 320,
           "commit": "031e99f3192761d1415d6bf123cafd5d1e709a90",
@@ -35,20 +21,6 @@
         "procs": "4"
       },
       "points": [
-        {
-          "timestamp": "2026-04-01T15:57:46.684Z",
-          "value": 110,
-          "commit": "a28894075d09f7086a00591e9168eec1c56592f8",
-          "run_id": "test-count-23857928886-1",
-          "range": 20
-        },
-        {
-          "timestamp": "2026-04-01T16:01:48.636Z",
-          "value": 110,
-          "commit": "031e99f3192761d1415d6bf123cafd5d1e709a90",
-          "run_id": "test-count-23858119436-1",
-          "range": 20
-        },
         {
           "timestamp": "2026-04-01T16:01:48.800Z",
           "value": 120,
