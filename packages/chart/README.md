@@ -222,6 +222,49 @@ The component renders `null` when `monitorSeriesMap` is empty.
 
 ---
 
+### `CompetitiveDashboard`
+
+A scenario-first dashboard designed for projects that compare multiple implementations against each other across a bounded set of scenarios.
+
+**Data model mapping:**
+
+| Competitive concept | benchkit data model |
+|---------------------|---------------------|
+| Scenario | one metric key from the index (e.g. `BenchmarkSort/small`) |
+| Competitor | one series name inside a `SeriesFile` |
+| "Our" implementation | identified by the `ownSeries` prop |
+
+The overview shows one scenario card per metric, with a leader badge, gap-to-2nd summary, optional "our" rank badge, and a mini sparkline. Clicking a card opens a drilldown with a full trend chart, comparison bar, leaderboard, and run table.
+
+```tsx
+import { CompetitiveDashboard } from "@benchkit/chart";
+
+<CompetitiveDashboard
+  source={{ owner: "your-org", repo: "your-repo" }}
+  ownSeries="OurImpl"
+  metricLabelFormatter={(m) => m.replace(/_/g, " ")}
+  seriesNameFormatter={(name) => name.replace(/^Benchmark/, "")}
+  commitHref={(sha, run) => `https://github.com/your-org/your-repo/commit/${sha}`}
+  maxPoints={20}
+/>
+```
+
+#### `CompetitiveDashboardProps`
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `source` | `DataSource` | — | **Required.** Where to fetch data from. |
+| `class` | `string` | — | CSS class applied to the root element. |
+| `ownSeries` | `string` | — | Series name identifying "our" implementation. When set, each scenario card shows our current rank. |
+| `scenarios` | `string[]` | — | Restrict which metric keys are shown as scenario cards. Defaults to all non-monitor metrics. |
+| `metricLabelFormatter` | `(metric: string) => string` | — | Custom scenario/metric name renderer. |
+| `seriesNameFormatter` | `(name: string, entry: SeriesEntry) => string` | — | Custom competitor/series name renderer. |
+| `commitHref` | `(commit: string, run: RunEntry) => string \| undefined` | — | Builds a URL for each commit SHA in the run table. |
+| `maxPoints` | `number` | `20` | Max data points per trend chart. |
+| `maxRuns` | `number` | `20` | Max rows in the run table shown in drilldown. |
+
+---
+
 ### `RunTable`
 
 Renders a paginated table of recent benchmark runs with columns for run ID, timestamp, commit SHA, Git ref, benchmark count, and metrics list.
@@ -428,13 +471,26 @@ const filtered = filterSeriesFile(seriesFile, { arch: "arm64" });
 
 ### Competitive benchmarking
 
-Use this pattern when you want to compare multiple implementations (series) for the same metric. `Leaderboard` and `ComparisonBar` are the primary components here.
+The easiest way to build a competitive dashboard is to use the built-in `CompetitiveDashboard` component:
+
+```tsx
+import { CompetitiveDashboard } from "@benchkit/chart";
+
+<CompetitiveDashboard
+  source={{ owner: "your-org", repo: "your-repo" }}
+  ownSeries="OurImpl"
+  metricLabelFormatter={(m) => m.replace(/_/g, " ")}
+  seriesNameFormatter={(name) => name}
+/>
+```
+
+For a fully custom layout, use the underlying primitives directly. Each metric key becomes a scenario; each series name is a competitor.
 
 ```tsx
 import { TrendChart, ComparisonBar, Leaderboard, TagFilter, filterSeriesFile } from "@benchkit/chart";
 import { useState } from "preact/hooks";
 
-function CompetitiveDashboard({ seriesMap }: { seriesMap: Map<string, SeriesFile> }) {
+function CustomCompetitiveDashboard({ seriesMap }: { seriesMap: Map<string, SeriesFile> }) {
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
 
   return (
