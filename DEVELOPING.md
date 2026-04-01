@@ -14,6 +14,7 @@ This guide is for contributors working on benchkit internals.
 - `actions/stash/`: GitHub Action to parse and store run data
 - `actions/aggregate/`: GitHub Action to build index and series
 - `actions/monitor/`: GitHub Action for background system metrics collection
+- `actions/collect/`: GitHub Action to collect metrics from JSON/Prometheus endpoints
 - `schema/`: JSON schemas for generated data files
 
 ## Install dependencies
@@ -38,6 +39,7 @@ npm run build --workspace=packages/chart
 npm run build --workspace=actions/stash
 npm run build --workspace=actions/aggregate
 npm run build --workspace=actions/monitor
+npm run build --workspace=actions/collect
 ```
 
 ## Test

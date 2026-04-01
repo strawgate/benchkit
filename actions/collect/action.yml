@@ -1,0 +1,34 @@
+name: 'Benchkit Collect'
+description: 'Collect metrics from a JSON endpoint or Prometheus /metrics endpoint and emit native benchkit JSON.'
+inputs:
+  mode:
+    description: 'Collection mode: json or prometheus.'
+    required: true
+  url:
+    description: 'URL to fetch data from (JSON endpoint or Prometheus /metrics endpoint).'
+  file:
+    description: 'Path to a local JSON file (json mode only; alternative to url).'
+  metrics:
+    description: |
+      Metric mappings as a JSON array.
+      json mode:       [{"field":"events_per_sec","name":"events_per_sec","unit":"count/s","direction":"bigger_is_better"}]
+      prometheus mode: [{"metric":"http_requests_total","name":"http_requests","unit":"requests","direction":"bigger_is_better"}]
+    required: true
+  benchmark-name:
+    description: 'Benchmark name written to the output file.'
+    default: 'workflow'
+  tags:
+    description: 'Optional tags to attach to the benchmark, as a JSON object: {"env":"prod"}.'
+    default: '{}'
+  label-filter:
+    description: 'Global Prometheus label filter applied to every metric, as a JSON object: {"job":"myapp"}.'
+    default: '{}'
+  output:
+    description: 'Path to write the native benchkit JSON result.'
+    default: 'collect.json'
+outputs:
+  output-file:
+    description: 'Path to the written output file.'
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

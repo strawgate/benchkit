@@ -13,6 +13,7 @@ Benchkit is a modular toolkit for recording, aggregating, and visualising benchm
 | **Benchkit Stash** | [`actions/stash`](actions/stash) | GitHub Action — parses benchmark output, optionally attaches monitor data, and commits the result to the data branch. |
 | **Benchkit Aggregate** | [`actions/aggregate`](actions/aggregate) | GitHub Action — reads every stored run and rebuilds `index.json` plus per-metric `series/*.json` files. |
 | **Benchkit Monitor** | [`actions/monitor`](actions/monitor) | GitHub Action — runs a background process that samples system metrics (`cpu`, `mem`, `load`) via `/proc` during your benchmark step and emits them as `_monitor/` benchmarks. |
+| **Benchkit Collect** | [`actions/collect`](actions/collect) | GitHub Action — collects metrics from a JSON HTTP endpoint or local file, or from a Prometheus `/metrics` endpoint, and emits a native benchkit JSON file. |
 
 ## Architecture
 
@@ -95,6 +96,51 @@ Add a step to your existing CI workflow:
 ```
 
 This parses the output, writes `data/runs/{run-id}.json` to the `bench-data` branch, and exposes `run-id` and `file-path` as step outputs.
+
+### Optional: Collect metrics from JSON or Prometheus endpoints
+
+Use the collect action to turn HTTP endpoint responses or Prometheus scrapes into native benchkit metrics:
+
+```yaml
+# JSON endpoint example
+- name: Collect app stats
+  uses: strawgate/benchkit/actions/collect@main
+  with:
+    mode: json
+    url: http://localhost:8080/stats
+    benchmark-name: http-server
+    metrics: |
+      [
+        {"field":"events_per_sec","name":"events_per_sec","unit":"count/s","direction":"bigger_is_better"},
+        {"field":"rss_mb",        "name":"rss_mb",        "unit":"MB",      "direction":"smaller_is_better"}
+      ]
+    output: app-stats.json
+
+# Then stash the collected metrics:
+- name: Stash results
+  uses: strawgate/benchkit/actions/stash@main
+  with:
+    results: app-stats.json
+    format: native
+```
+
+```yaml
+# Prometheus endpoint example
+- name: Collect Prometheus metrics
+  uses: strawgate/benchkit/actions/collect@main
+  with:
+    mode: prometheus
+    url: http://localhost:9090/metrics
+    benchmark-name: app-server
+    metrics: |
+      [
+        {"metric":"http_requests_total",          "name":"requests","unit":"requests","direction":"bigger_is_better"},
+        {"metric":"process_resident_memory_bytes","name":"rss_bytes","unit":"bytes",  "direction":"smaller_is_better"}
+      ]
+    output: prom-metrics.json
+```
+
+See [docs/workflow-collectors.md](docs/workflow-collectors.md) for complete examples including label filtering, tags, composing with the monitor action, and local use.
 
 ### Optional: Capture system metrics with the monitor action
 

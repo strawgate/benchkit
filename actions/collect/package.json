@@ -1,0 +1,15 @@
+{
+  "name": "@benchkit/collect",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub Action: collect metrics from JSON or Prometheus endpoints and emit native benchkit JSON.",
+  "scripts": {
+    "build": "tsc && ncc build lib/main.js -o dist -s",
+    "test": "tsc && node --test lib/collect.test.js",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.0",
+    "@benchkit/format": "*"
+  }
+}
