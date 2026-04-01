@@ -10,6 +10,7 @@ import { Leaderboard } from "./components/Leaderboard.js";
 import { getWinner } from "./leaderboard.js";
 import { detectRegressions, regressionTooltip, type RegressionResult } from "./utils.js";
 import { defaultMetricLabel } from "./labels.js";
+import { transformSeriesDataset, filtersFromTagRecord } from "./dataset-transforms.js";
 
 export interface DashboardProps {
   source: DataSource;
@@ -158,7 +159,11 @@ export function Dashboard({
   const userMetricNames = (index.metrics ?? []).filter((m) => !isMonitorMetric(m));
 
   const selectedSeries = typeof view === "object" ? seriesMap.get(view.metric) : null;
-  const filteredSelectedSeries = selectedSeries ? filterSeriesFile(selectedSeries, activeFilters) : null;
+  // Use the transform layer for the focused metric detail view so filtering,
+  // grouping, and aggregation are all driven by the same bounded API.
+  const filteredSelectedSeries = selectedSeries
+    ? transformSeriesDataset(selectedSeries, { filters: filtersFromTagRecord(activeFilters) })
+    : null;
   const selectedMetricError = typeof view === "object" ? (seriesErrors.get(view.metric) ?? null) : null;
   const selectedRegressions = typeof view === "object" ? (regressionMap.get(view.metric) ?? []) : [];
   const activeFilterCount = Object.keys(activeFilters).length;

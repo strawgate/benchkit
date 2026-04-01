@@ -10,6 +10,16 @@ export { Dashboard, type DashboardProps } from "./Dashboard.js";
 // Data fetching
 export { fetchIndex, fetchSeries, fetchRun, type DataSource } from "./fetch.js";
 
+// Dataset-local transform layer
+export {
+  transformSeriesDataset,
+  formatGroupLabel,
+  filtersFromTagRecord,
+  type DatasetAggregate,
+  type DatasetFilter,
+  type TransformSeriesDatasetOptions,
+} from "./dataset-transforms.js";
+
 // Ranking utilities
 export { rankSeries, getWinner, type RankedEntry } from "./leaderboard.js";
 // Utilities
