@@ -1,0 +1,47 @@
+{
+  "benchmarks": [
+    {
+      "name": "pipeline/passthrough",
+      "tags": {
+        "scenario": "passthrough",
+        "cpu": "1.0"
+      },
+      "metrics": {
+        "throughput_eps": {
+          "value": 85000,
+          "unit": "events/sec",
+          "direction": "bigger_is_better"
+        },
+        "latency_ms": {
+          "value": 12,
+          "unit": "ms",
+          "direction": "smaller_is_better"
+        }
+      },
+      "samples": [
+        { "t": 0.0, "throughput_eps": 80000, "latency_ms": 14 },
+        { "t": 5.0, "throughput_eps": 85000, "latency_ms": 12 },
+        { "t": 10.0, "throughput_eps": 87000, "latency_ms": 11 }
+      ]
+    },
+    {
+      "name": "pipeline/filter",
+      "tags": {
+        "scenario": "filter",
+        "cpu": "1.0"
+      },
+      "metrics": {
+        "throughput_eps": {
+          "value": 62000,
+          "unit": "events/sec",
+          "direction": "bigger_is_better"
+        },
+        "latency_ms": {
+          "value": 18,
+          "unit": "ms",
+          "direction": "smaller_is_better"
+        }
+      }
+    }
+  ]
+}

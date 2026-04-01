@@ -1,0 +1,33 @@
+name: Workflow Benchmark
+# Minimal workflow benchmark recipe.
+# Runs a measurement script and stashes the result as native benchkit JSON.
+# Copy this file into .github/workflows/ and edit the collect step.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'      # optional: run daily at 06:00 UTC
+
+permissions:
+  contents: write             # required to push to bench-data
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect metrics
+        # Edit this to run your own measurement script.
+        # The script must write benchkit-native JSON to stdout.
+        # See examples/native/workflow-benchmark.json for the expected shape.
+        run: bash scripts/collect-metrics.sh > bench.json
+
+      - name: Stash results
+        uses: strawgate/benchkit/actions/stash@main
+        with:
+          results: bench.json
+          format: native
+
+      - name: Aggregate
+        uses: strawgate/benchkit/actions/aggregate@main

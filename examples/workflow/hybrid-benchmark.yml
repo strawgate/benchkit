@@ -1,0 +1,47 @@
+name: Hybrid Benchmark
+# Minimal hybrid benchmark recipe.
+# Wraps a code harness with actions/monitor to capture runner diagnostics
+# alongside the outcome metrics produced by the harness.
+# Copy this file into .github/workflows/ and adjust the benchmark step.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start monitor
+        # Captures CPU, memory, and load average every 250 ms.
+        # Only active on Linux runners; no-op on macOS and Windows.
+        uses: strawgate/benchkit/actions/monitor@main
+        with:
+          mode: start
+          poll-interval: 250
+          output: monitor.json
+
+      - name: Run benchmarks
+        # Replace this with your own benchmark command.
+        run: go test -bench=. -benchmem ./... | tee bench.txt
+
+      - name: Stop monitor
+        uses: strawgate/benchkit/actions/monitor@main
+        with:
+          mode: stop
+
+      - name: Stash results
+        # The monitor input merges runner diagnostics into the stored run.
+        # Remove it if you do not need system metrics.
+        uses: strawgate/benchkit/actions/stash@main
+        with:
+          results: bench.txt
+          monitor: monitor.json
+          format: go
+
+      - name: Aggregate
+        uses: strawgate/benchkit/actions/aggregate@main

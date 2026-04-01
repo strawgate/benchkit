@@ -1,0 +1,17 @@
+{
+  "benchmarks": [
+    {
+      "name": "endpoint/health",
+      "tags": {
+        "region": "us-east-1"
+      },
+      "metrics": {
+        "latency_ms": {
+          "value": 42,
+          "unit": "ms",
+          "direction": "smaller_is_better"
+        }
+      }
+    }
+  ]
+}

@@ -75,6 +75,20 @@ bench-data
 
 All formats are normalised to the native `BenchmarkResult` type by `@benchkit/format`.
 
+## Benchmark types
+
+Benchkit supports three benchmark styles:
+
+| Type | Use when | Example |
+|------|----------|---------|
+| **Code benchmark** | A test harness produces output (Go, Rust, JMH, …) | `go test -bench=.` |
+| **Workflow benchmark** | You measure something with a script and emit native JSON | HTTP latency, Prometheus scrape, CLI parsing |
+| **Hybrid benchmark** | A code harness runs + you want runner system diagnostics | Load test with CPU/memory context |
+
+→ See the [Workflow Benchmark Guide](docs/workflow-benchmark-guide.md) for a detailed explanation of each type, the native JSON format, example scripts, and copy-pasteable workflow recipes.
+
+→ See [`examples/`](examples/) for minimal, ready-to-use workflow and native JSON examples.
+
 ## Quick start
 
 The fastest path is a GitHub Actions workflow that stashes results after every CI run and periodically aggregates them.
