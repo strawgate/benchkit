@@ -59430,6 +59430,70 @@ module.exports = {
 
 /***/ }),
 
+/***/ 9727:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.buildNativeResult = buildNativeResult;
+const parse_native_js_1 = __nccwpck_require__(1470);
+/**
+ * Build a validated benchkit-native {@link BenchmarkResult} from a plain options object.
+ *
+ * Metric values may be provided as bare numbers or as full metric descriptor objects.
+ * The result is validated through {@link parseNative} before being returned, so any
+ * structural errors (missing name, bad direction, etc.) surface as thrown errors.
+ *
+ * @example
+ * ```ts
+ * const result = buildNativeResult({
+ *   benchmarks: [{
+ *     name: "mock-http-ingest",
+ *     tags: { scenario: "json-ingest" },
+ *     metrics: {
+ *       events_per_sec: { value: 13240.5, unit: "events/sec", direction: "bigger_is_better" },
+ *       p95_batch_ms:   { value: 143.2,   unit: "ms",         direction: "smaller_is_better" },
+ *     },
+ *   }],
+ *   context: { commit: "abc123", ref: "main" },
+ * });
+ * ```
+ */
+function buildNativeResult(options) {
+    if (!options.benchmarks || options.benchmarks.length === 0) {
+        throw new Error("buildNativeResult: 'benchmarks' must be a non-empty array.");
+    }
+    const benchmarks = options.benchmarks.map((b) => {
+        const metrics = {};
+        for (const [key, input] of Object.entries(b.metrics)) {
+            if (typeof input === "number") {
+                metrics[key] = { value: input };
+            }
+            else {
+                metrics[key] = { ...input };
+            }
+        }
+        const bench = { name: b.name, metrics };
+        if (b.tags && Object.keys(b.tags).length > 0) {
+            bench.tags = b.tags;
+        }
+        if (b.samples && b.samples.length > 0) {
+            bench.samples = b.samples;
+        }
+        return bench;
+    });
+    const result = { benchmarks };
+    if (options.context) {
+        result.context = options.context;
+    }
+    // Validate through the same path as parseNative so all structural rules apply.
+    return (0, parse_native_js_1.parseNative)(JSON.stringify(result));
+}
+//# sourceMappingURL=build-native.js.map
+
+/***/ }),
+
 /***/ 2016:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -59533,7 +59597,7 @@ function compare(current, baseline, config = DEFAULT_THRESHOLD) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.compare = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+exports.buildNativeResult = exports.compare = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
@@ -59561,6 +59625,9 @@ Object.defineProperty(exports, "parsePytestBenchmark", ({ enumerable: true, get:
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 var compare_js_1 = __nccwpck_require__(2016);
 Object.defineProperty(exports, "compare", ({ enumerable: true, get: function () { return compare_js_1.compare; } }));
+/** Build a valid native benchmark result from a plain options object. */
+var build_native_js_1 = __nccwpck_require__(9727);
+Object.defineProperty(exports, "buildNativeResult", ({ enumerable: true, get: function () { return build_native_js_1.buildNativeResult; } }));
 //# sourceMappingURL=index.js.map
 
 /***/ }),

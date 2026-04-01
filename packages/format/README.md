@@ -231,7 +231,184 @@ const result = parseNative(readFileSync("results.json", "utf-8"));
 // result.benchmarks[0].metrics.throughput.value => 312.5
 ```
 
-### `parseRustBench(input)`
+### `buildNativeResult(options)`
+
+Builds a valid [`BenchmarkResult`](#benchmarkresult) from a plain options object
+and validates the result before returning it. This is the programmatic counterpart
+to the [`benchkit-native emit`](#benchkit-native-cli) CLI helper.
+
+Metric values can be bare numbers (value only) or full descriptor objects with
+optional `unit`, `direction`, and `range` fields.
+
+**Call:**
+
+```ts
+import { buildNativeResult } from "@benchkit/format";
+
+// Throughput metric
+const result = buildNativeResult({
+  benchmarks: [{
+    name: "http-ingest",
+    metrics: {
+      events_per_sec: { value: 13240.5, unit: "events/sec", direction: "bigger_is_better" },
+    },
+  }],
+});
+
+// Multi-metric with tags and context
+const result2 = buildNativeResult({
+  benchmarks: [{
+    name: "mock-http-ingest",
+    tags: { scenario: "json-ingest" },
+    metrics: {
+      events_per_sec: { value: 13240.5, unit: "events/sec", direction: "bigger_is_better" },
+      p95_batch_ms:   { value: 143.2,   unit: "ms",         direction: "smaller_is_better" },
+    },
+  }],
+  context: { commit: "abc123", ref: "main" },
+});
+
+// Multiple benchmark entries in one result
+const result3 = buildNativeResult({
+  benchmarks: [
+    { name: "bench-a", metrics: { latency_ms: 12.3 } },
+    { name: "bench-b", metrics: { latency_ms: 9.8 } },
+  ],
+});
+
+// With time-series samples
+const result4 = buildNativeResult({
+  benchmarks: [{
+    name: "agent-run",
+    metrics: { service_rss_mb: { value: 512.3, unit: "mb", direction: "smaller_is_better" } },
+    samples: [
+      { t: 0, service_rss_mb: 498.1 },
+      { t: 5, service_rss_mb: 512.3 },
+      { t: 10, service_rss_mb: 521.0 },
+    ],
+  }],
+});
+```
+
+Throws with a descriptive message if any structural constraint is violated (same
+validation as `parseNative`).
+
+## `benchkit-native` CLI
+
+`@benchkit/format` ships a `benchkit-native` binary that emits valid native
+benchmark result JSON from a shell step — no hand-written JSON required.
+
+```bash
+# After installing @benchkit/format:
+npx benchkit-native emit --help
+```
+
+### `benchkit-native emit`
+
+```
+benchkit-native emit --name <name> --metric <spec> [options]
+
+Required:
+  --name <string>          Benchmark name (e.g. mock-http-ingest)
+  --metric <spec>          Metric in the form name=value[:unit[:direction]]
+                           Repeat for multiple metrics.
+                           direction: bigger_is_better | smaller_is_better
+
+Optional:
+  --tag <key=value>        Arbitrary tag dimension. Repeat for multiple tags.
+  --sample <spec>          Time-series sample: t=<secs>[,metric=value,...]
+  --commit <sha>           Git commit SHA for context metadata.
+  --ref <gitref>           Git ref (branch/tag) for context metadata.
+  --timestamp <iso8601>    ISO 8601 timestamp for context metadata.
+  --runner <label>         Runner label or machine description.
+  --output <file>          Write JSON to file instead of stdout.
+  --append                 Append benchmark to an existing output file.
+```
+
+#### Shell examples
+
+**Throughput metric:**
+
+```bash
+benchkit-native emit \
+  --name http-ingest \
+  --metric events_per_sec=13240.5:events/sec:bigger_is_better \
+  --output result.json
+```
+
+**Latency metric:**
+
+```bash
+benchkit-native emit \
+  --name api-latency \
+  --metric p95_ms=143.2:ms:smaller_is_better \
+  --output result.json
+```
+
+**Memory metric:**
+
+```bash
+benchkit-native emit \
+  --name agent-run \
+  --metric service_rss_mb=512.3:mb:smaller_is_better
+```
+
+**Multi-metric result with tags and context:**
+
+```bash
+benchkit-native emit \
+  --name mock-http-ingest \
+  --tag scenario=json-ingest \
+  --metric events_per_sec=13240.5:events/sec:bigger_is_better \
+  --metric p95_batch_ms=143.2:ms:smaller_is_better \
+  --commit "$GITHUB_SHA" \
+  --ref "$GITHUB_REF" \
+  --output workflow-bench.json
+```
+
+**Result with samples:**
+
+```bash
+benchkit-native emit \
+  --name agent-run \
+  --metric service_rss_mb=512.3:mb:smaller_is_better \
+  --sample t=0,service_rss_mb=498.1 \
+  --sample t=5,service_rss_mb=512.3 \
+  --sample t=10,service_rss_mb=521.0 \
+  --output result.json
+```
+
+**Appending multiple benchmarks to one file:**
+
+```bash
+# First benchmark
+benchkit-native emit --name bench-a --metric latency_ms=12.3:ms:smaller_is_better \
+  --output results.json
+
+# Append a second benchmark
+benchkit-native emit --name bench-b --metric latency_ms=9.8:ms:smaller_is_better \
+  --output results.json --append
+```
+
+#### GitHub Actions usage
+
+```yaml
+- name: Emit benchmark result
+  run: |
+    npx benchkit-native emit \
+      --name mock-http-ingest \
+      --tag scenario=json-ingest \
+      --metric events_per_sec=13240.5:events/sec:bigger_is_better \
+      --metric p95_batch_ms=143.2:ms:smaller_is_better \
+      --commit "$GITHUB_SHA" \
+      --ref "$GITHUB_REF" \
+      --output workflow-bench.json
+
+- uses: strawgate/benchkit/actions/stash@main
+  with:
+    result-file: workflow-bench.json
+    format: native
+```
 
 Parses Rust `cargo bench` (libtest) text output. Each benchmark line produces one
 `Benchmark` entry.

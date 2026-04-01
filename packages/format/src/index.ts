@@ -35,3 +35,6 @@ export { parseHyperfine } from "./parse-hyperfine.js";
 export { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 export { compare } from "./compare.js";
+/** Build a valid native benchmark result from a plain options object. */
+export { buildNativeResult } from "./build-native.js";
+export type { BuildNativeResultOptions, BuildBenchmarkInput, MetricInput } from "./build-native.js";
