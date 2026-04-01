@@ -99,3 +99,4 @@ matching `v*`. It runs four jobs in sequence:
 | Tag version doesn't match `package.json` | Delete the tag, fix the version, re-tag and push. |
 | npm publish fails with 403 | Check the `NPM_TOKEN` secret has publish access to `@benchkit`. |
 | Tests fail during release | Fix the issue on `main`, bump again, and re-tag. |
+| Provenance attestation fails | Ensure `id-token: write` permission is set in the workflow and each `package.json` has a `repository` field pointing to the GitHub repo. |

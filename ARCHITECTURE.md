@@ -240,7 +240,7 @@ jobs:
 - [x] Release workflow (tag → npm publish + GitHub release)
 - [x] RELEASING.md documentation
 - [ ] **Major version tag action (`v1` tag management in release workflow)**
-- [ ] **npm provenance verification**
+- [x] **npm provenance verification**
 
 ### Wave 1: PR-Native Workflow (high priority)
 - [ ] **`actions/compare`** — the missing killer feature

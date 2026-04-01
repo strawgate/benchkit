@@ -10,5 +10,10 @@
     "lint": "tsc --noEmit"
   },
   "files": ["dist"],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/strawgate/benchkit.git",
+    "directory": "packages/format"
+  }
 }
