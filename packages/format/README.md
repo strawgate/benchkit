@@ -1,6 +1,6 @@
 # @benchkit/format
 
-Benchmark result types and format parsers for [benchkit](../../README.md). Parses Go bench output, [Hyperfine](https://github.com/sharkdp/hyperfine) JSON, [benchmark-action](https://github.com/benchmark-action/github-action-benchmark) JSON, and the benchkit native format into a single normalized shape.
+Benchmark result types and format parsers for [benchkit](../../README.md). Parses Go bench output, [Hyperfine](https://github.com/sharkdp/hyperfine) JSON, [benchmark-action](https://github.com/benchmark-action/github-action-benchmark) JSON, [pytest-benchmark](https://pytest-benchmark.readthedocs.io/) JSON, and the benchkit native format into a single normalized shape.
 
 ## Installation
 
@@ -32,6 +32,7 @@ omitted or `"auto"`, the parser inspects the input and picks the right strategy:
 
 | Detected shape | Format |
 |---|---|
+| JSON object with a `benchmarks` array whose entries have a `stats` object | `pytest-benchmark` |
 | JSON object with a `benchmarks` array | `native` |
 | JSON object with a `results` array (Hyperfine) | `hyperfine` |
 | JSON array of `{name, value, unit}` objects | `benchmark-action` |
@@ -133,6 +134,60 @@ const result = parseHyperfine(JSON.stringify({
     }
   ]
 }));
+```
+
+### `parsePytestBenchmark(input)`
+
+Parses [pytest-benchmark](https://pytest-benchmark.readthedocs.io/) JSON output
+(`pytest --benchmark-json=results.json`). Each benchmark entry becomes a
+`Benchmark` with metrics for `mean` (primary, seconds), `ops`, `rounds`,
+`median`, `min`, `max`, and `stddev`.
+
+```ts
+import { parsePytestBenchmark } from "@benchkit/format";
+
+const result = parsePytestBenchmark(JSON.stringify({
+  benchmarks: [
+    {
+      name: "test_sort",
+      fullname: "tests/test_perf.py::test_sort",
+      stats: {
+        min: 0.000123,
+        max: 0.000156,
+        mean: 0.000134,
+        stddev: 0.0000089,
+        rounds: 1000,
+        median: 0.000132,
+        ops: 7462.68
+      }
+    }
+  ]
+}));
+// result.benchmarks[0].metrics.mean  => { value: 0.000134, unit: "s", direction: "smaller_is_better", range: 0.0000089 }
+// result.benchmarks[0].metrics.ops   => { value: 7462.68, unit: "ops/s", direction: "bigger_is_better" }
+// result.benchmarks[0].metrics.rounds => { value: 1000, direction: "bigger_is_better" }
+```
+
+**Python example** — generate and consume pytest-benchmark output:
+
+```python
+# conftest.py / test_perf.py
+def test_sort(benchmark):
+    benchmark(sorted, range(1000))
+```
+
+```bash
+pytest --benchmark-json=results.json
+```
+
+```ts
+import { readFileSync } from "fs";
+import { parsePytestBenchmark } from "@benchkit/format";
+
+const result = parsePytestBenchmark(readFileSync("results.json", "utf-8"));
+for (const bench of result.benchmarks) {
+  console.log(`${bench.name}: ${bench.metrics.mean.value}s (${bench.metrics.ops.value} ops/s)`);
+}
 ```
 
 ## Types

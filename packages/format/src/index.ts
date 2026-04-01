@@ -31,5 +31,7 @@ export { parseRustBench } from "./parse-rust.js";
 export { parseBenchmarkAction } from "./parse-benchmark-action.js";
 /** Parse Hyperfine JSON format. */
 export { parseHyperfine } from "./parse-hyperfine.js";
+/** Parse pytest-benchmark JSON format. */
+export { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 export { compare } from "./compare.js";

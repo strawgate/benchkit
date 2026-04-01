@@ -4,8 +4,9 @@ import { parseRustBench } from "./parse-rust.js";
 import { parseBenchmarkAction } from "./parse-benchmark-action.js";
 import { parseNative } from "./parse-native.js";
 import { parseHyperfine } from "./parse-hyperfine.js";
+import { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
 
-export type Format = "native" | "go" | "benchmark-action" | "rust" | "hyperfine" | "auto";
+export type Format = "native" | "go" | "benchmark-action" | "rust" | "hyperfine" | "pytest-benchmark" | "auto";
 
 /**
  * Detect the input format and parse into the native BenchmarkResult.
@@ -26,6 +27,8 @@ export function parse(input: string, format: Format = "auto"): BenchmarkResult {
       return parseBenchmarkAction(input);
     case "hyperfine":
       return parseHyperfine(input);
+    case "pytest-benchmark":
+      return parsePytestBenchmark(input);
     default:
       throw new Error(`Unknown format: ${format}`);
   }
@@ -34,6 +37,7 @@ export function parse(input: string, format: Format = "auto"): BenchmarkResult {
 /**
  * Auto-detect format from content.
  *
+ * - If it parses as JSON with a "benchmarks" key and entries with "stats" → pytest-benchmark
  * - If it parses as JSON with a "benchmarks" key → native
  * - If it parses as JSON with a "results" key containing objects with "command" → hyperfine
  * - If it parses as a JSON array of objects with "name"/"value"/"unit" → benchmark-action
@@ -49,6 +53,13 @@ function detectFormat(input: string): Exclude<Format, "auto"> {
       const parsed = JSON.parse(trimmed);
 
       if (parsed.benchmarks && Array.isArray(parsed.benchmarks)) {
+        if (
+          parsed.benchmarks.length > 0 &&
+          parsed.benchmarks[0].stats &&
+          typeof parsed.benchmarks[0].stats === "object"
+        ) {
+          return "pytest-benchmark";
+        }
         return "native";
       }
 
@@ -85,6 +96,6 @@ function detectFormat(input: string): Exclude<Format, "auto"> {
   }
 
   throw new Error(
-    "Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine.",
+    "Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine, pytest-benchmark.",
   );
 }
