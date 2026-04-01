@@ -33,3 +33,6 @@ export { parseBenchmarkAction } from "./parse-benchmark-action.js";
 export { parseHyperfine } from "./parse-hyperfine.js";
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 export { compare } from "./compare.js";
+/** Format a ComparisonResult as a GitHub-flavored markdown table for PR comments or job summaries. */
+export { formatComparisonMarkdown } from "./format-comparison-markdown.js";
+export type { FormatComparisonMarkdownOptions } from "./format-comparison-markdown.js";

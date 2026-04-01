@@ -1,0 +1,35 @@
+name: 'Benchkit Compare'
+description: 'Compare PR benchmark results against the baseline on the data branch and post a PR comment.'
+inputs:
+  results:
+    description: 'Path or glob pattern to benchmark result file(s) for the current run.'
+    required: true
+  format:
+    description: 'Input format: go, benchmark-action, native, rust, hyperfine, or auto (default: auto).'
+    default: 'auto'
+  data-branch:
+    description: 'Branch used for benchmark data storage.'
+    default: 'bench-data'
+  baseline-runs:
+    description: 'Number of most recent baseline runs to average. Default: 5.'
+    default: '5'
+  threshold:
+    description: 'Percentage change threshold for regression detection. Default: 5.'
+    default: '5'
+  fail-on-regression:
+    description: 'Fail the action step when a regression is detected. Default: false.'
+    default: 'false'
+  comment-on-pr:
+    description: 'Post comparison results as a PR comment. Default: true.'
+    default: 'true'
+  github-token:
+    description: 'Token with read access to the data branch and PR comment permissions.'
+    default: ${{ github.token }}
+outputs:
+  has-regression:
+    description: "'true' if any benchmark regressed beyond the threshold, 'false' otherwise."
+  summary:
+    description: 'Markdown-formatted comparison table.'
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

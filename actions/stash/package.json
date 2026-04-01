@@ -9,6 +9,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@actions/artifact": "^6.2.1",
     "@actions/core": "^1.11.0",
     "@actions/exec": "^1.1.1",
     "@actions/glob": "^0.5.0",

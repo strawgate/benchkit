@@ -19,11 +19,17 @@ inputs:
   monitor:
     description: 'Path to monitor.json produced by the monitor action. When provided, monitor benchmarks and context are merged into the stored result.'
     required: false
+  save-data-file:
+    description: 'When set to true, upload the parsed BenchmarkResult JSON as a workflow artifact named benchkit-result-{run-id}. Useful for cross-job access (e.g. by the compare action).'
+    default: 'false'
+    required: false
 outputs:
   run-id:
     description: 'The run identifier used for this stash.'
   file-path:
     description: 'Path to the stored JSON file on the data branch.'
+  artifact-name:
+    description: 'Name of the uploaded workflow artifact (only set when save-data-file is true).'
 runs:
   using: 'node24'
   main: 'dist/index.js'

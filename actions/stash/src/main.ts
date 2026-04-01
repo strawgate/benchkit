@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { buildResult, parseBenchmarkFiles, readMonitorOutput } from "./stash.js";
+import type { BenchmarkResult } from "@benchkit/format";
 import type { Format } from "@benchkit/format";
 
 async function run(): Promise<void> {
@@ -13,6 +14,7 @@ async function run(): Promise<void> {
   const dataBranch = core.getInput("data-branch") || "bench-data";
   const token = core.getInput("github-token", { required: true });
   const monitorPath = core.getInput("monitor") || "";
+  const saveDataFile = core.getInput("save-data-file") === "true";
   const runId =
     core.getInput("run-id") ||
     `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
@@ -51,7 +53,8 @@ async function run(): Promise<void> {
   const runsDir = path.join(worktree, "data", "runs");
   fs.mkdirSync(runsDir, { recursive: true });
   const resultPath = path.join(runsDir, `${runId}.json`);
-  fs.writeFileSync(resultPath, JSON.stringify(result, null, 2) + "\n");
+  const resultJson = JSON.stringify(result, null, 2) + "\n";
+  fs.writeFileSync(resultPath, resultJson);
   core.info(`Wrote ${resultPath}`);
 
   await exec.exec("git", ["-C", worktree, "add", "."]);
@@ -61,6 +64,56 @@ async function run(): Promise<void> {
 
   core.setOutput("run-id", runId);
   core.setOutput("file-path", `data/runs/${runId}.json`);
+
+  // Upload artifact if requested
+  if (saveDataFile) {
+    const artifactName = `benchkit-result-${runId}`;
+    const tmpFile = path.join(os.tmpdir(), `${runId}.json`);
+    fs.writeFileSync(tmpFile, resultJson);
+    // Dynamic import required: @actions/artifact v6+ is ESM-only
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { DefaultArtifactClient } = await import("@actions/artifact") as any;
+    const artifactClient = new DefaultArtifactClient();
+    await artifactClient.uploadArtifact(artifactName, [tmpFile], os.tmpdir());
+    fs.unlinkSync(tmpFile);
+    core.setOutput("artifact-name", artifactName);
+    core.info(`Uploaded artifact: ${artifactName}`);
+  }
+
+  // Write job summary
+  await writeJobSummary(result, runId);
+}
+
+async function writeJobSummary(result: BenchmarkResult, runId: string): Promise<void> {
+  const userBenchmarks = result.benchmarks.filter((b) => !b.name.startsWith("_monitor/"));
+
+  if (userBenchmarks.length === 0) {
+    return;
+  }
+
+  // Collect all metric names across benchmarks (excluding monitor)
+  const metricNames = [...new Set(
+    userBenchmarks.flatMap((b) => Object.keys(b.metrics)),
+  )].sort();
+
+  const header = ["Benchmark", ...metricNames];
+  const divider = header.map(() => "---");
+
+  const rows = userBenchmarks.map((bench) => {
+    const cells = metricNames.map((metric) => {
+      const m = bench.metrics[metric];
+      if (!m) return "-";
+      const unit = m.unit ? ` ${m.unit}` : "";
+      return `${m.value}${unit}`;
+    });
+    return [bench.name, ...cells];
+  });
+
+  const tableRows = [header, divider, ...rows];
+  await core.summary
+    .addHeading(`Benchmark Results — run ${runId}`)
+    .addTable(tableRows)
+    .write();
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
