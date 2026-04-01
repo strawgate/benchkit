@@ -14,6 +14,19 @@
           "commit": "64c1e19816cace262f9471b1bb5b0ba4accdb426",
           "run_id": "test-count-23830771795-1",
           "range": 0
+        },
+        {
+          "timestamp": "2026-04-01T06:16:33.200Z",
+          "value": 48,
+          "commit": "a1d998b848937b0984b69952c08268e2a514774b",
+          "run_id": "test-count-23834856228-1",
+          "range": 0
+        },
+        {
+          "timestamp": "2026-04-01T06:16:35.053Z",
+          "value": 48,
+          "commit": "a1d998b848937b0984b69952c08268e2a514774b",
+          "run_id": "test-go-23834856228-1"
         }
       ]
     },
@@ -28,6 +41,32 @@
           "commit": "64c1e19816cace262f9471b1bb5b0ba4accdb426",
           "run_id": "test-count-23830771795-1",
           "range": 0
+        },
+        {
+          "timestamp": "2026-04-01T06:16:33.200Z",
+          "value": 0,
+          "commit": "a1d998b848937b0984b69952c08268e2a514774b",
+          "run_id": "test-count-23834856228-1",
+          "range": 0
+        },
+        {
+          "timestamp": "2026-04-01T06:16:35.053Z",
+          "value": 0,
+          "commit": "a1d998b848937b0984b69952c08268e2a514774b",
+          "run_id": "test-go-23834856228-1"
+        }
+      ]
+    },
+    "BenchmarkInsert [procs=4]": {
+      "tags": {
+        "procs": "4"
+      },
+      "points": [
+        {
+          "timestamp": "2026-04-01T06:16:35.053Z",
+          "value": 64,
+          "commit": "a1d998b848937b0984b69952c08268e2a514774b",
+          "run_id": "test-go-23834856228-1"
         }
       ]
     }
