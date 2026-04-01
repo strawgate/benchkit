@@ -9,25 +9,6 @@
       },
       "points": [
         {
-          "timestamp": "2026-04-01T01:49:20.357Z",
-          "value": 320,
-          "commit": "262eab6bd2f9a8812f887c115648cb0d2318797f",
-          "run_id": "test-go-23828021956-1"
-        },
-        {
-          "timestamp": "2026-04-01T01:49:20.574Z",
-          "value": 310,
-          "commit": "262eab6bd2f9a8812f887c115648cb0d2318797f",
-          "run_id": "test-count-23828021956-1",
-          "range": 20
-        },
-        {
-          "timestamp": "2026-04-01T01:52:26.180Z",
-          "value": 320,
-          "commit": "bf0a8f469b9aeb7f8fac7a8c29c2dbc94ac53180",
-          "run_id": "test-go-23828100964-1"
-        },
-        {
           "timestamp": "2026-04-01T01:52:28.399Z",
           "value": 310,
           "commit": "bf0a8f469b9aeb7f8fac7a8c29c2dbc94ac53180",
@@ -42,49 +23,11 @@
       },
       "points": [
         {
-          "timestamp": "2026-04-01T01:49:20.357Z",
-          "value": 120,
-          "commit": "262eab6bd2f9a8812f887c115648cb0d2318797f",
-          "run_id": "test-go-23828021956-1"
-        },
-        {
-          "timestamp": "2026-04-01T01:49:20.574Z",
-          "value": 110,
-          "commit": "262eab6bd2f9a8812f887c115648cb0d2318797f",
-          "run_id": "test-count-23828021956-1",
-          "range": 20
-        },
-        {
-          "timestamp": "2026-04-01T01:52:26.180Z",
-          "value": 120,
-          "commit": "bf0a8f469b9aeb7f8fac7a8c29c2dbc94ac53180",
-          "run_id": "test-go-23828100964-1"
-        },
-        {
           "timestamp": "2026-04-01T01:52:28.399Z",
           "value": 110,
           "commit": "bf0a8f469b9aeb7f8fac7a8c29c2dbc94ac53180",
           "run_id": "test-count-23828100964-1",
           "range": 20
-        }
-      ]
-    },
-    "BenchmarkInsert [procs=4]": {
-      "tags": {
-        "procs": "4"
-      },
-      "points": [
-        {
-          "timestamp": "2026-04-01T01:49:20.357Z",
-          "value": 450,
-          "commit": "262eab6bd2f9a8812f887c115648cb0d2318797f",
-          "run_id": "test-go-23828021956-1"
-        },
-        {
-          "timestamp": "2026-04-01T01:52:26.180Z",
-          "value": 450,
-          "commit": "bf0a8f469b9aeb7f8fac7a8c29c2dbc94ac53180",
-          "run_id": "test-go-23828100964-1"
         }
       ]
     }
