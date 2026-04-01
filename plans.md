@@ -10,6 +10,7 @@
 | Polling interval cap | Not needed | Output stores per-process aggregates (peak RSS, total CPU), not raw time-series snapshots |
 | Dashboard `_monitor/` section | Visual section within existing overview | Not a new view mode — just a divider and grouped section below user benchmarks |
 | `_bench/` precision window | Document it, don't worry about it | Extra series files are small and the feature is opt-in |
+| Statistical thresholds (z-score, t-test) | Declined | Percentage thresholds are sufficient; statistical tests add complexity with marginal benefit given CI data constraints. |
 
 ---
 

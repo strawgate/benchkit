@@ -246,30 +246,4 @@ describe("compare", () => {
     const result = compare(current, baseline, { test: "percentage", threshold: 5 });
     assert.equal(result.entries[0].status, "stable");
   });
-
-  describe("statistical fallbacks", () => {
-    it("falls back to percentage if z-score data is insufficient", () => {
-      const baseline = Array(10).fill(null).map(() =>
-        makeResult([{ name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } }])
-      );
-      const current = makeResult([{ name: "BenchA", metrics: { ns_per_op: { value: 110, unit: "ns/op", direction: "smaller_is_better" } } }]);
-
-      // 10 points < 30. Falling back to default (5%). 10% change > 5% -> regressed.
-      const result = compare(current, baseline, { test: "z-score", threshold: 95 });
-      assert.equal(result.entries[0].status, "regressed");
-      assert.ok(result.warnings?.some(w => w.includes("z-score test") && w.includes("Falling back")));
-    });
-
-    it("falls back to percentage if t-test data is insufficient", () => {
-      const baseline = [
-        makeResult([{ name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } }])
-      ];
-      const current = makeResult([{ name: "BenchA", metrics: { ns_per_op: { value: 103, unit: "ns/op", direction: "smaller_is_better" } } }]);
-
-      // 1 point < 2. Falling back to default (5%). 3% change < 5% -> stable.
-      const result = compare(current, baseline, { test: "t-test", threshold: 95 });
-      assert.equal(result.entries[0].status, "stable");
-      assert.ok(result.warnings?.some(w => w.includes("t-test") && w.includes("Falling back")));
-    });
-  });
 });
