@@ -9,7 +9,14 @@ import {
   buildIndex,
   buildSeries,
   readRuns,
+  type ParsedRun,
 } from "./aggregate.js";
+import {
+  buildRefIndex,
+  buildPrIndex,
+  buildRunDetail,
+  buildMetricSummaryViews,
+} from "./views.js";
 
 async function run(): Promise<void> {
   const dataBranch = core.getInput("data-branch") || "bench-data";
@@ -61,7 +68,7 @@ async function run(): Promise<void> {
   const seriesMap = buildSeries(runs);
 
   // Write output files
-  writeAggregatedFiles(worktree, index, seriesMap);
+  writeAggregatedFiles(worktree, index, seriesMap, runs);
   core.info(`Wrote index.json (${index.runs.length} runs, ${allMetrics.length} metrics)`);
 
   // Commit and push if changed
@@ -107,6 +114,7 @@ function writeAggregatedFiles(
   worktree: string,
   index: ReturnType<typeof buildIndex>,
   seriesMap: ReturnType<typeof buildSeries>,
+  runs: ParsedRun[],
 ): void {
   const dataDir = path.join(worktree, "data");
   fs.writeFileSync(path.join(dataDir, "index.json"), JSON.stringify(index, null, 2) + "\n");
@@ -127,6 +135,42 @@ function writeAggregatedFiles(
     fs.writeFileSync(filePath, JSON.stringify(series, null, 2) + "\n");
     core.info(`Wrote series/${fileName}`);
   }
+
+  // ── Navigation indexes ──────────────────────────────────────────
+  const indexDir = path.join(dataDir, "index");
+  if (fs.existsSync(indexDir)) {
+    fs.rmSync(indexDir, { recursive: true, force: true });
+  }
+  fs.mkdirSync(indexDir, { recursive: true });
+
+  const refsIndex = buildRefIndex(index.runs);
+  fs.writeFileSync(path.join(indexDir, "refs.json"), JSON.stringify(refsIndex, null, 2) + "\n");
+  core.info(`Wrote index/refs.json (${refsIndex.length} refs)`);
+
+  const prsIndex = buildPrIndex(index.runs);
+  fs.writeFileSync(path.join(indexDir, "prs.json"), JSON.stringify(prsIndex, null, 2) + "\n");
+  core.info(`Wrote index/prs.json (${prsIndex.length} PRs)`);
+
+  const metricsIndex = buildMetricSummaryViews(seriesMap);
+  fs.writeFileSync(path.join(indexDir, "metrics.json"), JSON.stringify(metricsIndex, null, 2) + "\n");
+  core.info(`Wrote index/metrics.json (${metricsIndex.length} metrics)`);
+
+  // ── Run detail views ────────────────────────────────────────────
+  const runsViewDir = path.join(dataDir, "views", "runs");
+  if (fs.existsSync(runsViewDir)) {
+    fs.rmSync(runsViewDir, { recursive: true, force: true });
+  }
+  fs.mkdirSync(runsViewDir, { recursive: true });
+
+  for (const run of runs) {
+    const detail = buildRunDetail(run.id, runs);
+    if (detail) {
+      const runDetailDir = path.join(runsViewDir, run.id);
+      fs.mkdirSync(runDetailDir, { recursive: true });
+      fs.writeFileSync(path.join(runDetailDir, "detail.json"), JSON.stringify(detail, null, 2) + "\n");
+    }
+  }
+  core.info(`Wrote views/runs/{id}/detail.json for ${runs.length} run(s)`);
 }
 
 run().catch((err) => {
