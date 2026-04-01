@@ -20,6 +20,9 @@ jobs:
       - name: Lint
         run: npx eslint .
 
+      - name: Check npm provenance metadata
+        run: node scripts/check-provenance.mjs
+
       - name: Validate schemas
         run: node --test schema/schema.test.mjs
 

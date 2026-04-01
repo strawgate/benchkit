@@ -54,6 +54,9 @@ jobs:
       - name: Build chart package
         run: npm run build --workspace=packages/chart
 
+      - name: Check npm provenance metadata
+        run: node scripts/check-provenance.mjs
+
       - name: Verify tag matches package versions
         run: |
           TAG="${GITHUB_REF#refs/tags/v}"
