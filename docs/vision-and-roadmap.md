@@ -88,6 +88,17 @@ Benchkit needs to equally support two kinds of metrics in the same run:
 The native benchmark format already supports this shape. The missing work is
 mostly around authoring ergonomics and productized dashboards.
 
+## Aggregation architecture
+
+Benchkit is also moving toward a more explicit OTLP-first aggregation model.
+See [`docs/otlp-aggregation-architecture.md`](otlp-aggregation-architecture.md)
+for the current proposal around:
+
+- OTLP as canonical raw storage
+- benchkit semantic conventions on top of OTLP
+- view-shaped derived artifacts for UI flows
+- dataset-local frontend transforms
+
 ## Issue audit
 
 ### Issues that are directly on the critical path
