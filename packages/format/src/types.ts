@@ -19,6 +19,25 @@ export interface Metric {
   range?: number;
 }
 
+export interface NativeMetricInit {
+  value: number;
+  unit?: string;
+  direction?: "bigger_is_better" | "smaller_is_better";
+  range?: number;
+}
+
+export interface NativeBenchmarkInit {
+  name: string;
+  tags?: Record<string, string>;
+  metrics: Record<string, NativeMetricInit | number>;
+  samples?: Sample[];
+}
+
+export interface NativeResultInit {
+  benchmarks: NativeBenchmarkInit[];
+  context?: Context;
+}
+
 export interface Sample {
   t: number;
   [metricName: string]: number;

@@ -23,6 +23,53 @@ for (const bench of result.benchmarks) {
 }
 ```
 
+## Building native results
+
+If your benchmark does not come from a tool like `go test -bench`, you can
+build benchkit-native results programmatically and then write them to disk.
+
+```ts
+import {
+  buildNativeResult,
+  stringifyNativeResult,
+} from "@benchkit/format";
+
+const result = buildNativeResult({
+  context: {
+    commit: process.env.GITHUB_SHA,
+    ref: process.env.GITHUB_REF,
+    timestamp: new Date().toISOString(),
+  },
+  benchmarks: [
+    {
+      name: "mock-http-ingest",
+      tags: {
+        kind: "workflow",
+        scenario: "json-ingest",
+      },
+      metrics: {
+        events_per_sec: { value: 13240.5, unit: "events/sec" },
+        p95_batch_ms: { value: 143.2, unit: "ms", direction: "smaller_is_better" },
+        service_rss_mb: { value: 543.1, unit: "MB", direction: "smaller_is_better" },
+      },
+      samples: [
+        { t: 0, events_per_sec: 0, service_rss_mb: 112.3 },
+        { t: 1, events_per_sec: 11884.2, service_rss_mb: 241.7 },
+      ],
+    },
+  ],
+});
+
+const json = stringifyNativeResult(result);
+// write json to workflow-bench.json
+```
+
+Shorthands:
+
+- numeric metrics like `{ parse_errors: 0 }` are accepted
+- direction is inferred from `unit` when omitted, e.g. `events/sec` becomes
+  `bigger_is_better`
+
 ## Parser entry points
 
 ### `parse(input, format?)`

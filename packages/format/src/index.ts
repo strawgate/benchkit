@@ -2,6 +2,9 @@ export type {
   BenchmarkResult,
   Benchmark,
   Metric,
+  NativeMetricInit,
+  NativeBenchmarkInit,
+  NativeResultInit,
   Sample,
   Context,
   MonitorContext,
@@ -38,3 +41,5 @@ export { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
 export { compare } from "./compare.js";
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */
 export { formatComparisonMarkdown } from "./format-comparison-markdown.js";
+/** Helpers for building and serializing native benchmark results. */
+export { defineMetric, defineBenchmark, buildNativeResult, stringifyNativeResult } from "./native-builder.js";
