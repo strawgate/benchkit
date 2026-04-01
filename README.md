@@ -233,6 +233,12 @@ npm run test         # run tests across all workspaces
 npm run lint         # type-check all workspaces
 ```
 
+## Vision and roadmap
+
+See [`docs/vision-and-roadmap.md`](docs/vision-and-roadmap.md) for the current
+product direction, issue audit, and phased plan across PR benchmarking,
+workflow benchmarks, and scenario/run-oriented dashboards.
+
 ## License
 
 [MIT](LICENSE)

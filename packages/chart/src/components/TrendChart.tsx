@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "preact/hooks";
+import { useRef, useEffect, useMemo } from "preact/hooks";
 import {
   Chart,
   LineController,
@@ -15,6 +15,7 @@ import {
 import "chartjs-adapter-date-fns";
 import type { SeriesFile, SeriesEntry } from "@benchkit/format";
 import { COLORS } from "../colors.js";
+import { getChartTheme } from "../theme.js";
 import type { RegressionResult } from "../utils.js";
 
 Chart.register(
@@ -32,87 +33,140 @@ export interface TrendChartProps {
   series: SeriesFile;
   height?: number;
   title?: string;
+  subtitle?: string;
+  summary?: string;
+  compact?: boolean;
+  /** Stroke width for trend lines. Defaults to a thinner metrics-friendly width. */
+  lineWidth?: number;
   /** Max points per series to display (default: all) */
   maxPoints?: number;
   /** Custom series name renderer */
   seriesNameFormatter?: (name: string, entry: SeriesEntry) => string;
+  showLegend?: boolean;
+  showSeriesCount?: boolean;
   /** CSS class name */
   class?: string;
   /** Regression results to highlight on the chart (last data point of each flagged series). */
   regressions?: RegressionResult[];
 }
 
-export function TrendChart({ series, height = 300, title, maxPoints, seriesNameFormatter, class: className, regressions }: TrendChartProps) {
+function formatValue(value: number, compact = false): string {
+  if (compact) {
+    return new Intl.NumberFormat("en-US", {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(value);
+  }
+
+  return value.toLocaleString("en-US", { maximumFractionDigits: value >= 100 ? 0 : 2 });
+}
+
+export function TrendChart({
+  series,
+  height = 300,
+  title,
+  subtitle,
+  summary,
+  compact = false,
+  lineWidth,
+  maxPoints,
+  seriesNameFormatter,
+  showLegend = true,
+  showSeriesCount = true,
+  class: className,
+  regressions,
+}: TrendChartProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
+  const entries = useMemo(() => {
+    return Object.entries(series.series)
+      .map(([name, entry], idx) => {
+        const points = maxPoints && entry.points.length > maxPoints
+          ? entry.points.slice(-maxPoints)
+          : entry.points;
+        if (points.length === 0) return null;
+
+        return {
+          name,
+          entry,
+          points,
+          color: COLORS[idx % COLORS.length],
+          label: seriesNameFormatter ? seriesNameFormatter(name, entry) : name,
+          isRegressed: regressions?.some((result) => result.seriesName === name) ?? false,
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+  }, [series, maxPoints, seriesNameFormatter, regressions]);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !wrapperRef.current) return;
 
-    const labels: string[] = [];
-    const labelSet = new Set<string>();
-    const datasets: ChartData<"line">["datasets"] = [];
+    if (entries.length === 0) {
+      chartRef.current?.destroy();
+      chartRef.current = null;
+      return;
+    }
 
-    const entries = Object.entries(series.series);
-    entries.forEach(([name, entry], idx) => {
-      let pts = entry.points;
-      if (maxPoints && pts.length > maxPoints) {
-        pts = pts.slice(-maxPoints);
-      }
-
-      for (const p of pts) {
-        if (!labelSet.has(p.timestamp)) {
-          labelSet.add(p.timestamp);
-          labels.push(p.timestamp);
-        }
-      }
-
-      const color = COLORS[idx % COLORS.length];
-      const isRegressed = regressions?.some((r) => r.seriesName === name) ?? false;
-      const lastIdx = pts.length - 1;
-
-      // Per-point colors: highlight the last point red when it is a regression.
-      const pointBackgroundColors = pts.map((_, i) =>
-        isRegressed && i === lastIdx ? "#ef4444" : color,
-      );
-      const pointRadii = pts.map((_, i) =>
-        isRegressed && i === lastIdx ? 6 : 3,
-      );
-      const pointBorderColors = pts.map((_, i) =>
-        isRegressed && i === lastIdx ? "#b91c1c" : color,
-      );
-
-      datasets.push({
-        label: seriesNameFormatter ? seriesNameFormatter(name, entry) : name,
-        data: pts.map((p) => ({ x: p.timestamp as unknown as number, y: p.value })),
-        borderColor: color,
-        backgroundColor: color + "20",
+    const theme = getChartTheme(wrapperRef.current);
+    const resolvedLineWidth = lineWidth ?? (compact ? 1.5 : 1.75);
+    const datasets: ChartData<"line">["datasets"] = entries.map((entry) => {
+      const lastIdx = entry.points.length - 1;
+      return {
+        label: entry.label,
+        data: entry.points.map((point) => ({ x: point.timestamp as unknown as number, y: point.value })),
+        borderColor: entry.color,
+        backgroundColor: `${entry.color}22`,
         fill: entries.length === 1,
-        tension: 0.3,
-        pointRadius: pointRadii,
-        pointHoverRadius: 6,
-        pointBackgroundColor: pointBackgroundColors,
-        pointBorderColor: pointBorderColors,
-      });
+        tension: 0,
+        borderWidth: resolvedLineWidth,
+        clip: 8,
+        spanGaps: true,
+        pointRadius: entry.points.map((_, index) => (entry.isRegressed && index === lastIdx ? (compact ? 4 : 5) : (compact ? 1.75 : 2.5))),
+        pointHoverRadius: compact ? 4 : 6,
+        pointBackgroundColor: entry.points.map((_, index) => (
+          entry.isRegressed && index === lastIdx ? "#ef4444" : entry.color
+        )),
+        pointBorderColor: entry.points.map((_, index) => (
+          entry.isRegressed && index === lastIdx ? "#7f1d1d" : entry.color
+        )),
+      };
     });
-
-    labels.sort();
 
     const options: ChartOptions<"line"> = {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          left: compact ? 2 : 4,
+          right: compact ? 6 : 8,
+          top: compact ? 2 : 4,
+          bottom: compact ? 0 : 2,
+        },
+      },
+      interaction: {
+        mode: "nearest",
+        intersect: false,
+      },
       plugins: {
-        legend: { display: entries.length > 1 },
+        legend: { display: false },
         tooltip: {
+          backgroundColor: theme.tooltipBackground,
+          borderColor: theme.tooltipBorder,
+          borderWidth: 1,
+          titleColor: "#f8fafc",
+          bodyColor: "#e2e8f0",
+          padding: 12,
+          displayColors: true,
           callbacks: {
             title: (items) => {
               const ts = items[0]?.label;
               return ts ? new Date(ts).toLocaleString() : "";
             },
             afterLabel: (item) => {
-              const entry = entries[item.datasetIndex];
-              if (!entry) return "";
-              const pt = entry[1].points[item.dataIndex];
+              const seriesEntry = entries[item.datasetIndex];
+              if (!seriesEntry) return "";
+              const pt = seriesEntry.points[item.dataIndex];
               const parts: string[] = [];
               if (pt?.commit) parts.push(`commit: ${pt.commit.slice(0, 8)}`);
               if (pt?.range != null) parts.push(`± ${pt.range}`);
@@ -126,13 +180,37 @@ export function TrendChart({ series, height = 300, title, maxPoints, seriesNameF
           type: "time" as const,
           time: { tooltipFormat: "PPpp" },
           title: { display: false },
+          grid: {
+            color: theme.grid,
+          },
+          ticks: {
+            color: theme.mutedText,
+            maxRotation: 0,
+            autoSkipPadding: 18,
+            maxTicksLimit: compact ? 4 : 7,
+          },
+          border: {
+            color: theme.border,
+          },
         },
         y: {
           title: {
-            display: true,
+            display: !compact,
             text: series.unit ?? series.metric,
+            color: theme.mutedText,
           },
           beginAtZero: false,
+          grid: {
+            color: theme.grid,
+          },
+          ticks: {
+            color: theme.mutedText,
+            maxTicksLimit: compact ? 4 : 6,
+            callback: (value) => formatValue(Number(value), compact),
+          },
+          border: {
+            color: theme.border,
+          },
         },
       },
     };
@@ -153,12 +231,54 @@ export function TrendChart({ series, height = 300, title, maxPoints, seriesNameF
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-  }, [series, maxPoints, seriesNameFormatter, regressions]);
+  }, [compact, entries, lineWidth, series.metric, series.unit]);
 
   return (
-    <div class={className} style={{ position: "relative", height: `${height}px` }}>
-      {title && <h3 style={{ margin: "0 0 8px", fontSize: "14px" }}>{title}</h3>}
-      <canvas ref={canvasRef} />
+    <div ref={wrapperRef} class={["bk-chart-panel", className].filter(Boolean).join(" ")}>
+      {(title || subtitle) && (
+        <div class="bk-chart-panel__header">
+          <div>
+            {title && <h3 class="bk-chart-panel__title">{title}</h3>}
+            {subtitle && <p class="bk-chart-panel__subtitle">{subtitle}</p>}
+            {summary && <p class="bk-chart-panel__summary">{summary}</p>}
+          </div>
+          {showSeriesCount && (
+            <span class="bk-badge bk-badge--muted">
+              {entries.length} visible
+            </span>
+          )}
+        </div>
+      )}
+
+      {showLegend && entries.length > 1 && (
+        <div class="bk-chart-legend">
+          {entries.map((entry) => (
+            <span key={entry.name} class="bk-chart-legend__item" title={entry.label}>
+              <span class="bk-chart-legend__swatch" style={{ background: entry.color }} />
+              <span class="bk-chart-legend__label">{entry.label}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div class="bk-chart-panel__canvas" style={{ height: `${height}px` }}>
+        {entries.length === 0 ? (
+          <div class="bk-chart-panel__empty">
+            <div>
+              <strong>No series to display.</strong>
+              <div>Try clearing filters or widening the selected metric.</div>
+            </div>
+          </div>
+        ) : (
+          <canvas
+            ref={canvasRef}
+            role="img"
+            aria-label={title ?? `Trend chart for ${series.metric}`}
+          >
+            Trend chart for {title ?? series.metric}
+          </canvas>
+        )}
+      </div>
     </div>
   );
 }

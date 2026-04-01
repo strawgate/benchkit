@@ -1,10 +1,16 @@
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
 import * as glob from "@actions/glob";
-import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { buildResult, parseBenchmarkFiles, readMonitorOutput } from "./stash.js";
+import {
+  buildResult,
+  createTempResultPath,
+  formatResultSummaryMarkdown,
+  parseBenchmarkFiles,
+  readMonitorOutput,
+  writeResultFile,
+} from "./stash.js";
 import type { Format } from "@benchkit/format";
 
 async function run(): Promise<void> {
@@ -13,6 +19,8 @@ async function run(): Promise<void> {
   const dataBranch = core.getInput("data-branch") || "bench-data";
   const token = core.getInput("github-token", { required: true });
   const monitorPath = core.getInput("monitor") || "";
+  const saveDataFile = core.getBooleanInput("save-data-file");
+  const writeSummary = core.getBooleanInput("summary");
   const runId =
     core.getInput("run-id") ||
     `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT || "1"}`;
@@ -44,23 +52,39 @@ async function run(): Promise<void> {
 
   core.info(`Parsed ${benchmarks.length} benchmark(s)${monitorResult ? ` + ${monitorResult.benchmarks.length} monitor benchmark(s)` : ""}`);
 
-  // Git setup and push
-  await configureGit(token);
-  const worktree = await checkoutDataBranch(dataBranch);
+  const tempResultPath = createTempResultPath(runId);
+  writeResultFile(result, runId, tempResultPath);
+  core.info(`Wrote ${tempResultPath}`);
 
-  const runsDir = path.join(worktree, "data", "runs");
-  fs.mkdirSync(runsDir, { recursive: true });
-  const resultPath = path.join(runsDir, `${runId}.json`);
-  fs.writeFileSync(resultPath, JSON.stringify(result, null, 2) + "\n");
-  core.info(`Wrote ${resultPath}`);
+  if (writeSummary) {
+    await core.summary
+      .addRaw(formatResultSummaryMarkdown(result, { runId }), true)
+      .write();
+  }
 
-  await exec.exec("git", ["-C", worktree, "add", "."]);
-  await exec.exec("git", ["-C", worktree, "commit", "-m", `bench: add run ${runId}`]);
-  await pushWithRetry(worktree, dataBranch, 3);
-  await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
+  let filePathOutput = tempResultPath;
+
+  if (saveDataFile) {
+    // Git setup and push
+    await configureGit(token);
+    const worktree = await checkoutDataBranch(dataBranch);
+
+    const runsDir = path.join(worktree, "data", "runs");
+    const resultPath = path.join(runsDir, `${runId}.json`);
+    writeResultFile(result, runId, resultPath);
+    core.info(`Wrote ${resultPath}`);
+
+    await exec.exec("git", ["-C", worktree, "add", "."]);
+    await exec.exec("git", ["-C", worktree, "commit", "-m", `bench: add run ${runId}`]);
+    await pushWithRetry(worktree, dataBranch, 3);
+    await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
+    filePathOutput = `data/runs/${runId}.json`;
+  } else {
+    core.info("save-data-file=false; skipping data branch commit");
+  }
 
   core.setOutput("run-id", runId);
-  core.setOutput("file-path", `data/runs/${runId}.json`);
+  core.setOutput("file-path", filePathOutput);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────

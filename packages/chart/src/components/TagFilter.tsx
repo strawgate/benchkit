@@ -61,27 +61,20 @@ export function TagFilter({ seriesMap, activeFilters, onFilterChange }: TagFilte
   const hasActiveFilters = Object.keys(activeFilters).length > 0;
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", marginBottom: "16px" }}>
+    <div class="bk-toolbar__row">
       {tagKeys.map((key) => (
-        <div key={key} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 600, marginRight: "2px" }}>{key}:</span>
+        <div key={key} class="bk-toolbar__group">
+          <span class="bk-toolbar__label">{key}</span>
           {availableTags[key].map((value) => {
             const active = activeFilters[key] === value;
             return (
               <button
                 key={value}
+                type="button"
                 onClick={() => toggle(key, value)}
-                style={{
-                  padding: "2px 8px",
-                  borderRadius: "12px",
-                  border: "1px solid",
-                  borderColor: active ? "#3b82f6" : "#d1d5db",
-                  background: active ? "#3b82f6" : "#fff",
-                  color: active ? "#fff" : "#374151",
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  fontWeight: active ? 600 : 400,
-                }}
+                class={`bk-chip ${active ? "bk-chip--active" : ""}`}
+                aria-pressed={active}
+                aria-label={`${key}: ${value}`}
               >
                 {value}
               </button>
@@ -91,16 +84,9 @@ export function TagFilter({ seriesMap, activeFilters, onFilterChange }: TagFilte
       ))}
       {hasActiveFilters && (
         <button
+          type="button"
           onClick={clearAll}
-          style={{
-            padding: "2px 8px",
-            borderRadius: "12px",
-            border: "1px solid #f87171",
-            background: "#fff",
-            color: "#ef4444",
-            fontSize: "12px",
-            cursor: "pointer",
-          }}
+          class="bk-chip bk-link-button--danger"
         >
           Clear filters
         </button>

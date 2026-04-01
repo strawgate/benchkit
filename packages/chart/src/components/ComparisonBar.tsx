@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "preact/hooks";
+import { useRef, useEffect, useMemo } from "preact/hooks";
 import {
   Chart,
   BarController,
@@ -11,6 +11,7 @@ import {
 } from "chart.js";
 import type { SeriesFile, SeriesEntry } from "@benchkit/format";
 import { COLORS } from "../colors.js";
+import { getChartTheme } from "../theme.js";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -18,40 +19,72 @@ export interface ComparisonBarProps {
   series: SeriesFile;
   height?: number;
   title?: string;
+  subtitle?: string;
   /** Custom series name renderer */
   seriesNameFormatter?: (name: string, entry: SeriesEntry) => string;
+  showValuesList?: boolean;
   class?: string;
 }
 
-export function ComparisonBar({ series, height = 250, title, seriesNameFormatter, class: className }: ComparisonBarProps) {
+function formatValue(value: number): string {
+  return value.toLocaleString("en-US", { maximumFractionDigits: value >= 100 ? 0 : 2 });
+}
+
+export function ComparisonBar({
+  series,
+  height = 250,
+  title,
+  subtitle,
+  seriesNameFormatter,
+  showValuesList = false,
+  class: className,
+}: ComparisonBarProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
+  const entries = useMemo(() => {
+    return Object.entries(series.series)
+      .map(([name, entry], idx) => {
+        const latest = entry.points[entry.points.length - 1];
+        if (!latest) return null;
+        return {
+          name,
+          label: seriesNameFormatter ? seriesNameFormatter(name, entry) : name,
+          latest,
+          color: COLORS[idx % COLORS.length],
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+  }, [series, seriesNameFormatter]);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !wrapperRef.current) return;
 
-    const names: string[] = [];
-    const values: number[] = [];
-    const errors: (number | null)[] = [];
-    const colors: string[] = [];
+    if (entries.length === 0) {
+      chartRef.current?.destroy();
+      chartRef.current = null;
+      return;
+    }
 
-    const entries = Object.entries(series.series);
-    entries.forEach(([name, entry], idx) => {
-      const latest = entry.points[entry.points.length - 1];
-      if (!latest) return;
-      names.push(seriesNameFormatter ? seriesNameFormatter(name, entry) : name);
-      values.push(latest.value);
-      errors.push(latest.range ?? null);
-      colors.push(COLORS[idx % COLORS.length]);
-    });
+    const theme = getChartTheme(wrapperRef.current);
+    const names = entries.map((entry) => entry.label);
+    const values = entries.map((entry) => entry.latest.value);
+    const errors = entries.map((entry) => entry.latest.range ?? null);
+    const colors = entries.map((entry) => entry.color);
 
     const options: ChartOptions<"bar"> = {
       responsive: true,
       maintainAspectRatio: false,
-      indexAxis: names.length > 6 ? "y" : "x",
+      indexAxis: names.length > 4 ? "y" : "x",
       plugins: {
         legend: { display: false },
         tooltip: {
+          backgroundColor: theme.tooltipBackground,
+          borderColor: theme.tooltipBorder,
+          borderWidth: 1,
+          titleColor: "#f8fafc",
+          bodyColor: "#e2e8f0",
+          padding: 12,
           callbacks: {
             label: (item) => {
               const v = values[item.dataIndex];
@@ -64,12 +97,35 @@ export function ComparisonBar({ series, height = 250, title, seriesNameFormatter
       },
       scales: {
         value: {
-          axis: names.length > 6 ? "x" : "y",
-          title: { display: true, text: series.unit ?? series.metric },
+          axis: names.length > 4 ? "x" : "y",
+          title: {
+            display: true,
+            text: series.unit ?? series.metric,
+            color: theme.mutedText,
+          },
           beginAtZero: true,
+          grid: {
+            color: theme.grid,
+          },
+          ticks: {
+            color: theme.mutedText,
+            callback: (value) => formatValue(Number(value)),
+          },
+          border: {
+            color: theme.border,
+          },
         },
         label: {
-          axis: names.length > 6 ? "y" : "x",
+          axis: names.length > 4 ? "y" : "x",
+          grid: {
+            display: false,
+          },
+          ticks: {
+            color: theme.mutedText,
+          },
+          border: {
+            color: theme.border,
+          },
         },
       },
     };
@@ -81,7 +137,9 @@ export function ComparisonBar({ series, height = 250, title, seriesNameFormatter
           data: values,
           backgroundColor: colors.map((c) => c + "80"),
           borderColor: colors,
-          borderWidth: 1,
+          borderWidth: 1.5,
+          borderRadius: 8,
+          clip: 8,
         },
       ],
     };
@@ -102,12 +160,53 @@ export function ComparisonBar({ series, height = 250, title, seriesNameFormatter
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-  }, [series, seriesNameFormatter]);
+  }, [entries, series.metric, series.unit]);
 
   return (
-    <div class={className} style={{ position: "relative", height: `${height}px` }}>
-      {title && <h3 style={{ margin: "0 0 8px", fontSize: "14px" }}>{title}</h3>}
-      <canvas ref={canvasRef} />
+    <div ref={wrapperRef} class={["bk-chart-panel", className].filter(Boolean).join(" ")}>
+      {(title || subtitle) && (
+        <div class="bk-chart-panel__header">
+          <div>
+            {title && <h3 class="bk-chart-panel__title">{title}</h3>}
+            {subtitle && <p class="bk-chart-panel__subtitle">{subtitle}</p>}
+          </div>
+        </div>
+      )}
+
+      <div class="bk-chart-panel__canvas" style={{ height: `${height}px` }}>
+        {entries.length === 0 ? (
+          <div class="bk-chart-panel__empty">
+            <div>
+              <strong>No latest values available.</strong>
+              <div>The selected metric has no visible series after filtering.</div>
+            </div>
+          </div>
+        ) : (
+          <canvas
+            ref={canvasRef}
+            role="img"
+            aria-label={title ?? `Latest comparison for ${series.metric}`}
+          >
+            Latest comparison for {title ?? series.metric}
+          </canvas>
+        )}
+      </div>
+
+      {showValuesList && entries.length > 0 && (
+        <div class="bk-list">
+          {entries.map((entry) => (
+            <div key={entry.name} class="bk-list__row">
+              <span class="bk-chart-legend__item" title={entry.label}>
+                <span class="bk-chart-legend__swatch" style={{ background: entry.color }} />
+                <span class="bk-chart-legend__label">{entry.label}</span>
+              </span>
+              <span class="bk-list__value">
+                {formatValue(entry.latest.value)} {series.unit ?? ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -13,7 +13,7 @@
     "./css": "./dist/style.css"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp src/style.css dist/style.css",
     "lint": "tsc --noEmit",
     "test": "node --test dist/*.test.js"
   },

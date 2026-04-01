@@ -3,7 +3,15 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { buildResult, parseBenchmarkFiles, parseBenchmarks, readMonitorOutput } from "./stash.js";
+import {
+  buildResult,
+  createTempResultPath,
+  formatResultSummaryMarkdown,
+  parseBenchmarkFiles,
+  parseBenchmarks,
+  readMonitorOutput,
+  writeResultFile,
+} from "./stash.js";
 import type { Benchmark, BenchmarkResult } from "@benchkit/format";
 
 // ── buildResult ─────────────────────────────────────────────────────
@@ -264,5 +272,91 @@ describe("readMonitorOutput", () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
+  });
+});
+
+// ── file writing / summary helpers ───────────────────────────────────
+
+describe("writeResultFile", () => {
+  it("writes a result file to disk", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-stash-test-"));
+    try {
+      const outputPath = path.join(tmpDir, "nested", "result.json");
+      const result: BenchmarkResult = {
+        benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100 } } }],
+      };
+      const writtenPath = writeResultFile(result, "run-1", outputPath);
+      assert.equal(writtenPath, outputPath);
+      const parsed = JSON.parse(fs.readFileSync(outputPath, "utf-8")) as BenchmarkResult;
+      assert.equal(parsed.benchmarks[0].name, "BenchA");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("creates a temp result path that includes the run id", () => {
+    const resultPath = createTempResultPath("1234-1");
+    assert.ok(resultPath.includes("1234-1"));
+    assert.ok(resultPath.endsWith(".json"));
+  });
+});
+
+describe("formatResultSummaryMarkdown", () => {
+  it("formats benchmarks and monitor metrics for GITHUB_STEP_SUMMARY", () => {
+    const result: BenchmarkResult = {
+      benchmarks: [
+        {
+          name: "mock-http-ingest",
+          metrics: {
+            events_per_sec: { value: 13240.5, unit: "events/sec", direction: "bigger_is_better" },
+            service_rss_mb: { value: 543.1, unit: "MB", direction: "smaller_is_better" },
+          },
+        },
+        {
+          name: "_monitor/system",
+          metrics: {
+            cpu_user_pct: { value: 71.2, unit: "%" },
+          },
+        },
+      ],
+      context: {
+        commit: "abcdef1234567890",
+        ref: "refs/pull/42/merge",
+      },
+    };
+
+    const markdown = formatResultSummaryMarkdown(result, { runId: "12345-1" });
+    assert.equal(
+      markdown,
+      `## Benchkit Stash
+
+Run ID: \`12345-1\`
+Parsed for commit \`abcdef12\` on ref \`refs/pull/42/merge\`.
+
+### Benchmarks
+
+| Benchmark | Metrics |
+| --- | --- |
+| \`mock-http-ingest\` | \`events_per_sec\`: 13240.5 events/sec<br>\`service_rss_mb\`: 543.1 MB |
+
+<details>
+<summary>Monitor metrics</summary>
+
+| Benchmark | Metrics |
+| --- | --- |
+| \`_monitor/system\` | \`cpu_user_pct\`: 71.2 % |
+
+</details>
+`,
+    );
+  });
+
+  it("omits the monitor details block when no monitor benchmarks exist", () => {
+    const result: BenchmarkResult = {
+      benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } }],
+    };
+    const markdown = formatResultSummaryMarkdown(result, { runId: "run-1" });
+    assert.doesNotMatch(markdown, /Monitor metrics/);
+    assert.match(markdown, /BenchA/);
   });
 });

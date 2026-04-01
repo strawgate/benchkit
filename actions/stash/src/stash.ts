@@ -1,6 +1,15 @@
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
-import { parse, parseNative, type Format, type BenchmarkResult, type Benchmark, type Context, type MonitorContext } from "@benchkit/format";
+import {
+  parse,
+  parseNative,
+  type Format,
+  type BenchmarkResult,
+  type Benchmark,
+  type Context,
+  type MonitorContext,
+} from "@benchkit/format";
 
 export interface StashContext {
   commit?: string;
@@ -13,6 +22,10 @@ export interface BuildResultOptions {
   benchmarks: Benchmark[];
   monitorResult?: BenchmarkResult;
   context: StashContext;
+}
+
+export interface SummaryOptions {
+  runId: string;
 }
 
 /** Assemble a BenchmarkResult from parsed benchmarks, optional monitor data, and CI context. */
@@ -77,4 +90,82 @@ export function readMonitorOutput(monitorPath: string): BenchmarkResult {
   }
   const content = fs.readFileSync(monitorPath, "utf-8");
   return parseNative(content);
+}
+
+export function writeResultFile(result: BenchmarkResult, runId: string, outputPath: string): string {
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, JSON.stringify(result, null, 2) + "\n");
+  return outputPath;
+}
+
+export function createTempResultPath(runId: string): string {
+  return path.join(os.tmpdir(), `benchkit-run-${runId}.json`);
+}
+
+function isMonitorBenchmark(benchmark: Benchmark): boolean {
+  return benchmark.name.startsWith("_monitor/");
+}
+
+function formatMetricValue(metric: Benchmark["metrics"][string]): string {
+  const parts = [String(metric.value)];
+  if (metric.range !== undefined) {
+    parts.push(`±${metric.range}`);
+  }
+  if (metric.unit) {
+    parts.push(metric.unit);
+  }
+  return parts.join(" ");
+}
+
+export function formatResultSummaryMarkdown(result: BenchmarkResult, options: SummaryOptions): string {
+  const benchmarkRows = result.benchmarks.filter((benchmark) => !isMonitorBenchmark(benchmark));
+  const monitorRows = result.benchmarks.filter((benchmark) => isMonitorBenchmark(benchmark));
+  const lines: string[] = [
+    `## Benchkit Stash`,
+    "",
+    `Run ID: \`${options.runId}\``,
+  ];
+
+  if (result.context?.commit || result.context?.ref) {
+    const parts = [
+      result.context.commit ? `commit \`${result.context.commit.slice(0, 8)}\`` : "",
+      result.context.ref ? `ref \`${result.context.ref}\`` : "",
+    ].filter(Boolean);
+    lines.push(`Parsed for ${parts.join(" on ")}.`);
+  }
+
+  lines.push("");
+
+  if (benchmarkRows.length > 0) {
+    lines.push("### Benchmarks");
+    lines.push("");
+    lines.push("| Benchmark | Metrics |");
+    lines.push("| --- | --- |");
+    for (const benchmark of benchmarkRows) {
+      const metrics = Object.entries(benchmark.metrics)
+        .map(([name, metric]) => `\`${name}\`: ${formatMetricValue(metric)}`)
+        .join("<br>");
+      lines.push(`| \`${benchmark.name}\` | ${metrics} |`);
+    }
+    lines.push("");
+  }
+
+  if (monitorRows.length > 0) {
+    lines.push("<details>");
+    lines.push("<summary>Monitor metrics</summary>");
+    lines.push("");
+    lines.push("| Benchmark | Metrics |");
+    lines.push("| --- | --- |");
+    for (const benchmark of monitorRows) {
+      const metrics = Object.entries(benchmark.metrics)
+        .map(([name, metric]) => `\`${name}\`: ${formatMetricValue(metric)}`)
+        .join("<br>");
+      lines.push(`| \`${benchmark.name}\` | ${metrics} |`);
+    }
+    lines.push("");
+    lines.push("</details>");
+    lines.push("");
+  }
+
+  return lines.join("\n");
 }

@@ -14,3 +14,4 @@ export { fetchIndex, fetchSeries, fetchRun, type DataSource } from "./fetch.js";
 export { rankSeries, getWinner, type RankedEntry } from "./leaderboard.js";
 // Utilities
 export { detectRegressions, regressionTooltip, type RegressionResult } from "./utils.js";
+export { defaultMetricLabel, defaultMonitorMetricLabel } from "./labels.js";

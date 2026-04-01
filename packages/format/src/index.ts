@@ -13,6 +13,7 @@ export type {
   ComparisonResult,
   ComparisonEntry,
   ComparisonStatus,
+  FormatComparisonMarkdownOptions,
   ThresholdConfig,
 } from "./types.js";
 
@@ -35,3 +36,5 @@ export { parseHyperfine } from "./parse-hyperfine.js";
 export { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 export { compare } from "./compare.js";
+/** Format a ComparisonResult as markdown for job summaries and PR comments. */
+export { formatComparisonMarkdown } from "./format-comparison-markdown.js";

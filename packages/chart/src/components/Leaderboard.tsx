@@ -44,13 +44,13 @@ export function Leaderboard({ series, seriesNameFormatter, class: className }: L
 
   return (
     <div class={className}>
-      <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "13px" }}>
+      <table class="bk-table">
         <thead>
-          <tr style={{ borderBottom: "1px solid #e5e7eb", textAlign: "left" }}>
-            <th style={{ padding: "4px 8px", color: "#6b7280", fontWeight: 500 }}>#</th>
-            <th style={{ padding: "4px 8px", color: "#6b7280", fontWeight: 500 }}>Series</th>
-            <th style={{ padding: "4px 8px", color: "#6b7280", fontWeight: 500, textAlign: "right" }}>Latest</th>
-            <th style={{ padding: "4px 8px", color: "#6b7280", fontWeight: 500, textAlign: "right" }}>Δ prev</th>
+          <tr>
+            <th>#</th>
+            <th>Series</th>
+            <th class="bk-table__numeric">Latest</th>
+            <th class="bk-table__numeric">Δ prev</th>
           </tr>
         </thead>
         <tbody>
@@ -59,31 +59,24 @@ export function Leaderboard({ series, seriesNameFormatter, class: className }: L
             const arrow = deltaArrow(r.delta, series.direction);
             const color = arrowColor(r.delta, series.direction);
             return (
-              <tr key={r.name} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                <td style={{ padding: "6px 8px", color: rankColor(r, series.direction), fontWeight: r.isWinner ? 700 : 400 }}>
+              <tr key={r.name}>
+                <td style={{ color: rankColor(r, series.direction), fontWeight: r.isWinner ? 700 : 400 }}>
                   {r.rank}
                   {r.isWinner && series.direction ? (
                     <span
                       title="Winner"
-                      style={{
-                        marginLeft: "4px",
-                        fontSize: "10px",
-                        background: "#dcfce7",
-                        color: "#16a34a",
-                        borderRadius: "3px",
-                        padding: "1px 4px",
-                        verticalAlign: "middle",
-                      }}
+                      class="bk-badge bk-badge--success"
+                      style={{ marginLeft: "6px" }}
                     >
                       ★
                     </span>
                   ) : null}
                 </td>
-                <td style={{ padding: "6px 8px" }}>{label}</td>
-                <td style={{ padding: "6px 8px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                <td>{label}</td>
+                <td class="bk-table__numeric">
                   {r.latestValue} {series.unit ?? ""}
                 </td>
-                <td style={{ padding: "6px 8px", textAlign: "right", color, fontVariantNumeric: "tabular-nums" }}>
+                <td class="bk-table__numeric" style={{ color }}>
                   {arrow} {formatDelta(r.delta, series.unit)}
                 </td>
               </tr>

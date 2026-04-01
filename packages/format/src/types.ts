@@ -104,6 +104,17 @@ export interface ComparisonResult {
   hasRegression: boolean;
 }
 
+export interface FormatComparisonMarkdownOptions {
+  title?: string;
+  currentLabel?: string;
+  baselineLabel?: string;
+  currentCommit?: string;
+  currentRef?: string;
+  maxRegressions?: number;
+  includeDetails?: boolean;
+  footerHref?: string;
+}
+
 export interface ThresholdConfig {
   test: "percentage";
   threshold: number;

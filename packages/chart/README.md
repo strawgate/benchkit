@@ -11,6 +11,7 @@ npm install @benchkit/chart preact
 ## Quick start
 
 ```tsx
+import "@benchkit/chart/css";
 import { Dashboard } from "@benchkit/chart";
 
 export function App() {
@@ -37,6 +38,7 @@ The `Dashboard` component fetches `data/index.json` and `data/series/*.json` fro
 The top-level ready-made dashboard. Automatically fetches data, partitions metrics into user benchmarks and `_monitor/` system metrics, detects regressions, and renders all sub-components.
 
 ```tsx
+import "@benchkit/chart/css";
 import { Dashboard } from "@benchkit/chart";
 
 <Dashboard
@@ -70,6 +72,7 @@ import { Dashboard } from "@benchkit/chart";
 Renders a time-series line chart for a single metric. Optionally highlights regressed series with a red dot on their latest point.
 
 ```tsx
+import "@benchkit/chart/css";
 import { TrendChart } from "@benchkit/chart";
 import type { SeriesFile } from "@benchkit/format";
 
@@ -77,6 +80,7 @@ import type { SeriesFile } from "@benchkit/format";
   series={seriesFile}
   title="ns/op"
   height={300}
+  lineWidth={1.5}
   maxPoints={20}
   seriesNameFormatter={(name) => name.replace(/^Benchmark/, "")}
   regressions={regressionResults}
@@ -90,6 +94,7 @@ import type { SeriesFile } from "@benchkit/format";
 | `series` | `SeriesFile` | — | **Required.** Pre-aggregated series data. |
 | `title` | `string` | — | Chart heading. |
 | `height` | `number` | `300` | Canvas height in pixels. |
+| `lineWidth` | `number` | `1.75` (`1.5` in compact mode) | Stroke width for trend lines. |
 | `maxPoints` | `number` | — | Truncate each series to the most recent N points. |
 | `seriesNameFormatter` | `(name: string, entry: SeriesEntry) => string` | — | Custom legend label renderer. |
 | `class` | `string` | — | CSS class applied to the wrapper `<div>`. |
@@ -102,6 +107,7 @@ import type { SeriesFile } from "@benchkit/format";
 Renders a horizontal (or vertical) bar chart comparing the **latest value** of each series within a metric, with optional error bars.
 
 ```tsx
+import "@benchkit/chart/css";
 import { ComparisonBar } from "@benchkit/chart";
 
 <ComparisonBar
@@ -129,6 +135,7 @@ import { ComparisonBar } from "@benchkit/chart";
 Renders a ranked table of series sorted by their latest value, direction-aware. Highlights the winner with a ★ badge and colors delta arrows green/red.
 
 ```tsx
+import "@benchkit/chart/css";
 import { Leaderboard } from "@benchkit/chart";
 
 <Leaderboard
@@ -154,6 +161,7 @@ The component renders `null` when there are no series with data, and a plain tex
 Renders a row of pill buttons for filtering series by their `tags`. Only rendered when at least one series carries tags; returns `null` otherwise.
 
 ```tsx
+import "@benchkit/chart/css";
 import { TagFilter, filterSeriesFile } from "@benchkit/chart";
 import { useState } from "preact/hooks";
 
@@ -193,6 +201,7 @@ Each tag key is rendered as a group of pill buttons. Clicking an active pill dea
 Renders the **Runner Metrics** section for `_monitor/` prefixed metrics produced by the [Benchkit Monitor action](../../actions/monitor). Displays a runner-context card (OS, CPU, memory, poll interval) and a grid of sparklines — one per monitor metric.
 
 ```tsx
+import "@benchkit/chart/css";
 import { MonitorSection } from "@benchkit/chart";
 
 <MonitorSection
@@ -227,6 +236,7 @@ The component renders `null` when `monitorSeriesMap` is empty.
 Renders a paginated table of recent benchmark runs with columns for run ID, timestamp, commit SHA, Git ref, benchmark count, and metrics list.
 
 ```tsx
+import "@benchkit/chart/css";
 import { RunTable } from "@benchkit/chart";
 
 <RunTable

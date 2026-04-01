@@ -9,70 +9,74 @@ export interface RunTableProps {
   class?: string;
 }
 
+function formatRef(ref: string | undefined): string {
+  if (!ref) return "—";
+  if (ref.startsWith("refs/heads/")) return ref.replace("refs/heads/", "");
+  const pullMatch = /^refs\/pull\/(\d+)\/merge$/.exec(ref);
+  if (pullMatch) return `PR #${pullMatch[1]}`;
+  if (ref.startsWith("refs/tags/")) return `tag ${ref.replace("refs/tags/", "")}`;
+  return ref;
+}
+
 export function RunTable({ index, maxRows, onSelectRun, commitHref, class: className }: RunTableProps) {
   const runs = maxRows ? index.runs.slice(0, maxRows) : index.runs;
 
   return (
-    <table class={className} style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-      <thead>
-        <tr style={{ borderBottom: "2px solid #e5e7eb", textAlign: "left" }}>
-          <th style={thStyle}>Run</th>
-          <th style={thStyle}>Time</th>
-          <th style={thStyle}>Commit</th>
-          <th style={thStyle}>Ref</th>
-          <th style={thStyle}>Benchmarks</th>
-          <th style={thStyle}>Metrics</th>
-        </tr>
-      </thead>
-      <tbody>
-        {runs.map((run) => (
-          <tr
-            key={run.id}
-            style={{ borderBottom: "1px solid #f3f4f6", cursor: onSelectRun ? "pointer" : "default" }}
-            onClick={() => onSelectRun?.(run.id)}
-          >
-            <td style={tdStyle}>
-              <code style={{ fontSize: "12px" }}>{run.id}</code>
-            </td>
-            <td style={tdStyle}>{formatTime(run.timestamp)}</td>
-            <td style={tdStyle}>
-              {run.commit ? (
-                (() => {
-                  const href = commitHref?.(run.commit, run);
-                  const code = <code style={{ fontSize: "12px" }}>{run.commit.slice(0, 8)}</code>;
-                  return href ? <a href={href} target="_blank" rel="noopener noreferrer">{code}</a> : code;
-                })()
-              ) : (
-                "—"
-              )}
-            </td>
-            <td style={tdStyle}>{run.ref?.replace("refs/heads/", "") ?? "—"}</td>
-            <td style={{ ...tdStyle, textAlign: "right" }}>{run.benchmarks ?? "—"}</td>
-            <td style={tdStyle}>{run.metrics?.join(", ") ?? "—"}</td>
-          </tr>
-        ))}
-      </tbody>
-      {maxRows && index.runs.length > maxRows && (
-        <tfoot>
-          <tr>
-            <td colSpan={6} style={{ padding: "6px 12px", color: "#6b7280", fontSize: "12px" }}>
-              Showing {maxRows} of {index.runs.length} runs
-            </td>
-          </tr>
-        </tfoot>
-      )}
-    </table>
+    <div class={["bk-table-shell", className].filter(Boolean).join(" ")}>
+      <div class="bk-table-shell__scroll">
+        <table class="bk-table">
+          <thead>
+            <tr>
+              <th>Run</th>
+              <th>Time</th>
+              <th>Commit</th>
+              <th>Ref</th>
+              <th class="bk-table__numeric">Benchmarks</th>
+              <th>Metrics</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((run) => (
+              <tr
+                key={run.id}
+                style={{ cursor: onSelectRun ? "pointer" : "default" }}
+                onClick={() => onSelectRun?.(run.id)}
+              >
+                <td>
+                  <code class="bk-code">{run.id}</code>
+                </td>
+                <td>{formatTime(run.timestamp)}</td>
+                <td>
+                  {run.commit ? (
+                    (() => {
+                      const href = commitHref?.(run.commit, run);
+                      const code = <code class="bk-code">{run.commit.slice(0, 8)}</code>;
+                      return href ? <a href={href} target="_blank" rel="noopener noreferrer">{code}</a> : code;
+                    })()
+                  ) : (
+                    <span class="bk-muted">—</span>
+                  )}
+                </td>
+                <td>{formatRef(run.ref)}</td>
+                <td class="bk-table__numeric">{run.benchmarks ?? "—"}</td>
+                <td class="bk-muted">{run.metrics?.join(", ") ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+          {maxRows && index.runs.length > maxRows && (
+            <tfoot>
+              <tr>
+                <td colSpan={6} class="bk-muted">
+                  Showing {maxRows} of {index.runs.length} runs
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </div>
   );
 }
-
-const thStyle: Record<string, string> = {
-  padding: "8px 12px",
-  fontWeight: "600",
-};
-
-const tdStyle: Record<string, string> = {
-  padding: "6px 12px",
-};
 
 function formatTime(ts: string): string {
   try {
