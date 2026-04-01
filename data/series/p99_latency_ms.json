@@ -1,0 +1,17 @@
+{
+  "metric": "p99_latency_ms",
+  "unit": "ms",
+  "direction": "smaller_is_better",
+  "series": {
+    "http-throughput": {
+      "points": [
+        {
+          "timestamp": "2026-04-01T01:52:26.492Z",
+          "value": 12.4,
+          "commit": "bf0a8f469b9aeb7f8fac7a8c29c2dbc94ac53180",
+          "run_id": "test-native-23828100964-1"
+        }
+      ]
+    }
+  }
+}
