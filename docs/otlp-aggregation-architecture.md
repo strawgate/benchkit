@@ -109,6 +109,10 @@ This implies:
 OTLP is the canonical raw format, but benchkit still needs its own semantic
 conventions so the aggregator and UI can interpret benchmark data consistently.
 
+The canonical semantic contract now lives in:
+
+- [`docs/otlp-semantic-conventions.md`](otlp-semantic-conventions.md)
+
 ### Required benchkit resource attributes
 
 These should be present on metric resources or otherwise derivable:
