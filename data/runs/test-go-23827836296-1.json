@@ -1,0 +1,79 @@
+{
+  "benchmarks": [
+    {
+      "name": "BenchmarkSort",
+      "tags": {
+        "procs": "4"
+      },
+      "metrics": {
+        "ns_per_op": {
+          "value": 320,
+          "unit": "ns/op",
+          "direction": "smaller_is_better"
+        },
+        "bytes_per_op": {
+          "value": 48,
+          "unit": "B/op",
+          "direction": "smaller_is_better"
+        },
+        "allocs_per_op": {
+          "value": 2,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better"
+        }
+      }
+    },
+    {
+      "name": "BenchmarkSearch",
+      "tags": {
+        "procs": "4"
+      },
+      "metrics": {
+        "ns_per_op": {
+          "value": 120,
+          "unit": "ns/op",
+          "direction": "smaller_is_better"
+        },
+        "bytes_per_op": {
+          "value": 0,
+          "unit": "B/op",
+          "direction": "smaller_is_better"
+        },
+        "allocs_per_op": {
+          "value": 0,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better"
+        }
+      }
+    },
+    {
+      "name": "BenchmarkInsert",
+      "tags": {
+        "procs": "4"
+      },
+      "metrics": {
+        "ns_per_op": {
+          "value": 450,
+          "unit": "ns/op",
+          "direction": "smaller_is_better"
+        },
+        "bytes_per_op": {
+          "value": 64,
+          "unit": "B/op",
+          "direction": "smaller_is_better"
+        },
+        "allocs_per_op": {
+          "value": 3,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better"
+        }
+      }
+    }
+  ],
+  "context": {
+    "commit": "4b43e58b460ecba1cf533609101e629531f6ccef",
+    "ref": "refs/heads/main",
+    "timestamp": "2026-04-01T01:42:06.842Z",
+    "runner": "Linux/X64"
+  }
+}
