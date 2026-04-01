@@ -21,6 +21,11 @@
     "dist"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/strawgate/benchkit.git",
+    "directory": "packages/chart"
+  },
   "dependencies": {
     "@benchkit/format": "*",
     "chart.js": "^4.4.0",
