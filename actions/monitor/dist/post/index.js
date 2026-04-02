@@ -128,7 +128,8 @@ function getIntAttribute(attributes, key) {
     const raw = attr.value.intValue ?? attr.value.stringValue;
     if (raw === undefined)
         return undefined;
-    return typeof raw === "number" ? raw : parseInt(String(raw), 10);
+    const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
+    return Number.isNaN(n) ? undefined : n;
 }
 /**
  * Build a pid→parent_pid map from all process resources in OTLP JSONL,
@@ -216,7 +217,7 @@ function filterToRunnerDescendants(content, runnerPpid) {
             return false;
         });
         if (filteredResources.length > 0) {
-            outputLines.push(JSON.stringify({ resourceMetrics: filteredResources }));
+            outputLines.push(JSON.stringify({ ...parsed, resourceMetrics: filteredResources }));
         }
     }
     return { filtered: outputLines.join("\n") + "\n", kept, removed };
@@ -339,6 +340,15 @@ async function stopOtelCollector() {
         return;
     }
     await stopCollector(state);
+    // Dump collector logs for diagnostics
+    if (state.logPath && fs.existsSync(state.logPath)) {
+        const log = fs.readFileSync(state.logPath, "utf-8").trim();
+        if (log) {
+            core.startGroup("OTel Collector logs");
+            core.info(log);
+            core.endGroup();
+        }
+    }
     // Filter process metrics to only runner descendants
     if (state.runnerPpid && fs.existsSync(state.outputPath)) {
         const raw = fs.readFileSync(state.outputPath, "utf-8");
@@ -355,6 +365,8 @@ async function stopOtelCollector() {
     // Clean up temp files
     safeUnlink(statePath);
     safeUnlink(state.configPath);
+    if (state.logPath)
+        safeUnlink(state.logPath);
     // Keep the OTLP output file in case other steps want to read it
 }
 //# sourceMappingURL=otel-stop.js.map

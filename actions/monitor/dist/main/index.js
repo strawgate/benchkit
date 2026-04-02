@@ -100,7 +100,12 @@ function validateMetricSets(raw) {
 }
 /** Escape a string for safe inclusion in a YAML double-quoted value. */
 function yamlEscape(value) {
-    return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    return value
+        .replace(/\\/g, "\\\\")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, "\\n")
+        .replace(/\t/g, "\\t")
+        .replace(/\r/g, "\\r");
 }
 function resourceAttributes(opts) {
     const attrs = [
@@ -343,6 +348,7 @@ async function startOtelCollector() {
         : undefined;
     const outputPath = path.join(runnerTemp(), "benchkit-telemetry.otlp.jsonl");
     const configPath = path.join(runnerTemp(), "otelcol-config.yaml");
+    const logPath = path.join(runnerTemp(), "otelcol.log");
     // Generate collector config
     const configYaml = (0, otel_config_js_1.generateCollectorConfig)({
         scrapeInterval,
@@ -358,12 +364,14 @@ async function startOtelCollector() {
     core.info(`Collector config written to ${configPath}`);
     // Download collector binary
     const binary = await ensureCollectorBinary(version);
-    // Spawn collector as detached background process
+    // Spawn collector as detached background process with log capture
+    const logFd = fs.openSync(logPath, "w");
     const child = (0, node_child_process_1.spawn)(binary, ["--config", configPath], {
         detached: true,
-        stdio: "ignore",
+        stdio: ["ignore", logFd, logFd],
     });
     child.unref();
+    fs.closeSync(logFd);
     if (!child.pid) {
         throw new Error("Failed to spawn OTel Collector process");
     }
@@ -372,6 +380,7 @@ async function startOtelCollector() {
         pid: child.pid,
         configPath,
         outputPath,
+        logPath,
         startTime: Date.now(),
         runId,
         dataBranch,

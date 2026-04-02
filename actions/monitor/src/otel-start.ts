@@ -111,6 +111,7 @@ export async function startOtelCollector(): Promise<void> {
 
   const outputPath = path.join(runnerTemp(), "benchkit-telemetry.otlp.jsonl");
   const configPath = path.join(runnerTemp(), "otelcol-config.yaml");
+  const logPath = path.join(runnerTemp(), "otelcol.log");
 
   // Generate collector config
   const configYaml = generateCollectorConfig({
@@ -129,12 +130,14 @@ export async function startOtelCollector(): Promise<void> {
   // Download collector binary
   const binary = await ensureCollectorBinary(version);
 
-  // Spawn collector as detached background process
+  // Spawn collector as detached background process with log capture
+  const logFd = fs.openSync(logPath, "w");
   const child = spawn(binary, ["--config", configPath], {
     detached: true,
-    stdio: "ignore",
+    stdio: ["ignore", logFd, logFd],
   });
   child.unref();
+  fs.closeSync(logFd);
 
   if (!child.pid) {
     throw new Error("Failed to spawn OTel Collector process");
@@ -145,6 +148,7 @@ export async function startOtelCollector(): Promise<void> {
     pid: child.pid,
     configPath,
     outputPath,
+    logPath,
     startTime: Date.now(),
     runId,
     dataBranch,

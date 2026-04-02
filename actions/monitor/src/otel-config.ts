@@ -54,7 +54,12 @@ export function validateMetricSets(raw: string[]): string[] {
 
 /** Escape a string for safe inclusion in a YAML double-quoted value. */
 function yamlEscape(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\n")
+    .replace(/\t/g, "\\t")
+    .replace(/\r/g, "\\r");
 }
 
 function resourceAttributes(opts: CollectorConfigOptions): Array<{

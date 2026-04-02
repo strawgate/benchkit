@@ -55,6 +55,7 @@ describe("stopCollector", () => {
       pid: 99999999, // non-existent
       configPath: "/tmp/fake-config.yaml",
       outputPath: "/tmp/fake-output.jsonl",
+      logPath: "/tmp/fake-otelcol.log",
       startTime: Date.now(),
       runId: "test-1",
       dataBranch: "bench-data",
@@ -64,8 +65,8 @@ describe("stopCollector", () => {
   });
 
   it("stops a real child process via SIGTERM", async () => {
-    // Spawn a long-running process (sleep)
-    const child = spawn("sleep", ["60"], { detached: true, stdio: "ignore" });
+    // Spawn a long-running process (cross-platform)
+    const child = spawn(process.execPath, ["-e", "setTimeout(()=>{},60000)"], { detached: true, stdio: "ignore" });
     child.unref();
     const pid = child.pid!;
     assert.ok(pid > 0);
@@ -75,6 +76,7 @@ describe("stopCollector", () => {
       pid,
       configPath: "/tmp/fake-config.yaml",
       outputPath: "/tmp/fake-output.jsonl",
+      logPath: "/tmp/fake-otelcol.log",
       startTime: Date.now(),
       runId: "test-2",
       dataBranch: "bench-data",
@@ -82,8 +84,11 @@ describe("stopCollector", () => {
 
     await stopCollector(state);
 
-    // Give OS a moment to reap the process
-    await new Promise((r) => setTimeout(r, 100));
+    // Wait for process to be reaped (up to 2s)
+    for (let i = 0; i < 20; i++) {
+      if (!isProcessRunning(pid)) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
     assert.ok(!isProcessRunning(pid), "child should be stopped");
   });
 });

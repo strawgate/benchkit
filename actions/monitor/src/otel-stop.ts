@@ -87,7 +87,8 @@ function getIntAttribute(
   if (!attr) return undefined;
   const raw = attr.value.intValue ?? attr.value.stringValue;
   if (raw === undefined) return undefined;
-  return typeof raw === "number" ? raw : parseInt(String(raw), 10);
+  const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
+  return Number.isNaN(n) ? undefined : n;
 }
 
 /**
@@ -187,7 +188,7 @@ export function filterToRunnerDescendants(
     });
 
     if (filteredResources.length > 0) {
-      outputLines.push(JSON.stringify({ resourceMetrics: filteredResources }));
+      outputLines.push(JSON.stringify({ ...parsed, resourceMetrics: filteredResources }));
     }
   }
 
@@ -337,6 +338,16 @@ export async function stopOtelCollector(): Promise<void> {
 
   await stopCollector(state);
 
+  // Dump collector logs for diagnostics
+  if (state.logPath && fs.existsSync(state.logPath)) {
+    const log = fs.readFileSync(state.logPath, "utf-8").trim();
+    if (log) {
+      core.startGroup("OTel Collector logs");
+      core.info(log);
+      core.endGroup();
+    }
+  }
+
   // Filter process metrics to only runner descendants
   if (state.runnerPpid && fs.existsSync(state.outputPath)) {
     const raw = fs.readFileSync(state.outputPath, "utf-8");
@@ -356,5 +367,6 @@ export async function stopOtelCollector(): Promise<void> {
   // Clean up temp files
   safeUnlink(statePath);
   safeUnlink(state.configPath);
+  if (state.logPath) safeUnlink(state.logPath);
   // Keep the OTLP output file in case other steps want to read it
 }
