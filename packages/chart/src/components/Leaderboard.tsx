@@ -25,16 +25,15 @@ function deltaArrow(delta: number | undefined, direction: SeriesFile["direction"
   return improved ? "↑" : "↓";
 }
 
-function arrowColor(delta: number | undefined, direction: SeriesFile["direction"]): string {
-  if (delta === undefined || delta === 0) return "#6b7280";
+function arrowClass(delta: number | undefined, direction: SeriesFile["direction"]): string {
+  if (delta === undefined || delta === 0) return "bk-leaderboard__delta--neutral";
   const improved =
     direction === "bigger_is_better" ? delta > 0 : delta < 0;
-  return improved ? "#16a34a" : "#dc2626";
+  return improved ? "bk-leaderboard__delta--improved" : "bk-leaderboard__delta--regressed";
 }
 
-function rankColor(entry: RankedEntry, direction: SeriesFile["direction"]): string {
-  if (!direction) return "#111827";
-  return entry.isWinner ? "#16a34a" : "#111827";
+function rankClass(entry: RankedEntry, direction: SeriesFile["direction"]): string {
+  return direction && entry.isWinner ? "bk-leaderboard__rank--winner" : "";
 }
 
 export function Leaderboard({ series, seriesNameFormatter, class: className }: LeaderboardProps) {
@@ -57,10 +56,10 @@ export function Leaderboard({ series, seriesNameFormatter, class: className }: L
           {ranked.map((r) => {
             const label = seriesNameFormatter ? seriesNameFormatter(r.name, r.entry) : r.name;
             const arrow = deltaArrow(r.delta, series.direction);
-            const color = arrowColor(r.delta, series.direction);
+            const deltaClass = arrowClass(r.delta, series.direction);
             return (
               <tr key={r.name}>
-                <td style={{ color: rankColor(r, series.direction), fontWeight: r.isWinner ? 700 : 400 }}>
+                <td class={rankClass(r, series.direction)} style={{ fontWeight: r.isWinner ? 700 : 400 }}>
                   {r.rank}
                   {r.isWinner && series.direction ? (
                     <span
@@ -76,7 +75,7 @@ export function Leaderboard({ series, seriesNameFormatter, class: className }: L
                 <td class="bk-table__numeric">
                   {r.latestValue} {series.unit ?? ""}
                 </td>
-                <td class="bk-table__numeric" style={{ color }}>
+                <td class={`bk-table__numeric ${deltaClass}`}>
                   {arrow} {formatDelta(r.delta, series.unit)}
                 </td>
               </tr>

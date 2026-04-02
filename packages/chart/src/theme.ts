@@ -5,6 +5,8 @@ export interface ChartTheme {
   border: string;
   tooltipBackground: string;
   tooltipBorder: string;
+  tooltipTitle: string;
+  tooltipBody: string;
 }
 
 function readCssVar(style: CSSStyleDeclaration, name: string, fallback: string): string {
@@ -20,5 +22,7 @@ export function getChartTheme(node: HTMLElement): ChartTheme {
     border: readCssVar(style, "--bk-border", "#cbd5e1"),
     tooltipBackground: readCssVar(style, "--bk-tooltip-bg", "#0f172a"),
     tooltipBorder: readCssVar(style, "--bk-tooltip-border", "#1e293b"),
+    tooltipTitle: readCssVar(style, "--bk-tooltip-title", "#f8fafc"),
+    tooltipBody: readCssVar(style, "--bk-tooltip-body", "#e2e8f0"),
   };
 }

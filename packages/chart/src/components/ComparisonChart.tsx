@@ -14,6 +14,7 @@ import {
 import "chartjs-adapter-date-fns";
 import type { Sample, DataPoint } from "@benchkit/format";
 import { getChartTheme } from "../theme.js";
+import { BASE_COLOR, CURRENT_COLOR } from "../colors.js";
 import {
   samplesToDataPoints,
   dataPointsToComparisonData,
@@ -28,10 +29,6 @@ Chart.register(
   Tooltip,
   Legend,
 );
-
-/** Base (blue) and current/PR (green) — matching the beats-bench convention. */
-const BASE_COLOR = "#3b82f6";
-const CURRENT_COLOR = "#22c55e";
 
 export interface ComparisonChartProps {
   /** Metric name used to extract values from `Sample[]` data and shown on the y-axis. */
@@ -195,8 +192,8 @@ export function ComparisonChart({
           backgroundColor: theme.tooltipBackground,
           borderColor: theme.tooltipBorder,
           borderWidth: 1,
-          titleColor: "#f8fafc",
-          bodyColor: "#e2e8f0",
+          titleColor: theme.tooltipTitle,
+          bodyColor: theme.tooltipBody,
           padding: 12,
           displayColors: true,
           callbacks: {

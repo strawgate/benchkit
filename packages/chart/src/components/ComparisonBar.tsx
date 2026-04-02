@@ -82,8 +82,8 @@ export function ComparisonBar({
           backgroundColor: theme.tooltipBackground,
           borderColor: theme.tooltipBorder,
           borderWidth: 1,
-          titleColor: "#f8fafc",
-          bodyColor: "#e2e8f0",
+          titleColor: theme.tooltipTitle,
+          bodyColor: theme.tooltipBody,
           padding: 12,
           callbacks: {
             label: (item) => {

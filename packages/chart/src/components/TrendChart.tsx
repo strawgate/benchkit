@@ -14,7 +14,7 @@ import {
 } from "chart.js";
 import "chartjs-adapter-date-fns";
 import type { SeriesFile, SeriesEntry } from "@benchkit/format";
-import { COLORS } from "../colors.js";
+import { COLORS, REGRESSION_COLOR, REGRESSION_BORDER_COLOR } from "../colors.js";
 import { getChartTheme } from "../theme.js";
 import type { RegressionResult } from "../utils.js";
 
@@ -125,10 +125,10 @@ export function TrendChart({
         pointRadius: entry.points.map((_, index) => (entry.isRegressed && index === lastIdx ? (compact ? 4 : 5) : (compact ? 1.75 : 2.5))),
         pointHoverRadius: compact ? 4 : 6,
         pointBackgroundColor: entry.points.map((_, index) => (
-          entry.isRegressed && index === lastIdx ? "#ef4444" : entry.color
+          entry.isRegressed && index === lastIdx ? REGRESSION_COLOR : entry.color
         )),
         pointBorderColor: entry.points.map((_, index) => (
-          entry.isRegressed && index === lastIdx ? "#7f1d1d" : entry.color
+          entry.isRegressed && index === lastIdx ? REGRESSION_BORDER_COLOR : entry.color
         )),
       };
     });
@@ -154,8 +154,8 @@ export function TrendChart({
           backgroundColor: theme.tooltipBackground,
           borderColor: theme.tooltipBorder,
           borderWidth: 1,
-          titleColor: "#f8fafc",
-          bodyColor: "#e2e8f0",
+          titleColor: theme.tooltipTitle,
+          bodyColor: theme.tooltipBody,
           padding: 12,
           displayColors: true,
           callbacks: {
