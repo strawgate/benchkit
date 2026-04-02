@@ -60237,7 +60237,7 @@ function resolveDirection(metricName, unit, pointAttributes) {
     }
     return (0, infer_direction_js_1.inferDirection)(unit ?? metricName);
 }
-function projectGaugeLikeMetric(groups, metric, points, resourceAttributes) {
+function projectGaugeLikeMetric(groups, metric, points) {
     for (const point of points ?? []) {
         const pointAttributes = otlpAttributesToRecord(point.attributes);
         const benchmarkName = pointAttributes["benchkit.scenario"]
@@ -60274,7 +60274,7 @@ function projectGaugeLikeMetric(groups, metric, points, resourceAttributes) {
         }
     }
 }
-function projectHistogramMetric(groups, metric, points, resourceAttributes) {
+function projectHistogramMetric(groups, metric, points) {
     for (const point of points ?? []) {
         const pointAttributes = otlpAttributesToRecord(point.attributes);
         const benchmarkName = pointAttributes["benchkit.scenario"]
@@ -60327,12 +60327,9 @@ function projectBenchmarkResultFromOtlp(document) {
     let contextTemplate;
     for (const resourceMetric of document.resourceMetrics) {
         const resourceAttributes = otlpAttributesToRecord(resourceMetric.resource?.attributes);
-        const runId = requiredResourceAttr(resourceAttributes, "benchkit.run_id", "<resource>");
-        const kind = requiredResourceAttr(resourceAttributes, "benchkit.kind", "<resource>");
-        const sourceFormat = requiredResourceAttr(resourceAttributes, "benchkit.source_format", "<resource>");
-        void runId;
-        void kind;
-        void sourceFormat;
+        requiredResourceAttr(resourceAttributes, "benchkit.run_id", "<resource>");
+        requiredResourceAttr(resourceAttributes, "benchkit.kind", "<resource>");
+        requiredResourceAttr(resourceAttributes, "benchkit.source_format", "<resource>");
         contextTemplate = {
             commit: resourceAttributes["benchkit.commit"],
             ref: resourceAttributes["benchkit.ref"],
@@ -60344,7 +60341,7 @@ function projectBenchmarkResultFromOtlp(document) {
                 const metricKind = getOtlpMetricKind(metric);
                 if (metricKind === "gauge" || metricKind === "sum") {
                     const points = metricKind === "gauge" ? metric.gauge?.dataPoints : metric.sum?.dataPoints;
-                    projectGaugeLikeMetric(groups, metric, points, resourceAttributes);
+                    projectGaugeLikeMetric(groups, metric, points);
                     for (const point of points ?? []) {
                         const iso = nanosToIso(point.timeUnixNano);
                         if (iso && (!latestTimestamp || iso > latestTimestamp)) {
@@ -60354,7 +60351,7 @@ function projectBenchmarkResultFromOtlp(document) {
                 }
                 else if (metricKind === "histogram") {
                     const points = metric.histogram?.dataPoints;
-                    projectHistogramMetric(groups, metric, points, resourceAttributes);
+                    projectHistogramMetric(groups, metric, points);
                     for (const point of points ?? []) {
                         const iso = nanosToIso(point.timeUnixNano);
                         if (iso && (!latestTimestamp || iso > latestTimestamp)) {
