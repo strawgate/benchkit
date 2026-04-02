@@ -55,6 +55,7 @@ describe("stopCollector", () => {
       pid: 99999999, // non-existent
       configPath: "/tmp/fake-config.yaml",
       outputPath: "/tmp/fake-output.jsonl",
+      logPath: "/tmp/fake-otelcol.log",
       startTime: Date.now(),
       runId: "test-1",
       dataBranch: "bench-data",
@@ -64,8 +65,8 @@ describe("stopCollector", () => {
   });
 
   it("stops a real child process via SIGTERM", async () => {
-    // Spawn a long-running process (sleep)
-    const child = spawn("sleep", ["60"], { detached: true, stdio: "ignore" });
+    // Spawn a long-running process (cross-platform)
+    const child = spawn(process.execPath, ["-e", "setTimeout(()=>{},60000)"], { detached: true, stdio: "ignore" });
     child.unref();
     const pid = child.pid!;
     assert.ok(pid > 0);
@@ -75,6 +76,7 @@ describe("stopCollector", () => {
       pid,
       configPath: "/tmp/fake-config.yaml",
       outputPath: "/tmp/fake-output.jsonl",
+      logPath: "/tmp/fake-otelcol.log",
       startTime: Date.now(),
       runId: "test-2",
       dataBranch: "bench-data",
@@ -82,8 +84,11 @@ describe("stopCollector", () => {
 
     await stopCollector(state);
 
-    // Give OS a moment to reap the process
-    await new Promise((r) => setTimeout(r, 100));
+    // Wait for process to be reaped (up to 2s)
+    for (let i = 0; i < 20; i++) {
+      if (!isProcessRunning(pid)) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
     assert.ok(!isProcessRunning(pid), "child should be stopped");
   });
 });
@@ -229,6 +234,45 @@ describe("findDescendantPids", () => {
     const descendants = findDescendantPids(content, 1);
     assert.ok(descendants.has(10));
   });
+
+  it("terminates on PID cycles without infinite recursion", () => {
+    // Create a cycle: 10 -> 20 -> 10
+    const content = [
+      makeJsonlLine(makeProcessResource(10, 20, "process.cpu.time")),
+      makeJsonlLine(makeProcessResource(20, 10, "process.cpu.time")),
+    ].join("\n");
+    // Neither is a descendant of 1, and should not infinite-loop
+    const descendants = findDescendantPids(content, 1);
+    assert.equal(descendants.size, 0);
+  });
+
+  it("handles empty input", () => {
+    const descendants = findDescendantPids("", 1);
+    assert.equal(descendants.size, 0);
+  });
+
+  it("handles malformed JSON lines gracefully", () => {
+    const content = [
+      "this is not json",
+      makeJsonlLine(makeProcessResource(10, 1, "process.cpu.time")),
+      '{"truncated": true',
+    ].join("\n");
+    const descendants = findDescendantPids(content, 1);
+    assert.ok(descendants.has(10));
+  });
+
+  it("handles resources with missing attributes", () => {
+    const content = JSON.stringify({
+      resourceMetrics: [
+        { resource: {} },
+        { resource: { attributes: [] } },
+        { resource: { attributes: [{ key: "process.pid", value: { intValue: 10 } }] } },
+      ],
+    });
+    // PID 10 has no parent_pid, so it won't be in parentOf map
+    const descendants = findDescendantPids(content, 1);
+    assert.equal(descendants.size, 0);
+  });
 });
 
 describe("filterToRunnerDescendants", () => {
@@ -292,6 +336,45 @@ describe("filterToRunnerDescendants", () => {
     ].join("\n");
     const { kept, removed } = filterToRunnerDescendants(content, 1);
     assert.equal(kept, 2);
+    assert.equal(removed, 0);
+  });
+
+  it("passes through malformed JSON lines unchanged", () => {
+    const badLine = "not valid json";
+    const goodLine = makeJsonlLine(makeProcessResource(10, 1, "process.cpu.time"));
+    const content = [badLine, goodLine].join("\n");
+    const { filtered, kept } = filterToRunnerDescendants(content, 1);
+    assert.ok(filtered.includes(badLine));
+    assert.equal(kept, 1);
+  });
+
+  it("handles empty input", () => {
+    const { filtered, kept, removed } = filterToRunnerDescendants("", 1);
+    assert.equal(kept, 0);
+    assert.equal(removed, 0);
+    assert.equal(filtered.trim(), "");
+  });
+
+  it("keeps user OTLP metrics with process.pid but no parent_pid", () => {
+    // User-sent OTLP metrics may have process.pid set but not parent_pid
+    const customOtlpResource = {
+      resource: {
+        attributes: [
+          { key: "process.pid", value: { intValue: 999 } },
+          { key: "custom.metric", value: { stringValue: "user-metric" } },
+          // Note: no process.parent_pid attribute
+        ],
+      },
+      scopeMetrics: [
+        {
+          scope: { name: "user-app" },
+          metrics: [{ name: "custom.duration", gauge: { dataPoints: [{ asDouble: 42 }] } }],
+        },
+      ],
+    };
+    const content = makeJsonlLine(customOtlpResource);
+    const { kept, removed } = filterToRunnerDescendants(content, 1);
+    assert.equal(kept, 1, "user OTLP metric should be kept");
     assert.equal(removed, 0);
   });
 });

@@ -5,6 +5,7 @@ export interface OtelState {
   pid: number;
   configPath: string;
   outputPath: string;
+  logPath: string;
   startTime: number;
   runId: string;
   dataBranch: string;

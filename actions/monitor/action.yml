@@ -6,8 +6,8 @@ inputs:
     description: 'OTel Collector Contrib version to download.'
     default: '0.102.0'
   scrape-interval:
-    description: 'Host metrics scrape interval (e.g. "1s", "250ms").'
-    default: '1s'
+    description: 'Host metrics scrape interval (e.g. "5s", "1s", "250ms").'
+    default: '5s'
   metric-sets:
     description: 'Comma-separated host metric scrapers: cpu,memory,disk,network,process,load,filesystem,paging.'
     default: 'cpu,memory,load,process'
