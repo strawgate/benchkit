@@ -1,9 +1,9 @@
 [
   {
     "ref": "refs/heads/main",
-    "latestRunId": "test-go-23880043571-1",
-    "latestTimestamp": "2026-04-02T02:00:50.256Z",
-    "latestCommit": "762be98fa4a36879a5247cfbc56402b0daf50485",
-    "runCount": 2
+    "latestRunId": "test-go-23882389114-1",
+    "latestTimestamp": "2026-04-02T03:31:39.267Z",
+    "latestCommit": "07af9a974541e9ef481d0202ef455859e8657abd",
+    "runCount": 5
   }
 ]
