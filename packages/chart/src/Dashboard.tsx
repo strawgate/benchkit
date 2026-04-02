@@ -338,9 +338,18 @@ export function Dashboard({
                 return (
                   <div
                     key={metric}
+                    role="button"
+                    tabIndex={0}
                     class="bk-card bk-card--interactive"
                     onClick={() => handleMetricClick(metric)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleMetricClick(metric);
+                      }
+                    }}
                     title={tooltipText}
+                    aria-label={`View ${formatMetric(metric)} metric`}
                   >
                     <div class="bk-card__top">
                       <div>
