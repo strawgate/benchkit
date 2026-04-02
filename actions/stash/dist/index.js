@@ -59567,8 +59567,14 @@ const DEFAULT_THRESHOLD = { test: "percentage", threshold: 5 };
  * change and applies the threshold test to classify the result as
  * improved, stable, or regressed.
  *
- * Benchmarks in `current` that have no matching baseline are skipped
- * (new benchmarks cannot regress).
+ * Benchmarks present in `current` but absent from every baseline run are
+ * excluded from the output — new benchmarks have no history to regress
+ * against.
+ *
+ * @param current - The benchmark result from the current run.
+ * @param baseline - One or more baseline `BenchmarkResult` objects to compare against.
+ * @param config - Threshold configuration controlling regression sensitivity (default: 5 % percentage).
+ * @returns A `ComparisonResult` with per-metric entries and an overall regression flag.
  */
 function compare(current, baseline, config = DEFAULT_THRESHOLD) {
     if (baseline.length === 0) {
@@ -59896,6 +59902,16 @@ function cloneContext(context) {
         monitor: context.monitor ? { ...context.monitor } : undefined,
     };
 }
+/**
+ * Create a `Metric` object from a numeric value and optional metadata.
+ *
+ * If `direction` is not provided it is inferred from `unit` via `inferDirection`.
+ * If neither `direction` nor `unit` is provided, `direction` is left undefined.
+ *
+ * @param value - The numeric measurement value.
+ * @param options - Optional unit, direction, and range overrides.
+ * @returns A fully-formed `Metric` object.
+ */
 function defineMetric(value, options = {}) {
     const direction = options.direction ?? (options.unit ? (0, infer_direction_js_1.inferDirection)(options.unit) : undefined);
     return {
@@ -59905,6 +59921,16 @@ function defineMetric(value, options = {}) {
         range: options.range,
     };
 }
+/**
+ * Create a `Benchmark` object from an init descriptor.
+ *
+ * Numeric shorthand values in `init.metrics` are automatically converted to
+ * `Metric` objects via `defineMetric`. Rich metric objects are also passed
+ * through `defineMetric` so that direction is inferred when not explicit.
+ *
+ * @param init - Benchmark name, optional tags, metrics map, and optional samples.
+ * @returns A fully-formed `Benchmark` object.
+ */
 function defineBenchmark(init) {
     const metrics = Object.fromEntries(Object.entries(init.metrics).map(([name, metric]) => {
         if (typeof metric === "number") {
@@ -59919,12 +59945,32 @@ function defineBenchmark(init) {
         samples: init.samples ? [...init.samples] : undefined,
     };
 }
+/**
+ * Build a `BenchmarkResult` from a plain init descriptor.
+ *
+ * Use this when you want a typed `BenchmarkResult` in memory. To also
+ * validate and serialize to JSON, prefer `stringifyNativeResult`.
+ *
+ * @param init - Result init containing benchmarks and optional context.
+ * @returns A validated `BenchmarkResult` object.
+ */
 function buildNativeResult(init) {
     return {
         benchmarks: init.benchmarks.map((benchmark) => defineBenchmark(benchmark)),
         context: cloneContext(init.context),
     };
 }
+/**
+ * Serialize a benchmark result to the benchkit native JSON format.
+ *
+ * Accepts either a `BenchmarkResult` or a `NativeResultInit` descriptor.
+ * The result is validated via `parseNative` before being returned, so
+ * invalid data (e.g. non-numeric metric values) will throw.
+ *
+ * @param resultOrInit - The result or init object to serialize.
+ * @param indent - JSON indentation width (default `2`).
+ * @returns A JSON string ending with a trailing newline.
+ */
 function stringifyNativeResult(resultOrInit, indent = 2) {
     const result = buildNativeResult(resultOrInit);
     const json = JSON.stringify(result, null, indent);
@@ -60159,6 +60205,15 @@ function anyValueToString(value) {
         return String(value.doubleValue);
     return "";
 }
+/**
+ * Flatten an OTLP `KeyValue` attribute array into a plain string record.
+ *
+ * All OTLP value types (string, bool, int, double) are coerced to strings.
+ * Attributes with an absent or unrecognised value are stored as empty strings.
+ *
+ * @param attributes - Optional OTLP attribute array to flatten.
+ * @returns A `Record<string, string>` mapping each attribute key to its string value.
+ */
 function otlpAttributesToRecord(attributes) {
     const record = {};
     for (const attribute of attributes ?? []) {
@@ -60166,6 +60221,16 @@ function otlpAttributesToRecord(attributes) {
     }
     return record;
 }
+/**
+ * Parse and minimally validate an OTLP metrics JSON string.
+ *
+ * Validates that the top-level object contains a `resourceMetrics` array.
+ * Throws if the input is not valid JSON or if `resourceMetrics` is absent/not
+ * an array.
+ *
+ * @param input - Raw OTLP metrics JSON string.
+ * @returns The parsed `OtlpMetricsDocument`.
+ */
 function parseOtlpMetrics(input) {
     const parsed = JSON.parse(input);
     if (!Array.isArray(parsed.resourceMetrics)) {
@@ -60173,6 +60238,15 @@ function parseOtlpMetrics(input) {
     }
     return parsed;
 }
+/**
+ * Determine the data kind of an OTLP metric.
+ *
+ * Supported kinds are `"gauge"`, `"sum"`, and `"histogram"`.
+ * Throws an `Error` if none of those fields are present on the metric.
+ *
+ * @param metric - The OTLP metric to inspect.
+ * @returns `"gauge"`, `"sum"`, or `"histogram"`.
+ */
 function getOtlpMetricKind(metric) {
     if (metric.gauge)
         return "gauge";
@@ -60182,6 +60256,17 @@ function getOtlpMetricKind(metric) {
         return "histogram";
     throw new Error(`Unsupported OTLP metric kind for metric '${metric.name}'.`);
 }
+/**
+ * Resolve the aggregation temporality for an OTLP sum or histogram metric.
+ *
+ * Maps the raw numeric OTLP enum to a human-readable string:
+ * - `1` → `"delta"`
+ * - `2` → `"cumulative"`
+ * - anything else (including absent) → `"unspecified"`
+ *
+ * @param metric - The OTLP metric to inspect.
+ * @returns The `OtlpAggregationTemporality` string value.
+ */
 function getOtlpTemporality(metric) {
     const raw = metric.sum?.aggregationTemporality ?? metric.histogram?.aggregationTemporality;
     if (raw === 1)
@@ -60348,6 +60433,24 @@ function projectHistogramMetric(groups, metric, points, _resourceAttributes) {
         }
     }
 }
+/**
+ * Project an `OtlpMetricsDocument` into a benchkit `BenchmarkResult`.
+ *
+ * The projection runs in three phases:
+ * 1. **Resource collection** — required resource attributes (`benchkit.run_id`,
+ *    `benchkit.kind`, `benchkit.source_format`) are validated and context
+ *    metadata (commit, ref, runner) is extracted.
+ * 2. **Datapoint traversal** — each metric datapoint is mapped to a benchmark
+ *    group keyed by `benchkit.scenario` + `benchkit.series`. Gauge and sum
+ *    metrics are treated identically; histograms are split into `.count` and
+ *    `.sum` child metrics. The latest datapoint (by timestamp) wins for each
+ *    metric within a group.
+ * 3. **Time-series building** — per-group datapoints are sorted by timestamp
+ *    and attached as `samples` when more than one datapoint exists.
+ *
+ * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlpMetrics`).
+ * @returns A `BenchmarkResult` containing all projected benchmarks and context.
+ */
 function projectBenchmarkResultFromOtlp(document) {
     const groups = new Map();
     let latestTimestamp;
