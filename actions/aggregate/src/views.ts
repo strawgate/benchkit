@@ -5,6 +5,7 @@ import type {
   SeriesFile,
 } from "@benchkit/format";
 import type { ParsedRun } from "./aggregate.js";
+import { resolveMetricName } from "./aggregate.js";
 
 export interface RefIndexEntry {
   ref: string;
@@ -122,7 +123,9 @@ export function buildRunDetail(runId: string, runs: ParsedRun[]): RunDetailView 
     benchmarks: match.result.benchmarks.length,
     metrics: Array.from(
       new Set(
-        match.result.benchmarks.flatMap((benchmark) => Object.keys(benchmark.metrics)),
+        match.result.benchmarks.flatMap((benchmark) =>
+          Object.keys(benchmark.metrics).map((m) => resolveMetricName(benchmark.name, m)),
+        ),
       ),
     ).sort(),
     monitor: match.result.context?.monitor,
@@ -131,8 +134,9 @@ export function buildRunDetail(runId: string, runs: ParsedRun[]): RunDetailView 
   const groupedMetrics = new Map<string, RunDetailMetricSnapshot>();
   for (const benchmark of match.result.benchmarks) {
     const seriesKey = benchmarkSeriesKey(benchmark);
-    for (const [metricName, metric] of Object.entries(benchmark.metrics)) {
-      const existing = groupedMetrics.get(metricName);
+    for (const [rawMetricName, metric] of Object.entries(benchmark.metrics)) {
+      const resolvedMetricName = resolveMetricName(benchmark.name, rawMetricName);
+      const existing = groupedMetrics.get(resolvedMetricName);
       if (existing) {
         existing.values.push({
           name: seriesKey,
@@ -143,8 +147,8 @@ export function buildRunDetail(runId: string, runs: ParsedRun[]): RunDetailView 
           tags: benchmark.tags,
         });
       } else {
-        groupedMetrics.set(metricName, {
-          metric: metricName,
+        groupedMetrics.set(resolvedMetricName, {
+          metric: resolvedMetricName,
           unit: metric.unit,
           direction: metric.direction,
           values: [

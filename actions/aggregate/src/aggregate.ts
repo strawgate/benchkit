@@ -14,6 +14,14 @@ export interface ParsedRun {
   result: BenchmarkResult;
 }
 
+/**
+ * When a benchmark name starts with `_monitor/`, prefix the metric name
+ * so Dashboard can partition monitor metrics from user benchmarks.
+ */
+export function resolveMetricName(benchName: string, metricName: string): string {
+  return benchName.startsWith("_monitor/") ? `_monitor/${metricName}` : metricName;
+}
+
 /** Sort runs by timestamp (oldest first). */
 export function sortRuns(runs: ParsedRun[]): void {
   runs.sort((a, b) => {
@@ -31,14 +39,6 @@ export function pruneRuns(runs: ParsedRun[], maxRuns: number): string[] {
   if (maxRuns <= 0 || runs.length <= maxRuns) return [];
   const removed = runs.splice(0, runs.length - maxRuns);
   return removed.map((r) => r.id);
-}
-
-/**
- * When a benchmark name starts with `_monitor/`, prefix the metric name
- * so Dashboard can partition monitor metrics from user benchmarks.
- */
-function resolveMetricName(benchName: string, metricName: string): string {
-  return benchName.startsWith("_monitor/") ? `_monitor/${metricName}` : metricName;
 }
 
 /** Build the index file from a set of runs (assumes runs are already sorted oldest-first). */

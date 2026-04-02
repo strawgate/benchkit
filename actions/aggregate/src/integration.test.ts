@@ -25,6 +25,12 @@ import {
   buildIndex,
   buildSeries,
 } from "./aggregate.js";
+import {
+  buildRefIndex,
+  buildPrIndex,
+  buildRunDetail,
+  buildMetricSummaryViews,
+} from "./views.js";
 import type { BenchmarkResult, IndexFile, SeriesFile } from "@benchkit/format";
 
 // ── Schema validation ───────────────────────────────────────────────
@@ -41,6 +47,18 @@ const validateIndex = ajv.compile(
 );
 const validateSeries = ajv.compile(
   JSON.parse(fs.readFileSync(path.join(schemaDir, "series.schema.json"), "utf-8")),
+);
+const validateRefsIndex = ajv.compile(
+  JSON.parse(fs.readFileSync(path.join(schemaDir, "index-refs.schema.json"), "utf-8")),
+);
+const validatePrsIndex = ajv.compile(
+  JSON.parse(fs.readFileSync(path.join(schemaDir, "index-prs.schema.json"), "utf-8")),
+);
+const validateMetricsIndex = ajv.compile(
+  JSON.parse(fs.readFileSync(path.join(schemaDir, "index-metrics.schema.json"), "utf-8")),
+);
+const validateRunDetail = ajv.compile(
+  JSON.parse(fs.readFileSync(path.join(schemaDir, "view-run-detail.schema.json"), "utf-8")),
 );
 
 // ── Test fixtures ───────────────────────────────────────────────────
@@ -335,6 +353,70 @@ describe("integration: stash → aggregate pipeline", () => {
         assert.ok(runNames.has(baseName), `series key "${seriesKey}" (base: "${baseName}") not found in any run`);
       }
     }
+  });
+
+  // ── Navigation indexes ────────────────────────────────────────────
+
+  it("refs index conforms to schema and contains main branch", () => {
+    const refs = buildRefIndex(pipeline.index.runs);
+    const valid = validateRefsIndex(refs);
+    assert.ok(valid, `refs index: ${JSON.stringify(validateRefsIndex.errors)}`);
+    const mainEntry = refs.find((r) => r.ref === "refs/heads/main");
+    assert.ok(mainEntry, "should have an entry for refs/heads/main");
+    assert.equal(mainEntry.runCount, 3, "all 3 runs are on main");
+  });
+
+  it("prs index conforms to schema and is empty (no PR runs)", () => {
+    const prs = buildPrIndex(pipeline.index.runs);
+    const valid = validatePrsIndex(prs);
+    assert.ok(valid, `prs index: ${JSON.stringify(validatePrsIndex.errors)}`);
+    assert.equal(prs.length, 0, "no PR runs in this pipeline");
+  });
+
+  it("metrics index conforms to schema and contains all metrics", () => {
+    const metrics = buildMetricSummaryViews(pipeline.seriesMap);
+    const valid = validateMetricsIndex(metrics);
+    assert.ok(valid, `metrics index: ${JSON.stringify(validateMetricsIndex.errors)}`);
+    const metricNames = metrics.map((m) => m.metric);
+    assert.ok(metricNames.includes("ns_per_op"), "should include ns_per_op");
+    assert.ok(metricNames.includes("requests_per_sec"), "should include requests_per_sec");
+    assert.ok(metricNames.includes("_monitor/peak_rss_kb"), "should include _monitor/peak_rss_kb");
+  });
+
+  // ── Run detail views ──────────────────────────────────────────────
+
+  it("run detail view conforms to schema for each run", () => {
+    for (const run of pipeline.runs) {
+      const detail = buildRunDetail(run.id, pipeline.runs);
+      assert.ok(detail, `buildRunDetail returned null for run ${run.id}`);
+      const valid = validateRunDetail(detail);
+      assert.ok(valid, `run ${run.id} detail: ${JSON.stringify(validateRunDetail.errors)}`);
+    }
+  });
+
+  it("run-001 detail view includes all benchmark metrics", () => {
+    const detail = buildRunDetail("run-001", pipeline.runs);
+    assert.ok(detail);
+    assert.equal(detail.run.id, "run-001");
+    const metricNames = detail.metricSnapshots.map((s) => s.metric);
+    assert.ok(metricNames.includes("ns_per_op"), "run-001 detail should include ns_per_op");
+    assert.ok(metricNames.includes("_monitor/peak_rss_kb"), "run-001 detail should include monitor metric");
+  });
+
+  it("run-003 detail view includes native benchmark metrics", () => {
+    const detail = buildRunDetail("run-003", pipeline.runs);
+    assert.ok(detail);
+    const metricNames = detail.metricSnapshots.map((s) => s.metric);
+    assert.ok(metricNames.includes("requests_per_sec"), "run-003 detail should include requests_per_sec");
+    assert.ok(metricNames.includes("p99_latency_ms"), "run-003 detail should include p99_latency_ms");
+  });
+
+  it("run detail metric snapshots are sorted alphabetically", () => {
+    const detail = buildRunDetail("run-001", pipeline.runs);
+    assert.ok(detail);
+    const metrics = detail.metricSnapshots.map((s) => s.metric);
+    const sorted = [...metrics].sort();
+    assert.deepEqual(metrics, sorted, "metric snapshots should be sorted alphabetically");
   });
 
   // ── Cleanup ───────────────────────────────────────────────────────
