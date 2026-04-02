@@ -5,9 +5,8 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
-    "outDir": "dist",
-    "rootDir": "src",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true
   },
   "include": ["src", "vite.config.ts"]
 }
