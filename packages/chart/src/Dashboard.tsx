@@ -9,7 +9,7 @@ import { TagFilter, filterSeriesFile } from "./components/TagFilter.js";
 import { Leaderboard } from "./components/Leaderboard.js";
 import { getWinner } from "./leaderboard.js";
 import { detectRegressions, regressionTooltip, type RegressionResult } from "./utils.js";
-import { defaultMetricLabel } from "./labels.js";
+import { defaultMetricLabel, isMonitorMetric } from "./labels.js";
 
 export interface DashboardProps {
   source: DataSource;
@@ -31,11 +31,6 @@ export interface DashboardProps {
 }
 
 type View = "overview" | { metric: string };
-
-/** Returns true when the metric name belongs to the monitor action. */
-function isMonitorMetric(metric: string): boolean {
-  return metric.startsWith("_monitor/");
-}
 
 function formatRef(ref: string | undefined): string | undefined {
   if (!ref) return undefined;
