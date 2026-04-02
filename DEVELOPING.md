@@ -4,7 +4,7 @@ This guide is for contributors working on benchkit internals.
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 24+
 - npm
 
 ## Repository layout
