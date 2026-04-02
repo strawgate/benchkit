@@ -3,6 +3,7 @@ import type {
   PrIndexEntry,
   RefIndexEntry,
 } from "@benchkit/format";
+import { formatRef as defaultFormatRef } from "../format-utils.js";
 
 /** Maximum number of recent runs shown in ref-fallback mode. */
 const MAX_RECENT_RUNS = 20;
@@ -20,7 +21,7 @@ export interface RunSelectorProps {
   prHeading?: string;
   /** Label for the ref/run list heading. Default: "Runs" */
   runHeading?: string;
-  /** Custom ref formatter. Default: strips refs/heads/, formats PRs, etc. */
+  /** Custom ref formatter. Default: {@link formatRef} from format-utils. */
   formatRef?: (ref: string) => string;
   class?: string;
 }
@@ -38,14 +39,6 @@ export function formatTimestamp(iso: string): string {
 
 export function shortCommit(commit?: string): string {
   return commit ? commit.slice(0, 7) : "–";
-}
-
-export function defaultFormatRef(ref: string): string {
-  const prMatch = ref.match(/^refs\/pull\/(\d+)\/merge$/);
-  if (prMatch) return `PR #${prMatch[1]}`;
-  if (ref.startsWith("refs/heads/")) return ref.replace("refs/heads/", "");
-  if (ref.startsWith("refs/tags/")) return ref.replace("refs/tags/", "tag ");
-  return ref;
 }
 
 export function RunSelector({

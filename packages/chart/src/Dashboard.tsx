@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import type { IndexFile, SeriesFile, SeriesEntry, RunEntry } from "@benchkit/format";
 import { fetchIndex, fetchSeries, type DataSource } from "./fetch.js";
+import { formatRef } from "./format-utils.js";
 import { TrendChart } from "./components/TrendChart.js";
 import { ComparisonBar } from "./components/ComparisonBar.js";
 import { RunTable } from "./components/RunTable.js";
@@ -31,15 +32,6 @@ export interface DashboardProps {
 }
 
 type View = "overview" | { metric: string };
-
-function formatRef(ref: string | undefined): string | undefined {
-  if (!ref) return undefined;
-  if (ref.startsWith("refs/heads/")) return ref.replace("refs/heads/", "");
-  const pullMatch = /^refs\/pull\/(\d+)\/merge$/.exec(ref);
-  if (pullMatch) return `PR #${pullMatch[1]}`;
-  if (ref.startsWith("refs/tags/")) return `tag ${ref.replace("refs/tags/", "")}`;
-  return ref;
-}
 
 export function Dashboard({
   source,
@@ -197,7 +189,7 @@ export function Dashboard({
           {latestRun && (
             <p class="bk-hero__body">
               Latest run: <strong>{latestRun.id}</strong>
-              {formatRef(latestRun.ref) ? ` on ${formatRef(latestRun.ref)}` : ""}
+              {latestRun.ref ? ` on ${formatRef(latestRun.ref)}` : ""}
               {latestRun.commit ? ` at ${latestRun.commit.slice(0, 8)}` : ""}.
             </p>
           )}

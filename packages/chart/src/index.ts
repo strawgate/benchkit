@@ -8,9 +8,12 @@ export { MonitorSection, type MonitorSectionProps } from "./components/MonitorSe
 export { TagFilter, type TagFilterProps, extractTags, filterSeriesFile } from "./components/TagFilter.js";
 export { Leaderboard, type LeaderboardProps } from "./components/Leaderboard.js";
 export { VerdictBanner, type VerdictBannerProps } from "./components/VerdictBanner.js";
-export { ComparisonSummaryTable, type ComparisonSummaryTableProps, formatPct, formatValue, sortEntries, statusIcon, directionLabel } from "./components/ComparisonSummaryTable.js";
-export { RunSelector, type RunSelectorProps, formatTimestamp, shortCommit, defaultFormatRef } from "./components/RunSelector.js";
+export { ComparisonSummaryTable, type ComparisonSummaryTableProps, sortEntries, statusIcon, directionLabel } from "./components/ComparisonSummaryTable.js";
+export { RunSelector, type RunSelectorProps, formatTimestamp, shortCommit } from "./components/RunSelector.js";
 export { Dashboard, type DashboardProps } from "./Dashboard.js";
+
+// Shared formatting utilities
+export { formatValue, formatFixedValue, formatRef, formatPct } from "./format-utils.js";
 
 // Data fetching
 export { fetchIndex, fetchSeries, fetchRun, fetchPrIndex, fetchRefIndex, fetchMetricSummary, fetchRunDetail, type DataSource } from "./fetch.js";

@@ -1,4 +1,13 @@
 import { useRef, useEffect, useMemo } from "preact/hooks";
+import { formatValue } from "../format-utils.js";
+import { REGRESSION_COLOR, REGRESSION_BORDER_COLOR } from "../colors.js";
+import {
+  sharedTooltipStyle,
+  layoutPadding,
+  baseLineOptions,
+  yAxisConfig,
+  timeXAxis,
+} from "../chart-config.js";
 import {
   Chart,
   LineController,
@@ -9,7 +18,7 @@ import {
   Tooltip,
   Legend,
   Filler,
-  type ChartData,
+  type ChartDataset,
   type ChartOptions,
 } from "chart.js";
 import "chartjs-adapter-date-fns";
@@ -50,17 +59,6 @@ export interface TrendChartProps {
   regressions?: RegressionResult[];
 }
 
-function formatValue(value: number, compact = false): string {
-  if (compact) {
-    return new Intl.NumberFormat("en-US", {
-      notation: "compact",
-      maximumFractionDigits: 1,
-    }).format(value);
-  }
-
-  return value.toLocaleString("en-US", { maximumFractionDigits: value >= 100 ? 0 : 2 });
-}
-
 export function TrendChart({
   series,
   height = 300,
@@ -78,7 +76,7 @@ export function TrendChart({
 }: TrendChartProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<Chart | null>(null);
+  const chartRef = useRef<Chart<"line", { x: string; y: number }[]> | null>(null);
   const entries = useMemo(() => {
     return Object.entries(series.series)
       .map(([name, entry], idx) => {
@@ -110,11 +108,11 @@ export function TrendChart({
 
     const theme = getChartTheme(wrapperRef.current);
     const resolvedLineWidth = lineWidth ?? (compact ? 1.5 : 1.75);
-    const datasets: ChartData<"line">["datasets"] = entries.map((entry) => {
+    const datasets: ChartDataset<"line", { x: string; y: number }[]>[] = entries.map((entry) => {
       const lastIdx = entry.points.length - 1;
       return {
         label: entry.label,
-        data: entry.points.map((point) => ({ x: point.timestamp as unknown as number, y: point.value })),
+        data: entry.points.map((point) => ({ x: point.timestamp, y: point.value })),
         borderColor: entry.color,
         backgroundColor: `${entry.color}22`,
         fill: entries.length === 1,
@@ -125,39 +123,22 @@ export function TrendChart({
         pointRadius: entry.points.map((_, index) => (entry.isRegressed && index === lastIdx ? (compact ? 4 : 5) : (compact ? 1.75 : 2.5))),
         pointHoverRadius: compact ? 4 : 6,
         pointBackgroundColor: entry.points.map((_, index) => (
-          entry.isRegressed && index === lastIdx ? "#ef4444" : entry.color
+          entry.isRegressed && index === lastIdx ? REGRESSION_COLOR : entry.color
         )),
         pointBorderColor: entry.points.map((_, index) => (
-          entry.isRegressed && index === lastIdx ? "#7f1d1d" : entry.color
+          entry.isRegressed && index === lastIdx ? REGRESSION_BORDER_COLOR : entry.color
         )),
       };
     });
 
     const options: ChartOptions<"line"> = {
-      responsive: true,
-      maintainAspectRatio: false,
-      layout: {
-        padding: {
-          left: compact ? 2 : 4,
-          right: compact ? 6 : 8,
-          top: compact ? 2 : 4,
-          bottom: compact ? 0 : 2,
-        },
-      },
-      interaction: {
-        mode: "nearest",
-        intersect: false,
-      },
+      ...baseLineOptions(),
+      layout: { padding: layoutPadding(compact) },
+      interaction: { mode: "nearest", intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: theme.tooltipBackground,
-          borderColor: theme.tooltipBorder,
-          borderWidth: 1,
-          titleColor: "#f8fafc",
-          bodyColor: "#e2e8f0",
-          padding: 12,
-          displayColors: true,
+          ...sharedTooltipStyle(theme),
           callbacks: {
             title: (items) => {
               const ts = items[0]?.label;
@@ -176,42 +157,13 @@ export function TrendChart({
         },
       },
       scales: {
-        x: {
-          type: "time" as const,
-          time: { tooltipFormat: "PPpp" },
-          title: { display: false },
-          grid: {
-            color: theme.grid,
-          },
-          ticks: {
-            color: theme.mutedText,
-            maxRotation: 0,
-            autoSkipPadding: 18,
-            maxTicksLimit: compact ? 4 : 7,
-          },
-          border: {
-            color: theme.border,
-          },
-        },
-        y: {
-          title: {
-            display: !compact,
-            text: series.unit ?? series.metric,
-            color: theme.mutedText,
-          },
-          beginAtZero: false,
-          grid: {
-            color: theme.grid,
-          },
-          ticks: {
-            color: theme.mutedText,
-            maxTicksLimit: compact ? 4 : 6,
-            callback: (value) => formatValue(Number(value), compact),
-          },
-          border: {
-            color: theme.border,
-          },
-        },
+        x: timeXAxis(theme, { maxTicksLimit: compact ? 4 : 7 }),
+        y: yAxisConfig(theme, {
+          showTitle: !compact,
+          title: series.unit ?? series.metric,
+          maxTicksLimit: compact ? 4 : 6,
+          tickCallback: (value) => formatValue(Number(value), compact),
+        }),
       },
     };
 

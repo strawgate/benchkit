@@ -1,4 +1,6 @@
 import { useRef, useEffect, useMemo } from "preact/hooks";
+import { formatValue } from "../format-utils.js";
+import { sharedTooltipStyle } from "../chart-config.js";
 import {
   Chart,
   BarController,
@@ -24,10 +26,6 @@ export interface ComparisonBarProps {
   seriesNameFormatter?: (name: string, entry: SeriesEntry) => string;
   showValuesList?: boolean;
   class?: string;
-}
-
-function formatValue(value: number): string {
-  return value.toLocaleString("en-US", { maximumFractionDigits: value >= 100 ? 0 : 2 });
 }
 
 export function ComparisonBar({
@@ -79,12 +77,7 @@ export function ComparisonBar({
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: theme.tooltipBackground,
-          borderColor: theme.tooltipBorder,
-          borderWidth: 1,
-          titleColor: "#f8fafc",
-          bodyColor: "#e2e8f0",
-          padding: 12,
+          ...sharedTooltipStyle(theme),
           callbacks: {
             label: (item) => {
               const v = values[item.dataIndex];

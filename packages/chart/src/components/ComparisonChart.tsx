@@ -1,4 +1,14 @@
 import { useRef, useEffect, useMemo } from "preact/hooks";
+import { formatValue } from "../format-utils.js";
+import { BASE_COLOR, CURRENT_COLOR } from "../colors.js";
+import {
+  sharedTooltipStyle,
+  layoutPadding,
+  baseLineOptions,
+  yAxisConfig,
+  timeXAxis,
+  linearXAxis,
+} from "../chart-config.js";
 import {
   Chart,
   LineController,
@@ -8,7 +18,7 @@ import {
   TimeScale,
   Tooltip,
   Legend,
-  type ChartData,
+  type ChartDataset,
   type ChartOptions,
 } from "chart.js";
 import "chartjs-adapter-date-fns";
@@ -30,9 +40,6 @@ Chart.register(
 );
 
 /** Base (blue) and current/PR (green) — matching the beats-bench convention. */
-const BASE_COLOR = "#3b82f6";
-const CURRENT_COLOR = "#22c55e";
-
 export interface ComparisonChartProps {
   /** Metric name used to extract values from `Sample[]` data and shown on the y-axis. */
   metric: string;
@@ -64,10 +71,6 @@ export interface ComparisonChartProps {
   class?: string;
 }
 
-function formatValue(value: number): string {
-  return value.toLocaleString("en-US", { maximumFractionDigits: value >= 100 ? 0 : 2 });
-}
-
 export function ComparisonChart({
   metric,
   unit,
@@ -84,7 +87,7 @@ export function ComparisonChart({
 }: ComparisonChartProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<Chart | null>(null);
+  const chartRef = useRef<Chart<"line", { x: string | number; y: number }[]> | null>(null);
 
   /** true when operating in Sample[] (intra-run) mode */
   const isSamplesMode = baseSamples !== undefined || currentSamples !== undefined;
@@ -116,10 +119,10 @@ export function ComparisonChart({
 
     const theme = getChartTheme(wrapperRef.current);
 
-    const datasets: ChartData<"line">["datasets"] = [
+    const datasets: ChartDataset<"line", { x: string | number; y: number }[]>[] = [
       {
         label: baseLabel,
-        data: baseData as { x: number; y: number }[],
+        data: baseData,
         borderColor: BASE_COLOR,
         backgroundColor: `${BASE_COLOR}22`,
         fill: false,
@@ -134,7 +137,7 @@ export function ComparisonChart({
       },
       {
         label: currentLabel,
-        data: currentData as { x: number; y: number }[],
+        data: currentData,
         borderColor: CURRENT_COLOR,
         backgroundColor: `${CURRENT_COLOR}22`,
         fill: false,
@@ -150,55 +153,17 @@ export function ComparisonChart({
     ].filter((ds) => ds.data.length > 0);
 
     const xScale: ChartOptions<"line">["scales"] = isSamplesMode
-      ? {
-          x: {
-            type: "linear" as const,
-            title: {
-              display: true,
-              text: "Time (s)",
-              color: theme.mutedText,
-            },
-            grid: { color: theme.grid },
-            ticks: { color: theme.mutedText },
-            border: { color: theme.border },
-          },
-        }
-      : {
-          x: {
-            type: "time" as const,
-            time: { tooltipFormat: "PPpp" },
-            title: { display: false },
-            grid: { color: theme.grid },
-            ticks: {
-              color: theme.mutedText,
-              maxRotation: 0,
-              autoSkipPadding: 18,
-              maxTicksLimit: 7,
-            },
-            border: { color: theme.border },
-          },
-        };
+      ? { x: linearXAxis(theme, { title: "Time (s)", showTitle: true }) }
+      : { x: timeXAxis(theme) };
 
     const options: ChartOptions<"line"> = {
-      responsive: true,
-      maintainAspectRatio: false,
-      layout: {
-        padding: { left: 4, right: 8, top: 4, bottom: 2 },
-      },
-      interaction: {
-        mode: "index",
-        intersect: false,
-      },
+      ...baseLineOptions(),
+      layout: { padding: layoutPadding() },
+      interaction: { mode: "index", intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: theme.tooltipBackground,
-          borderColor: theme.tooltipBorder,
-          borderWidth: 1,
-          titleColor: "#f8fafc",
-          bodyColor: "#e2e8f0",
-          padding: 12,
-          displayColors: true,
+          ...sharedTooltipStyle(theme),
           callbacks: {
             title: (items) => {
               const raw = items[0]?.label;
@@ -217,21 +182,11 @@ export function ComparisonChart({
       },
       scales: {
         ...xScale,
-        y: {
-          title: {
-            display: true,
-            text: unit ?? metric,
-            color: theme.mutedText,
-          },
-          beginAtZero: false,
-          grid: { color: theme.grid },
-          ticks: {
-            color: theme.mutedText,
-            maxTicksLimit: 6,
-            callback: (value) => formatValue(Number(value)),
-          },
-          border: { color: theme.border },
-        },
+        y: yAxisConfig(theme, {
+          showTitle: true,
+          title: unit ?? metric,
+          tickCallback: (value) => formatValue(Number(value)),
+        }),
       },
     };
 

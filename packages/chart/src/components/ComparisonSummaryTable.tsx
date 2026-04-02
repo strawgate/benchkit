@@ -1,5 +1,6 @@
 import { useState } from "preact/hooks";
 import type { ComparisonEntry } from "@benchkit/format";
+import { formatFixedValue, formatPct } from "../format-utils.js";
 
 export interface ComparisonSummaryTableProps {
   entries: ComparisonEntry[];
@@ -37,17 +38,6 @@ export function statusIcon(status: string): string {
   if (status === "regressed") return "▼";
   if (status === "improved") return "▲";
   return "–";
-}
-
-export function formatPct(pct: number): string {
-  const sign = pct > 0 ? "+" : "";
-  return `${sign}${pct.toFixed(2)}%`;
-}
-
-export function formatValue(value: number): string {
-  if (Number.isInteger(value)) return value.toFixed(0);
-  if (Math.abs(value) >= 100) return value.toFixed(1);
-  return value.toFixed(2);
 }
 
 export function directionLabel(dir: string): string {
@@ -128,8 +118,8 @@ export function ComparisonSummaryTable({
                     <span class="bk-muted"> ({entry.unit})</span>
                   )}
                 </td>
-                <td class="bk-table__numeric">{formatValue(entry.baseline)}</td>
-                <td class="bk-table__numeric">{formatValue(entry.current)}</td>
+                <td class="bk-table__numeric">{formatFixedValue(entry.baseline)}</td>
+                <td class="bk-table__numeric">{formatFixedValue(entry.current)}</td>
                 <td
                   class={`bk-table__numeric bk-comparison-row__change--${entry.status}`}
                 >

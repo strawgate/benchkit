@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatPct, formatValue, sortEntries } from "./components/ComparisonSummaryTable.js";
+import { sortEntries } from "./components/ComparisonSummaryTable.js";
+import { formatPct, formatFixedValue } from "./format-utils.js";
 
 describe("ComparisonSummaryTable helpers", () => {
   describe("formatPct", () => {
@@ -17,17 +18,17 @@ describe("ComparisonSummaryTable helpers", () => {
     });
   });
 
-  describe("formatValue", () => {
+  describe("formatFixedValue", () => {
     it("shows integers without decimals", () => {
-      assert.equal(formatValue(320), "320");
+      assert.equal(formatFixedValue(320), "320");
     });
 
     it("shows 1 decimal for large floats", () => {
-      assert.equal(formatValue(1234.567), "1234.6");
+      assert.equal(formatFixedValue(1234.567), "1234.6");
     });
 
     it("shows 2 decimals for small floats", () => {
-      assert.equal(formatValue(3.14159), "3.14");
+      assert.equal(formatFixedValue(3.14159), "3.14");
     });
   });
 
