@@ -2,19 +2,31 @@
   {
     "metric": "allocs_per_op",
     "latestSeriesCount": 3,
-    "latestRunId": "test-count-23887815116-1",
-    "latestTimestamp": "2026-04-02T06:46:41.613Z"
+    "latestRunId": "test-count-23887939165-1",
+    "latestTimestamp": "2026-04-02T06:49:25.086Z"
   },
   {
     "metric": "bytes_per_op",
     "latestSeriesCount": 3,
-    "latestRunId": "test-count-23887815116-1",
-    "latestTimestamp": "2026-04-02T06:46:41.613Z"
+    "latestRunId": "test-count-23887939165-1",
+    "latestTimestamp": "2026-04-02T06:49:25.086Z"
   },
   {
     "metric": "ns_per_op",
     "latestSeriesCount": 3,
-    "latestRunId": "test-count-23887815116-1",
-    "latestTimestamp": "2026-04-02T06:46:41.613Z"
+    "latestRunId": "test-count-23887939165-1",
+    "latestTimestamp": "2026-04-02T06:49:25.086Z"
+  },
+  {
+    "metric": "p99_latency_ms",
+    "latestSeriesCount": 1,
+    "latestRunId": "test-native-23887939165-1",
+    "latestTimestamp": "2026-04-02T06:49:23.976Z"
+  },
+  {
+    "metric": "requests_per_sec",
+    "latestSeriesCount": 1,
+    "latestRunId": "test-native-23887939165-1",
+    "latestTimestamp": "2026-04-02T06:49:23.976Z"
   }
 ]
