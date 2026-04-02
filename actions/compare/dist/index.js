@@ -64513,12 +64513,9 @@ function projectBenchmarkResultFromOtlp(document) {
     let contextTemplate;
     for (const resourceMetric of document.resourceMetrics) {
         const resourceAttributes = otlpAttributesToRecord(resourceMetric.resource?.attributes);
-        const runId = requiredResourceAttr(resourceAttributes, "benchkit.run_id", "<resource>");
-        const kind = requiredResourceAttr(resourceAttributes, "benchkit.kind", "<resource>");
-        const sourceFormat = requiredResourceAttr(resourceAttributes, "benchkit.source_format", "<resource>");
-        void runId;
-        void kind;
-        void sourceFormat;
+        requiredResourceAttr(resourceAttributes, "benchkit.run_id", "<resource>");
+        requiredResourceAttr(resourceAttributes, "benchkit.kind", "<resource>");
+        requiredResourceAttr(resourceAttributes, "benchkit.source_format", "<resource>");
         contextTemplate = {
             commit: resourceAttributes["benchkit.commit"],
             ref: resourceAttributes["benchkit.ref"],
