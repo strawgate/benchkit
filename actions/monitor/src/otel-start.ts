@@ -49,6 +49,21 @@ export function downloadUrl(version: string, os: string, arch: string, ext: stri
   );
 }
 
+/**
+ * Parse and validate a port number input.
+ * Throws a descriptive error if the value is not a valid integer in the range 1–65535.
+ */
+export function validatePort(inputName: string, raw: string): number {
+  const port = parseInt(raw, 10);
+  if (isNaN(port)) {
+    throw new Error(`Invalid port number for ${inputName}: expected a number, got '${raw}'`);
+  }
+  if (port < 1 || port > 65535) {
+    throw new Error(`Invalid port number for ${inputName}: ${port} is out of range (1–65535)`);
+  }
+  return port;
+}
+
 async function ensureCollectorBinary(version: string): Promise<string> {
   const { os, arch, ext } = platformArch();
   const toolName = "otelcol-contrib";
@@ -95,8 +110,8 @@ export async function startOtelCollector(): Promise<void> {
   const scrapeInterval = core.getInput("scrape-interval") || "5s";
   const metricSetsInput = core.getInput("metric-sets");
   const metricSetsRaw = metricSetsInput === "" ? [] : (metricSetsInput || "cpu,memory,load,process").split(",");
-  const otlpGrpcPort = parseInt(core.getInput("otlp-grpc-port") || "4317", 10);
-  const otlpHttpPort = parseInt(core.getInput("otlp-http-port") || "4318", 10);
+  const otlpGrpcPort = validatePort("otlp-grpc-port", core.getInput("otlp-grpc-port") || "4317");
+  const otlpHttpPort = validatePort("otlp-http-port", core.getInput("otlp-http-port") || "4318");
   const dataBranch = core.getInput("data-branch") || "bench-data";
   const runId = resolveRunId();
 

@@ -253,6 +253,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.platformArch = platformArch;
 exports.downloadUrl = downloadUrl;
+exports.validatePort = validatePort;
 exports.resolveRunId = resolveRunId;
 exports.startOtelCollector = startOtelCollector;
 const core = __importStar(__nccwpck_require__(7184));
@@ -291,6 +292,20 @@ function platformArch() {
 function downloadUrl(version, os, arch, ext) {
     return (`https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/` +
         `v${version}/otelcol-contrib_${version}_${os}_${arch}.${ext}`);
+}
+/**
+ * Parse and validate a port number input.
+ * Throws a descriptive error if the value is not a valid integer in the range 1–65535.
+ */
+function validatePort(inputName, raw) {
+    const port = parseInt(raw, 10);
+    if (isNaN(port)) {
+        throw new Error(`Invalid port number for ${inputName}: expected a number, got '${raw}'`);
+    }
+    if (port < 1 || port > 65535) {
+        throw new Error(`Invalid port number for ${inputName}: ${port} is out of range (1–65535)`);
+    }
+    return port;
 }
 async function ensureCollectorBinary(version) {
     const { os, arch, ext } = platformArch();
@@ -335,8 +350,8 @@ async function startOtelCollector() {
     const scrapeInterval = core.getInput("scrape-interval") || "5s";
     const metricSetsInput = core.getInput("metric-sets");
     const metricSetsRaw = metricSetsInput === "" ? [] : (metricSetsInput || "cpu,memory,load,process").split(",");
-    const otlpGrpcPort = parseInt(core.getInput("otlp-grpc-port") || "4317", 10);
-    const otlpHttpPort = parseInt(core.getInput("otlp-http-port") || "4318", 10);
+    const otlpGrpcPort = validatePort("otlp-grpc-port", core.getInput("otlp-grpc-port") || "4317");
+    const otlpHttpPort = validatePort("otlp-http-port", core.getInput("otlp-http-port") || "4318");
     const dataBranch = core.getInput("data-branch") || "bench-data";
     const runId = resolveRunId();
     const metricSets = (0, otel_config_js_1.validateMetricSets)(metricSetsRaw);
