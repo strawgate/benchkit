@@ -76,13 +76,13 @@ function git(args: string[], cwd?: string): string {
 }
 
 /**
- * Extract the process.pid integer value from an OTLP resource's attributes.
- * Returns undefined if no process.pid attribute exists (i.e. system-level metrics).
+ * Extract an integer attribute from an OTLP resource's attributes array.
  */
-function getResourcePid(
+function getIntAttribute(
   attributes: Array<{ key: string; value: Record<string, unknown> }>,
+  key: string,
 ): number | undefined {
-  const attr = attributes.find((a) => a.key === "process.pid");
+  const attr = attributes.find((a) => a.key === key);
   if (!attr) return undefined;
   const raw = attr.value.intValue ?? attr.value.stringValue;
   if (raw === undefined) return undefined;
@@ -90,15 +90,70 @@ function getResourcePid(
 }
 
 /**
- * Filter OTLP JSONL to remove process-scoped resourceMetrics whose
- * process.pid was in the baseline set (processes that existed before the
- * benchmark started). System-level metrics (no process.pid) and user-sent
- * OTLP metrics pass through unmodified.
+ * Build a pid→parent_pid map from all process resources in OTLP JSONL,
+ * then return the set of PIDs that are descendants of `ancestorPid`.
  */
-export function filterBaselineProcesses(
+export function findDescendantPids(
   content: string,
-  baselinePids: Set<number>,
+  ancestorPid: number,
+): Set<number> {
+  const parentOf = new Map<number, number>();
+
+  for (const line of content.split("\n")) {
+    if (!line.trim()) continue;
+    let parsed: { resourceMetrics?: Array<{ resource?: { attributes?: Array<{ key: string; value: Record<string, unknown> }> } }> };
+    try {
+      parsed = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    for (const rm of parsed.resourceMetrics ?? []) {
+      const attrs = rm.resource?.attributes ?? [];
+      const pid = getIntAttribute(attrs, "process.pid");
+      const ppid = getIntAttribute(attrs, "process.parent_pid");
+      if (pid !== undefined && ppid !== undefined) {
+        parentOf.set(pid, ppid);
+      }
+    }
+  }
+
+  // Walk up from each PID; if the chain reaches ancestorPid, it's a descendant.
+  // Cache results to avoid repeated walks.
+  const cache = new Map<number, boolean>();
+  cache.set(ancestorPid, true);
+
+  function isDescendant(pid: number): boolean {
+    if (cache.has(pid)) return cache.get(pid)!;
+    const parent = parentOf.get(pid);
+    if (parent === undefined) {
+      cache.set(pid, false);
+      return false;
+    }
+    // Guard against cycles
+    cache.set(pid, false);
+    const result = isDescendant(parent);
+    cache.set(pid, result);
+    return result;
+  }
+
+  const descendants = new Set<number>();
+  for (const pid of parentOf.keys()) {
+    if (isDescendant(pid)) descendants.add(pid);
+  }
+  return descendants;
+}
+
+/**
+ * Filter OTLP JSONL to keep only process resources that are descendants
+ * of the runner worker PID. System-level metrics (no process.pid) and
+ * user-sent OTLP metrics pass through unmodified.
+ */
+export function filterToRunnerDescendants(
+  content: string,
+  runnerPpid: number,
 ): { filtered: string; kept: number; removed: number } {
+  const descendants = findDescendantPids(content, runnerPpid);
+
   let kept = 0;
   let removed = 0;
   const outputLines: string[] = [];
@@ -120,8 +175,9 @@ export function filterBaselineProcesses(
     }
 
     const filteredResources = parsed.resourceMetrics.filter((rm) => {
-      const pid = getResourcePid(rm.resource?.attributes ?? []);
-      if (pid === undefined || !baselinePids.has(pid)) {
+      const pid = getIntAttribute(rm.resource?.attributes ?? [], "process.pid");
+      // Keep if: no PID (system/OTLP metrics), or PID is a runner descendant
+      if (pid === undefined || descendants.has(pid)) {
         kept++;
         return true;
       }
@@ -262,14 +318,13 @@ export async function stopOtelCollector(): Promise<void> {
 
   await stopCollector(state);
 
-  // Filter out baseline processes before pushing
-  if (state.baselinePids?.length && fs.existsSync(state.outputPath)) {
+  // Filter process metrics to only runner descendants
+  if (state.runnerPpid && fs.existsSync(state.outputPath)) {
     const raw = fs.readFileSync(state.outputPath, "utf-8");
-    const baselineSet = new Set(state.baselinePids);
-    const { filtered, kept, removed } = filterBaselineProcesses(raw, baselineSet);
+    const { filtered, kept, removed } = filterToRunnerDescendants(raw, state.runnerPpid);
     fs.writeFileSync(state.outputPath, filtered);
     core.info(
-      `Filtered processes: ${kept} resources kept, ${removed} baseline resources removed`,
+      `Filtered processes: ${kept} resources kept, ${removed} non-runner resources removed`,
     );
   }
 

@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { spawn } from "node:child_process";
-import { isProcessRunning, safeUnlink, stopCollector, filterBaselineProcesses } from "./otel-stop.js";
+import { isProcessRunning, safeUnlink, stopCollector, findDescendantPids, filterToRunnerDescendants } from "./otel-stop.js";
 import type { OtelState } from "./types.js";
 
 // ── isProcessRunning ────────────────────────────────────────────────
@@ -91,8 +91,6 @@ describe("stopCollector", () => {
 // ── Config YAML structural validation ───────────────────────────────
 
 describe("generated config structural validation", () => {
-  // Import config generator here to test that the output is valid
-  // by checking key structural properties
   it("generates config that has all required top-level sections", async () => {
     const { generateCollectorConfig } = await import("./otel-config.js");
     const yaml = generateCollectorConfig({
@@ -106,7 +104,6 @@ describe("generated config structural validation", () => {
       commit: "abc123",
     });
 
-    // Must have all top-level sections
     const lines = yaml.split("\n");
     const topLevelKeys = lines
       .filter((l) => /^\w/.test(l) && l.includes(":"))
@@ -129,7 +126,6 @@ describe("generated config structural validation", () => {
       runId: "test-1",
     });
 
-    // Every indented line should use multiples of 2 spaces
     const indentedLines = yaml.split("\n").filter((l) => l.startsWith(" "));
     for (const line of indentedLines) {
       const leadingSpaces = line.match(/^( *)/)![1].length;
@@ -142,16 +138,20 @@ describe("generated config structural validation", () => {
   });
 });
 
-// ── filterBaselineProcesses ─────────────────────────────────────────
+// ── PPID tree walking & filtering ───────────────────────────────────
 
-function makeResourceMetric(pid: number | undefined, metricName: string) {
-  const attributes: Array<{ key: string; value: Record<string, unknown> }> = [];
-  if (pid !== undefined) {
-    attributes.push({ key: "process.pid", value: { intValue: String(pid) } });
-    attributes.push({ key: "process.executable.name", value: { stringValue: `proc-${pid}` } });
-  }
+/**
+ * Build an OTLP resource with process.pid and process.parent_pid attributes.
+ */
+function makeProcessResource(pid: number, ppid: number, metricName: string) {
   return {
-    resource: { attributes },
+    resource: {
+      attributes: [
+        { key: "process.pid", value: { intValue: String(pid) } },
+        { key: "process.parent_pid", value: { intValue: String(ppid) } },
+        { key: "process.executable.name", value: { stringValue: `proc-${pid}` } },
+      ],
+    },
     scopeMetrics: [{
       scope: { name: "otelcol/hostmetricsreceiver/process" },
       metrics: [{ name: metricName, gauge: { dataPoints: [{ asDouble: 42 }] } }],
@@ -159,74 +159,139 @@ function makeResourceMetric(pid: number | undefined, metricName: string) {
   };
 }
 
-function makeJsonlLine(...resources: ReturnType<typeof makeResourceMetric>[]) {
+function makeSystemResource(metricName: string) {
+  return {
+    resource: { attributes: [] as Array<{ key: string; value: Record<string, unknown> }> },
+    scopeMetrics: [{
+      scope: { name: "otelcol/hostmetricsreceiver/cpu" },
+      metrics: [{ name: metricName, gauge: { dataPoints: [{ asDouble: 99 }] } }],
+    }],
+  };
+}
+
+function makeJsonlLine(...resources: object[]) {
   return JSON.stringify({ resourceMetrics: resources });
 }
 
-describe("filterBaselineProcesses", () => {
-  it("removes resources with baseline PIDs", () => {
-    const line = makeJsonlLine(
-      makeResourceMetric(100, "process.cpu.time"),
-      makeResourceMetric(200, "process.cpu.time"),
-    );
-    const { filtered, kept, removed } = filterBaselineProcesses(line, new Set([100, 150]));
-    assert.equal(removed, 1);
-    assert.equal(kept, 1);
-    const parsed = JSON.parse(filtered.trim());
-    assert.equal(parsed.resourceMetrics.length, 1);
-    assert.equal(parsed.resourceMetrics[0].resource.attributes[0].value.intValue, "200");
+describe("findDescendantPids", () => {
+  it("finds direct children of ancestor", () => {
+    // runner(1) -> bash(10), runner(1) -> node(20)
+    const content = [
+      makeJsonlLine(makeProcessResource(10, 1, "process.cpu.time")),
+      makeJsonlLine(makeProcessResource(20, 1, "process.cpu.time")),
+    ].join("\n");
+    const descendants = findDescendantPids(content, 1);
+    assert.ok(descendants.has(10));
+    assert.ok(descendants.has(20));
   });
 
-  it("keeps system metrics (no process.pid)", () => {
-    const line = makeJsonlLine(
-      makeResourceMetric(undefined, "system.cpu.time"),
-      makeResourceMetric(100, "process.cpu.time"),
-    );
-    const { filtered, kept, removed } = filterBaselineProcesses(line, new Set([100]));
-    assert.equal(kept, 1);
-    assert.equal(removed, 1);
-    const parsed = JSON.parse(filtered.trim());
-    assert.equal(parsed.resourceMetrics.length, 1);
-    assert.equal(parsed.resourceMetrics[0].scopeMetrics[0].metrics[0].name, "system.cpu.time");
+  it("finds nested descendants", () => {
+    // runner(1) -> bash(10) -> go-test(100) -> worker(200)
+    const content = [
+      makeJsonlLine(makeProcessResource(10, 1, "process.cpu.time")),
+      makeJsonlLine(makeProcessResource(100, 10, "process.cpu.time")),
+      makeJsonlLine(makeProcessResource(200, 100, "process.cpu.time")),
+    ].join("\n");
+    const descendants = findDescendantPids(content, 1);
+    assert.ok(descendants.has(10));
+    assert.ok(descendants.has(100));
+    assert.ok(descendants.has(200));
   });
 
-  it("keeps all resources when baseline is empty", () => {
-    const line = makeJsonlLine(
-      makeResourceMetric(100, "process.cpu.time"),
-      makeResourceMetric(200, "process.cpu.time"),
-    );
-    const { kept, removed } = filterBaselineProcesses(line, new Set());
+  it("excludes processes not descended from ancestor", () => {
+    // runner(1) -> bash(10), systemd(0) -> sshd(50)
+    const content = [
+      makeJsonlLine(makeProcessResource(10, 1, "process.cpu.time")),
+      makeJsonlLine(makeProcessResource(50, 0, "process.cpu.time")),
+    ].join("\n");
+    const descendants = findDescendantPids(content, 1);
+    assert.ok(descendants.has(10));
+    assert.ok(!descendants.has(50));
+  });
+
+  it("returns empty set when no processes match", () => {
+    const content = makeJsonlLine(makeProcessResource(50, 0, "process.cpu.time"));
+    const descendants = findDescendantPids(content, 999);
+    assert.equal(descendants.size, 0);
+  });
+
+  it("handles intValue as number (not string)", () => {
+    const resource = {
+      resource: {
+        attributes: [
+          { key: "process.pid", value: { intValue: 10 } },
+          { key: "process.parent_pid", value: { intValue: 1 } },
+        ],
+      },
+      scopeMetrics: [],
+    };
+    const content = JSON.stringify({ resourceMetrics: [resource] });
+    const descendants = findDescendantPids(content, 1);
+    assert.ok(descendants.has(10));
+  });
+});
+
+describe("filterToRunnerDescendants", () => {
+  it("keeps runner descendants and removes system processes", () => {
+    // runner(1) -> bash(10) -> benchmark(100)
+    // systemd(0) -> sshd(50), systemd(0) -> dockerd(60)
+    const content = [
+      makeJsonlLine(
+        makeProcessResource(10, 1, "process.cpu.time"),
+        makeProcessResource(100, 10, "process.cpu.time"),
+        makeProcessResource(50, 0, "process.cpu.time"),
+        makeProcessResource(60, 0, "process.cpu.time"),
+      ),
+    ].join("\n");
+    const { filtered, kept, removed } = filterToRunnerDescendants(content, 1);
     assert.equal(kept, 2);
-    assert.equal(removed, 0);
+    assert.equal(removed, 2);
+    const parsed = JSON.parse(filtered.trim());
+    assert.equal(parsed.resourceMetrics.length, 2);
   });
 
-  it("drops entire JSONL line if all resources are baseline", () => {
-    const line = makeJsonlLine(
-      makeResourceMetric(100, "process.cpu.time"),
-      makeResourceMetric(200, "process.cpu.time"),
+  it("keeps system-level metrics (no process.pid)", () => {
+    const content = [
+      makeJsonlLine(
+        makeSystemResource("system.cpu.time"),
+        makeProcessResource(50, 0, "process.cpu.time"),
+      ),
+    ].join("\n");
+    const { kept, removed } = filterToRunnerDescendants(content, 1);
+    assert.equal(kept, 1); // system resource
+    assert.equal(removed, 1); // non-descendant process
+  });
+
+  it("drops entire JSONL line if all process resources are non-descendants", () => {
+    const content = makeJsonlLine(
+      makeProcessResource(50, 0, "process.cpu.time"),
+      makeProcessResource(60, 0, "process.cpu.time"),
     );
-    const { filtered, removed } = filterBaselineProcesses(line, new Set([100, 200]));
+    const { filtered, removed } = filterToRunnerDescendants(content, 1);
     assert.equal(removed, 2);
     assert.equal(filtered.trim(), "");
   });
 
   it("handles multi-line JSONL", () => {
-    const lines = [
-      makeJsonlLine(makeResourceMetric(100, "process.cpu.time"), makeResourceMetric(500, "process.cpu.time")),
-      makeJsonlLine(makeResourceMetric(100, "process.memory.usage"), makeResourceMetric(500, "process.memory.usage")),
+    // runner(1) -> bash(10), systemd(0) -> sshd(50)
+    const content = [
+      makeJsonlLine(makeProcessResource(10, 1, "process.cpu.time"), makeProcessResource(50, 0, "process.cpu.time")),
+      makeJsonlLine(makeProcessResource(10, 1, "process.memory.usage"), makeProcessResource(50, 0, "process.memory.usage")),
     ].join("\n");
-    const { kept, removed } = filterBaselineProcesses(lines, new Set([100]));
+    const { kept, removed } = filterToRunnerDescendants(content, 1);
     assert.equal(kept, 2);
     assert.equal(removed, 2);
   });
 
-  it("handles intValue as number (not string)", () => {
-    const resource = {
-      resource: { attributes: [{ key: "process.pid", value: { intValue: 100 } }] },
-      scopeMetrics: [],
-    };
-    const line = JSON.stringify({ resourceMetrics: [resource] });
-    const { removed } = filterBaselineProcesses(line, new Set([100]));
-    assert.equal(removed, 1);
+  it("keeps all resources when all processes are descendants", () => {
+    const content = [
+      makeJsonlLine(
+        makeProcessResource(10, 1, "process.cpu.time"),
+        makeProcessResource(100, 10, "process.cpu.time"),
+      ),
+    ].join("\n");
+    const { kept, removed } = filterToRunnerDescendants(content, 1);
+    assert.equal(kept, 2);
+    assert.equal(removed, 0);
   });
 });

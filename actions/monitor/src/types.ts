@@ -8,6 +8,10 @@ export interface OtelState {
   startTime: number;
   runId: string;
   dataBranch: string;
-  /** PIDs that existed before the collector started (Linux only). */
-  baselinePids?: number[];
+  /**
+   * Runner worker PID (our process's parent). Used in post-processing to
+   * filter process metrics to only descendants of the runner — keeps
+   * benchmark-spawned processes, drops system daemons.
+   */
+  runnerPpid?: number;
 }
