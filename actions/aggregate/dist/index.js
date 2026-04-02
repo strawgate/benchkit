@@ -40,6 +40,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.resolveMetricName = resolveMetricName;
 exports.sortRuns = sortRuns;
 exports.pruneRuns = pruneRuns;
 exports.buildIndex = buildIndex;
@@ -47,6 +48,13 @@ exports.buildSeries = buildSeries;
 exports.readRuns = readRuns;
 const fs = __importStar(__nccwpck_require__(3024));
 const path = __importStar(__nccwpck_require__(6760));
+/**
+ * When a benchmark name starts with `_monitor/`, prefix the metric name
+ * so Dashboard can partition monitor metrics from user benchmarks.
+ */
+function resolveMetricName(benchName, metricName) {
+    return benchName.startsWith("_monitor/") ? `_monitor/${metricName}` : metricName;
+}
 /** Sort runs by timestamp (oldest first). */
 function sortRuns(runs) {
     runs.sort((a, b) => {
@@ -64,13 +72,6 @@ function pruneRuns(runs, maxRuns) {
         return [];
     const removed = runs.splice(0, runs.length - maxRuns);
     return removed.map((r) => r.id);
-}
-/**
- * When a benchmark name starts with `_monitor/`, prefix the metric name
- * so Dashboard can partition monitor metrics from user benchmarks.
- */
-function resolveMetricName(benchName, metricName) {
-    return benchName.startsWith("_monitor/") ? `_monitor/${metricName}` : metricName;
 }
 /** Build the index file from a set of runs (assumes runs are already sorted oldest-first). */
 function buildIndex(runs) {
@@ -248,6 +249,7 @@ const fs = __importStar(__nccwpck_require__(3024));
 const path = __importStar(__nccwpck_require__(6760));
 const os = __importStar(__nccwpck_require__(8161));
 const aggregate_js_1 = __nccwpck_require__(7756);
+const views_js_1 = __nccwpck_require__(1349);
 async function run() {
     const dataBranch = core.getInput("data-branch") || "bench-data";
     const token = core.getInput("github-token", { required: true });
@@ -288,7 +290,7 @@ async function run() {
     const allMetrics = index.metrics ?? [];
     const seriesMap = (0, aggregate_js_1.buildSeries)(runs);
     // Write output files
-    writeAggregatedFiles(worktree, index, seriesMap);
+    writeAggregatedFiles(worktree, index, seriesMap, runs);
     core.info(`Wrote index.json (${index.runs.length} runs, ${allMetrics.length} metrics)`);
     // Commit and push if changed
     await exec.exec("git", ["-C", worktree, "add", "."]);
@@ -322,7 +324,7 @@ async function configureGit(token) {
         `AUTHORIZATION: basic ${basicAuth}`,
     ]);
 }
-function writeAggregatedFiles(worktree, index, seriesMap) {
+function writeAggregatedFiles(worktree, index, seriesMap, runs) {
     const dataDir = path.join(worktree, "data");
     fs.writeFileSync(path.join(dataDir, "index.json"), JSON.stringify(index, null, 2) + "\n");
     const seriesDir = path.join(dataDir, "series");
@@ -339,11 +341,189 @@ function writeAggregatedFiles(worktree, index, seriesMap) {
         fs.writeFileSync(filePath, JSON.stringify(series, null, 2) + "\n");
         core.info(`Wrote series/${fileName}`);
     }
+    // ── Navigation indexes ──────────────────────────────────────────
+    const indexDir = path.join(dataDir, "index");
+    if (fs.existsSync(indexDir)) {
+        fs.rmSync(indexDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(indexDir, { recursive: true });
+    const refsIndex = (0, views_js_1.buildRefIndex)(index.runs);
+    fs.writeFileSync(path.join(indexDir, "refs.json"), JSON.stringify(refsIndex, null, 2) + "\n");
+    core.info(`Wrote index/refs.json (${refsIndex.length} refs)`);
+    const prsIndex = (0, views_js_1.buildPrIndex)(index.runs);
+    fs.writeFileSync(path.join(indexDir, "prs.json"), JSON.stringify(prsIndex, null, 2) + "\n");
+    core.info(`Wrote index/prs.json (${prsIndex.length} PRs)`);
+    const metricsIndex = (0, views_js_1.buildMetricSummaryViews)(seriesMap);
+    fs.writeFileSync(path.join(indexDir, "metrics.json"), JSON.stringify(metricsIndex, null, 2) + "\n");
+    core.info(`Wrote index/metrics.json (${metricsIndex.length} metrics)`);
+    // ── Run detail views ────────────────────────────────────────────
+    const runsViewDir = path.join(dataDir, "views", "runs");
+    if (fs.existsSync(runsViewDir)) {
+        fs.rmSync(runsViewDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(runsViewDir, { recursive: true });
+    for (const run of runs) {
+        const detail = (0, views_js_1.buildRunDetail)(run.id, runs);
+        if (detail) {
+            const runDetailDir = path.join(runsViewDir, run.id);
+            fs.mkdirSync(runDetailDir, { recursive: true });
+            fs.writeFileSync(path.join(runDetailDir, "detail.json"), JSON.stringify(detail, null, 2) + "\n");
+        }
+    }
+    core.info(`Wrote views/runs/{id}/detail.json for ${runs.length} run(s)`);
 }
 run().catch((err) => {
     core.setFailed(err instanceof Error ? err.message : String(err));
 });
 //# sourceMappingURL=main.js.map
+
+/***/ }),
+
+/***/ 1349:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.extractPrNumber = extractPrNumber;
+exports.buildRefIndex = buildRefIndex;
+exports.buildPrIndex = buildPrIndex;
+exports.buildRunDetail = buildRunDetail;
+exports.buildMetricSummaryViews = buildMetricSummaryViews;
+const aggregate_js_1 = __nccwpck_require__(7756);
+function benchmarkSeriesKey(benchmark) {
+    const tags = benchmark.tags
+        ? Object.entries(benchmark.tags)
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, value]) => `${key}=${value}`)
+            .join(",")
+        : "";
+    return tags ? `${benchmark.name} [${tags}]` : benchmark.name;
+}
+function extractPrNumber(ref) {
+    if (!ref)
+        return null;
+    const match = /^refs\/pull\/(\d+)\/merge$/.exec(ref);
+    return match ? Number(match[1]) : null;
+}
+function buildRefIndex(runs) {
+    const grouped = new Map();
+    for (const run of runs) {
+        const ref = run.ref ?? "unknown";
+        const existing = grouped.get(ref);
+        if (existing)
+            existing.push(run);
+        else
+            grouped.set(ref, [run]);
+    }
+    return [...grouped.entries()]
+        .map(([ref, entries]) => {
+        const latest = [...entries].sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
+        return {
+            ref,
+            latestRunId: latest.id,
+            latestTimestamp: latest.timestamp,
+            latestCommit: latest.commit,
+            runCount: entries.length,
+        };
+    })
+        .sort((a, b) => b.latestTimestamp.localeCompare(a.latestTimestamp));
+}
+function buildPrIndex(runs) {
+    const prRuns = runs
+        .map((run) => ({ run, prNumber: extractPrNumber(run.ref) }))
+        .filter((entry) => entry.prNumber !== null);
+    const grouped = new Map();
+    for (const entry of prRuns) {
+        const existing = grouped.get(entry.prNumber);
+        if (existing)
+            existing.push(entry.run);
+        else
+            grouped.set(entry.prNumber, [entry.run]);
+    }
+    return [...grouped.entries()]
+        .map(([prNumber, entries]) => {
+        const latest = [...entries].sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
+        return {
+            prNumber,
+            ref: latest.ref ?? `refs/pull/${prNumber}/merge`,
+            latestRunId: latest.id,
+            latestTimestamp: latest.timestamp,
+            latestCommit: latest.commit,
+            runCount: entries.length,
+        };
+    })
+        .sort((a, b) => b.latestTimestamp.localeCompare(a.latestTimestamp));
+}
+function buildRunDetail(runId, runs) {
+    const match = runs.find((run) => run.id === runId);
+    if (!match)
+        return null;
+    const runEntry = {
+        id: match.id,
+        timestamp: match.result.context?.timestamp ?? new Date().toISOString(),
+        commit: match.result.context?.commit,
+        ref: match.result.context?.ref,
+        benchmarks: match.result.benchmarks.length,
+        metrics: Array.from(new Set(match.result.benchmarks.flatMap((benchmark) => Object.keys(benchmark.metrics).map((m) => (0, aggregate_js_1.resolveMetricName)(benchmark.name, m))))).sort(),
+        monitor: match.result.context?.monitor,
+    };
+    const groupedMetrics = new Map();
+    for (const benchmark of match.result.benchmarks) {
+        const seriesKey = benchmarkSeriesKey(benchmark);
+        for (const [rawMetricName, metric] of Object.entries(benchmark.metrics)) {
+            const resolvedMetricName = (0, aggregate_js_1.resolveMetricName)(benchmark.name, rawMetricName);
+            const existing = groupedMetrics.get(resolvedMetricName);
+            if (existing) {
+                existing.values.push({
+                    name: seriesKey,
+                    value: metric.value,
+                    unit: metric.unit,
+                    direction: metric.direction,
+                    range: metric.range,
+                    tags: benchmark.tags,
+                });
+            }
+            else {
+                groupedMetrics.set(resolvedMetricName, {
+                    metric: resolvedMetricName,
+                    unit: metric.unit,
+                    direction: metric.direction,
+                    values: [
+                        {
+                            name: seriesKey,
+                            value: metric.value,
+                            unit: metric.unit,
+                            direction: metric.direction,
+                            range: metric.range,
+                            tags: benchmark.tags,
+                        },
+                    ],
+                });
+            }
+        }
+    }
+    return {
+        run: runEntry,
+        metricSnapshots: [...groupedMetrics.values()].sort((a, b) => a.metric.localeCompare(b.metric)),
+    };
+}
+function buildMetricSummaryViews(seriesMap) {
+    return [...seriesMap.entries()]
+        .map(([metric, series]) => {
+        const latestPoint = Object.values(series.series)
+            .flatMap((entry) => entry.points)
+            .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
+        return {
+            metric,
+            latestSeriesCount: Object.keys(series.series).length,
+            latestRunId: latestPoint?.run_id,
+            latestTimestamp: latestPoint?.timestamp,
+        };
+    })
+        .sort((a, b) => a.metric.localeCompare(b.metric));
+}
+//# sourceMappingURL=views.js.map
 
 /***/ }),
 

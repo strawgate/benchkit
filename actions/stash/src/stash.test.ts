@@ -5,6 +5,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import {
   buildResult,
+  buildRunId,
   createTempResultPath,
   formatResultSummaryMarkdown,
   parseBenchmarkFiles,
@@ -13,6 +14,87 @@ import {
   writeResultFile,
 } from "./stash.js";
 import type { Benchmark, BenchmarkResult } from "@benchkit/format";
+
+// ── buildRunId ──────────────────────────────────────────────────────
+
+describe("buildRunId", () => {
+  it("returns the custom run-id unchanged when provided", () => {
+    assert.equal(
+      buildRunId({ customRunId: "my-custom-run" }),
+      "my-custom-run",
+    );
+  });
+
+  it("ignores all other options when customRunId is set", () => {
+    assert.equal(
+      buildRunId({ customRunId: "custom", githubRunId: "99", githubJob: "bench" }),
+      "custom",
+    );
+  });
+
+  it("builds base id from run id and attempt", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "12345", githubRunAttempt: "2" }),
+      "12345-2",
+    );
+  });
+
+  it("appends sanitized job name separated by double dash", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "12345", githubRunAttempt: "1", githubJob: "bench" }),
+      "12345-1--bench",
+    );
+  });
+
+  it("lower-cases the job segment", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "12345", githubRunAttempt: "1", githubJob: "BenchGo" }),
+      "12345-1--benchgo",
+    );
+  });
+
+  it("replaces spaces and special characters with dashes in job segment", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "12345", githubRunAttempt: "1", githubJob: "My Bench (Linux)" }),
+      "12345-1--my-bench-linux",
+    );
+  });
+
+  it("collapses consecutive special characters to a single dash", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "1", githubRunAttempt: "1", githubJob: "a  b__c" }),
+      "1-1--a-b-c",
+    );
+  });
+
+  it("strips leading and trailing dashes from the job segment", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "1", githubRunAttempt: "1", githubJob: "---bench---" }),
+      "1-1--bench",
+    );
+  });
+
+  it("falls back to base id when job sanitizes to empty string", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "1", githubRunAttempt: "1", githubJob: "!!!" }),
+      "1-1",
+    );
+  });
+
+  it("uses 'local' and attempt '1' as fallbacks when env vars are absent", () => {
+    assert.equal(
+      buildRunId({}),
+      "local-1",
+    );
+  });
+
+  it("uses attempt '1' as fallback when only run id is provided", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "42" }),
+      "42-1",
+    );
+  });
+});
 
 // ── buildResult ─────────────────────────────────────────────────────
 
