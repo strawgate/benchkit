@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatTimestamp, shortCommit, defaultFormatRef } from "./components/RunSelector.js";
+import { formatTimestamp, shortCommit } from "./components/RunSelector.js";
+import { formatRef } from "./format-utils.js";
 
 describe("RunSelector helpers", () => {
   describe("shortCommit", () => {
@@ -17,21 +18,25 @@ describe("RunSelector helpers", () => {
     });
   });
 
-  describe("defaultFormatRef", () => {
+  describe("formatRef", () => {
     it("formats PR refs", () => {
-      assert.equal(defaultFormatRef("refs/pull/42/merge"), "PR #42");
+      assert.equal(formatRef("refs/pull/42/merge"), "PR #42");
     });
 
     it("strips refs/heads/ prefix", () => {
-      assert.equal(defaultFormatRef("refs/heads/main"), "main");
+      assert.equal(formatRef("refs/heads/main"), "main");
     });
 
     it("formats tag refs", () => {
-      assert.equal(defaultFormatRef("refs/tags/v1.0.0"), "tag v1.0.0");
+      assert.equal(formatRef("refs/tags/v1.0.0"), "tag v1.0.0");
     });
 
     it("returns unknown refs as-is", () => {
-      assert.equal(defaultFormatRef("some/other/ref"), "some/other/ref");
+      assert.equal(formatRef("some/other/ref"), "some/other/ref");
+    });
+
+    it("returns dash for undefined", () => {
+      assert.equal(formatRef(undefined), "—");
     });
   });
 

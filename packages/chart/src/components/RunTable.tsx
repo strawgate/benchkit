@@ -1,4 +1,5 @@
 import type { IndexFile, RunEntry } from "@benchkit/format";
+import { formatRef } from "../format-utils.js";
 
 export interface RunTableProps {
   index: IndexFile;
@@ -7,15 +8,6 @@ export interface RunTableProps {
   /** Link commits to GitHub or other VCS */
   commitHref?: (commit: string, run: RunEntry) => string | undefined;
   class?: string;
-}
-
-function formatRef(ref: string | undefined): string {
-  if (!ref) return "—";
-  if (ref.startsWith("refs/heads/")) return ref.replace("refs/heads/", "");
-  const pullMatch = /^refs\/pull\/(\d+)\/merge$/.exec(ref);
-  if (pullMatch) return `PR #${pullMatch[1]}`;
-  if (ref.startsWith("refs/tags/")) return `tag ${ref.replace("refs/tags/", "")}`;
-  return ref;
 }
 
 export function RunTable({ index, maxRows, onSelectRun, commitHref, class: className }: RunTableProps) {
