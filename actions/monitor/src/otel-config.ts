@@ -23,8 +23,6 @@ export interface CollectorConfigOptions {
   ref?: string;
   /** Commit SHA. */
   commit?: string;
-  /** PIDs that existed before the collector started (Linux only). */
-  baselinePids?: number[];
 }
 
 const VALID_METRIC_SETS = new Set([
@@ -141,18 +139,6 @@ export function generateCollectorConfig(opts: CollectorConfigOptions): string {
     lines.push(`        action: ${attr.action}`);
   }
   processorNames.push("resource");
-
-  // OTTL filter — drop process metrics for PIDs that existed before the
-  // collector started (baseline processes like systemd, sshd, etc.)
-  if (opts.baselinePids && opts.baselinePids.length > 0) {
-    const pidRegex = `^(${opts.baselinePids.join("|")})$`;
-    lines.push("  filter/baseline:");
-    lines.push("    error_mode: ignore");
-    lines.push("    metrics:");
-    lines.push("      metric:");
-    lines.push(`        - 'resource.attributes["process.pid"] != nil and IsMatch(Stringify(resource.attributes["process.pid"]), "${yamlEscape(pidRegex)}")'`);
-    processorNames.push("filter/baseline");
-  }
 
   // exporters
   lines.push("");

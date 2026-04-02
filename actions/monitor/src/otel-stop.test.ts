@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { spawn } from "node:child_process";
-import { isProcessRunning, safeUnlink, stopCollector } from "./otel-stop.js";
+import { isProcessRunning, safeUnlink, stopCollector, filterBaselineProcesses } from "./otel-stop.js";
 import type { OtelState } from "./types.js";
 
 // ── isProcessRunning ────────────────────────────────────────────────
@@ -139,5 +139,94 @@ describe("generated config structural validation", () => {
         `Line has odd indentation (${leadingSpaces} spaces): "${line}"`,
       );
     }
+  });
+});
+
+// ── filterBaselineProcesses ─────────────────────────────────────────
+
+function makeResourceMetric(pid: number | undefined, metricName: string) {
+  const attributes: Array<{ key: string; value: Record<string, unknown> }> = [];
+  if (pid !== undefined) {
+    attributes.push({ key: "process.pid", value: { intValue: String(pid) } });
+    attributes.push({ key: "process.executable.name", value: { stringValue: `proc-${pid}` } });
+  }
+  return {
+    resource: { attributes },
+    scopeMetrics: [{
+      scope: { name: "otelcol/hostmetricsreceiver/process" },
+      metrics: [{ name: metricName, gauge: { dataPoints: [{ asDouble: 42 }] } }],
+    }],
+  };
+}
+
+function makeJsonlLine(...resources: ReturnType<typeof makeResourceMetric>[]) {
+  return JSON.stringify({ resourceMetrics: resources });
+}
+
+describe("filterBaselineProcesses", () => {
+  it("removes resources with baseline PIDs", () => {
+    const line = makeJsonlLine(
+      makeResourceMetric(100, "process.cpu.time"),
+      makeResourceMetric(200, "process.cpu.time"),
+    );
+    const { filtered, kept, removed } = filterBaselineProcesses(line, new Set([100, 150]));
+    assert.equal(removed, 1);
+    assert.equal(kept, 1);
+    const parsed = JSON.parse(filtered.trim());
+    assert.equal(parsed.resourceMetrics.length, 1);
+    assert.equal(parsed.resourceMetrics[0].resource.attributes[0].value.intValue, "200");
+  });
+
+  it("keeps system metrics (no process.pid)", () => {
+    const line = makeJsonlLine(
+      makeResourceMetric(undefined, "system.cpu.time"),
+      makeResourceMetric(100, "process.cpu.time"),
+    );
+    const { filtered, kept, removed } = filterBaselineProcesses(line, new Set([100]));
+    assert.equal(kept, 1);
+    assert.equal(removed, 1);
+    const parsed = JSON.parse(filtered.trim());
+    assert.equal(parsed.resourceMetrics.length, 1);
+    assert.equal(parsed.resourceMetrics[0].scopeMetrics[0].metrics[0].name, "system.cpu.time");
+  });
+
+  it("keeps all resources when baseline is empty", () => {
+    const line = makeJsonlLine(
+      makeResourceMetric(100, "process.cpu.time"),
+      makeResourceMetric(200, "process.cpu.time"),
+    );
+    const { kept, removed } = filterBaselineProcesses(line, new Set());
+    assert.equal(kept, 2);
+    assert.equal(removed, 0);
+  });
+
+  it("drops entire JSONL line if all resources are baseline", () => {
+    const line = makeJsonlLine(
+      makeResourceMetric(100, "process.cpu.time"),
+      makeResourceMetric(200, "process.cpu.time"),
+    );
+    const { filtered, removed } = filterBaselineProcesses(line, new Set([100, 200]));
+    assert.equal(removed, 2);
+    assert.equal(filtered.trim(), "");
+  });
+
+  it("handles multi-line JSONL", () => {
+    const lines = [
+      makeJsonlLine(makeResourceMetric(100, "process.cpu.time"), makeResourceMetric(500, "process.cpu.time")),
+      makeJsonlLine(makeResourceMetric(100, "process.memory.usage"), makeResourceMetric(500, "process.memory.usage")),
+    ].join("\n");
+    const { kept, removed } = filterBaselineProcesses(lines, new Set([100]));
+    assert.equal(kept, 2);
+    assert.equal(removed, 2);
+  });
+
+  it("handles intValue as number (not string)", () => {
+    const resource = {
+      resource: { attributes: [{ key: "process.pid", value: { intValue: 100 } }] },
+      scopeMetrics: [],
+    };
+    const line = JSON.stringify({ resourceMetrics: [resource] });
+    const { removed } = filterBaselineProcesses(line, new Set([100]));
+    assert.equal(removed, 1);
   });
 });

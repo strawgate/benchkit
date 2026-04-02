@@ -132,7 +132,6 @@ export async function startOtelCollector(): Promise<void> {
     runId,
     ref: process.env.GITHUB_REF,
     commit: process.env.GITHUB_SHA,
-    baselinePids,
   });
   fs.writeFileSync(configPath, configYaml);
   core.info(`Collector config written to ${configPath}`);

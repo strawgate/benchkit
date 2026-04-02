@@ -176,25 +176,4 @@ describe("generateCollectorConfig", () => {
     assert.match(yaml, /benchkit\.kind/);
     assert.match(yaml, /benchkit\.source_format/);
   });
-
-  it("adds OTTL baseline filter when baselinePids provided", () => {
-    const yaml = generateCollectorConfig(baseOpts({ baselinePids: [1, 42, 300] }));
-    assert.match(yaml, /filter\/baseline:/);
-    assert.match(yaml, /error_mode: ignore/);
-    assert.match(yaml, /IsMatch/);
-    assert.ok(yaml.includes("^(1|42|300)$"), "should contain PID regex");
-    assert.match(yaml, /processors: \[resource, filter\/baseline\]/);
-  });
-
-  it("omits OTTL baseline filter when baselinePids is empty", () => {
-    const yaml = generateCollectorConfig(baseOpts({ baselinePids: [] }));
-    assert.doesNotMatch(yaml, /filter\/baseline/);
-    assert.match(yaml, /processors: \[resource\]/);
-  });
-
-  it("omits OTTL baseline filter when baselinePids is undefined", () => {
-    const yaml = generateCollectorConfig(baseOpts({ baselinePids: undefined }));
-    assert.doesNotMatch(yaml, /filter\/baseline/);
-    assert.match(yaml, /processors: \[resource\]/);
-  });
 });
