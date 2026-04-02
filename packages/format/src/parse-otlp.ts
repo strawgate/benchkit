@@ -170,6 +170,7 @@ function projectGaugeLikeMetric(
   groups: Map<string, MutableBenchmarkGroup>,
   metric: OtlpMetric,
   points: OtlpGaugeDataPoint[] | undefined,
+  _resourceAttributes: Record<string, string>,
 ): void {
   for (const point of points ?? []) {
     const pointAttributes = otlpAttributesToRecord(point.attributes);
@@ -220,6 +221,7 @@ function projectHistogramMetric(
   groups: Map<string, MutableBenchmarkGroup>,
   metric: OtlpMetric,
   points: OtlpHistogramDataPoint[] | undefined,
+  _resourceAttributes: Record<string, string>,
 ): void {
   for (const point of points ?? []) {
     const pointAttributes = otlpAttributesToRecord(point.attributes);
@@ -295,7 +297,7 @@ export function projectBenchmarkResultFromOtlp(document: OtlpMetricsDocument): B
         const metricKind = getOtlpMetricKind(metric);
         if (metricKind === "gauge" || metricKind === "sum") {
           const points = metricKind === "gauge" ? metric.gauge?.dataPoints : metric.sum?.dataPoints;
-          projectGaugeLikeMetric(groups, metric, points);
+          projectGaugeLikeMetric(groups, metric, points, resourceAttributes);
           for (const point of points ?? []) {
             const iso = nanosToIso(point.timeUnixNano);
             if (iso && (!latestTimestamp || iso > latestTimestamp)) {
@@ -304,7 +306,7 @@ export function projectBenchmarkResultFromOtlp(document: OtlpMetricsDocument): B
           }
         } else if (metricKind === "histogram") {
           const points = metric.histogram?.dataPoints;
-          projectHistogramMetric(groups, metric, points);
+          projectHistogramMetric(groups, metric, points, resourceAttributes);
           for (const point of points ?? []) {
             const iso = nanosToIso(point.timeUnixNano);
             if (iso && (!latestTimestamp || iso > latestTimestamp)) {

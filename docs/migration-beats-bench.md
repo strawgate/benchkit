@@ -29,7 +29,7 @@ The `beats-bench summarize` command should be updated to emit Benchkit-native JS
 - **Aggregate**: Replaces the custom index-building logic. It rebuilds `index.json` and time-series files.
 
 ### 3. Replace Custom PR Comparison
-Instead of custom inline arithmetic in the Python runner for PR comments, use `actions/compare@v1`. This action:
+Instead of custom inline arithmetic in the Python runner for PR comments, use `actions/compare@main`. This action:
 - Generates a markdown comparison table.
 - Posts a PR comment.
 - Fails the CI if regressions are detected (optional).
@@ -104,16 +104,16 @@ Replace the custom Preact dashboard in the `dashboard/` directory with a standar
     uv run beats-bench summarize --results-dir results --output-format benchkit --output bench.json
 
 - name: Stash results
-  uses: strawgate/benchkit/actions/stash@v1
+  uses: strawgate/benchkit/actions/stash@main
   with:
     results: bench.json
 
 - name: Aggregate
-  uses: strawgate/benchkit/actions/aggregate@v1
+  uses: strawgate/benchkit/actions/aggregate@main
 
 - name: Compare (PR only)
   if: github.event_name == 'pull_request'
-  uses: strawgate/benchkit/actions/compare@v1
+  uses: strawgate/benchkit/actions/compare@main
   with:
     results: bench.json
     fail-on-regression: true
