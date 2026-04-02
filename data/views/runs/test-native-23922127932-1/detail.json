@@ -1,0 +1,41 @@
+{
+  "run": {
+    "id": "test-native-23922127932-1",
+    "timestamp": "2026-04-02T21:09:36.735Z",
+    "commit": "a0608722400e6d7606e14fad33576b8122986913",
+    "ref": "refs/heads/main",
+    "benchmarks": 1,
+    "metrics": [
+      "p99_latency_ms",
+      "requests_per_sec"
+    ]
+  },
+  "metricSnapshots": [
+    {
+      "metric": "p99_latency_ms",
+      "unit": "ms",
+      "direction": "smaller_is_better",
+      "values": [
+        {
+          "name": "http-throughput",
+          "value": 12.4,
+          "unit": "ms",
+          "direction": "smaller_is_better"
+        }
+      ]
+    },
+    {
+      "metric": "requests_per_sec",
+      "unit": "req/s",
+      "direction": "bigger_is_better",
+      "values": [
+        {
+          "name": "http-throughput",
+          "value": 15230,
+          "unit": "req/s",
+          "direction": "bigger_is_better"
+        }
+      ]
+    }
+  ]
+}
