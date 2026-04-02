@@ -39,6 +39,8 @@ export { parse } from "./parse.js";
 export type { Format } from "./parse.js";
 /** Infer the `direction` ("smaller_is_better" / "bigger_is_better") from a metric unit string. */
 export { inferDirection } from "./infer-direction.js";
+/** Convert a benchmark unit string to a normalized metric name (e.g. "ns/op" -> "ns_per_op"). */
+export { unitToMetricName } from "./parser-utils.js";
 /** Parse a native JSON benchmark result (benchkit format). */
 export { parseNative } from "./parse-native.js";
 /** Parse Go testing/benchmark output text. */

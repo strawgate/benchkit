@@ -63948,13 +63948,16 @@ function formatComparisonMarkdown(result, options = {}) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlpMetrics = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlpMetrics = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.unitToMetricName = exports.inferDirection = exports.parse = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
 /** Infer the `direction` ("smaller_is_better" / "bigger_is_better") from a metric unit string. */
 var infer_direction_js_1 = __nccwpck_require__(5083);
 Object.defineProperty(exports, "inferDirection", ({ enumerable: true, get: function () { return infer_direction_js_1.inferDirection; } }));
+/** Convert a benchmark unit string to a normalized metric name (e.g. "ns/op" -> "ns_per_op"). */
+var parser_utils_js_1 = __nccwpck_require__(7524);
+Object.defineProperty(exports, "unitToMetricName", ({ enumerable: true, get: function () { return parser_utils_js_1.unitToMetricName; } }));
 /** Parse a native JSON benchmark result (benchkit format). */
 var parse_native_js_1 = __nccwpck_require__(1470);
 Object.defineProperty(exports, "parseNative", ({ enumerable: true, get: function () { return parse_native_js_1.parseNative; } }));
@@ -64133,6 +64136,7 @@ function parseRange(range) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseGoBench = parseGoBench;
 const infer_direction_js_1 = __nccwpck_require__(5083);
+const parser_utils_js_1 = __nccwpck_require__(7524);
 /**
  * Parse Go benchmark text output into native format.
  *
@@ -64161,7 +64165,7 @@ function parseGoBench(input) {
             const unit = pieces[i + 1];
             if (isNaN(value))
                 continue;
-            const metricName = unitToMetricName(unit);
+            const metricName = (0, parser_utils_js_1.unitToMetricName)(unit);
             metrics[metricName] = {
                 value,
                 unit,
@@ -64177,16 +64181,6 @@ function parseGoBench(input) {
         }
     }
     return { benchmarks };
-}
-function unitToMetricName(unit) {
-    // "ns/op" -> "ns_per_op", "B/op" -> "bytes_per_op", "allocs/op" -> "allocs_per_op"
-    const aliases = {
-        "B/op": "bytes_per_op",
-        "MB/s": "mb_per_s",
-    };
-    if (aliases[unit])
-        return aliases[unit];
-    return unit.replace(/\//g, "_per_").replace(/\s+/g, "_").toLowerCase();
 }
 //# sourceMappingURL=parse-go.js.map
 
@@ -64638,12 +64632,13 @@ function parsePytestBenchmark(input) {
 /***/ }),
 
 /***/ 7215:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseRustBench = parseRustBench;
+const parser_utils_js_1 = __nccwpck_require__(7524);
 /**
  * Parse Rust cargo bench (libtest) output into native format.
  *
@@ -64669,18 +64664,13 @@ function parseRustBench(input) {
         if (range) {
             metric.range = parseFloat(range.replace(/,/g, ""));
         }
-        metrics[unitToMetricName(unit)] = metric;
+        metrics[(0, parser_utils_js_1.unitToMetricName)(unit)] = metric;
         benchmarks.push({
             name,
             metrics,
         });
     }
     return { benchmarks };
-}
-function unitToMetricName(unit) {
-    if (unit === "ns/iter")
-        return "ns_per_iter";
-    return unit.replace(/\//g, "_per_").replace(/\s+/g, "_").toLowerCase();
 }
 //# sourceMappingURL=parse-rust.js.map
 
@@ -64782,6 +64772,42 @@ function detectFormat(input) {
     throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine, pytest-benchmark, otlp.");
 }
 //# sourceMappingURL=parse.js.map
+
+/***/ }),
+
+/***/ 7524:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/**
+ * Shared utilities for benchmark output parsers.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.unitToMetricName = unitToMetricName;
+/**
+ * Convert a benchmark unit string to a metric name suitable for use as an
+ * object key.
+ *
+ * Known aliases take precedence over the general rule:
+ *   "B/op"    -> "bytes_per_op"
+ *   "MB/s"    -> "mb_per_s"
+ *   "ns/iter" -> "ns_per_iter"
+ *
+ * General rule: replace every `/` with `_per_`, replace spaces with `_`,
+ * then lowercase.
+ */
+function unitToMetricName(unit) {
+    const aliases = {
+        "B/op": "bytes_per_op",
+        "MB/s": "mb_per_s",
+        "ns/iter": "ns_per_iter",
+    };
+    if (aliases[unit])
+        return aliases[unit];
+    return unit.replace(/\//g, "_per_").replace(/\s+/g, "_").toLowerCase();
+}
+//# sourceMappingURL=parser-utils.js.map
 
 /***/ }),
 
