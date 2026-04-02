@@ -7,6 +7,9 @@ export { RunTable, type RunTableProps } from "./components/RunTable.js";
 export { MonitorSection, type MonitorSectionProps } from "./components/MonitorSection.js";
 export { TagFilter, type TagFilterProps, extractTags, filterSeriesFile } from "./components/TagFilter.js";
 export { Leaderboard, type LeaderboardProps } from "./components/Leaderboard.js";
+export { VerdictBanner, type VerdictBannerProps } from "./components/VerdictBanner.js";
+export { ComparisonSummaryTable, type ComparisonSummaryTableProps, formatPct, formatValue, sortEntries, statusIcon, directionLabel } from "./components/ComparisonSummaryTable.js";
+export { RunSelector, type RunSelectorProps, formatTimestamp, shortCommit, defaultFormatRef } from "./components/RunSelector.js";
 export { Dashboard, type DashboardProps } from "./Dashboard.js";
 
 // Data fetching
