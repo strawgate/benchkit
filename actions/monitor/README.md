@@ -1,8 +1,19 @@
 # Benchkit Monitor
 
-Background system metrics collection via `/proc` polling. Runs as a detached Node.js process alongside your workflow steps, capturing per-process and system-wide metrics without wrapping your benchmark command.
+System and custom metrics collection via the OpenTelemetry Collector
+(`otelcol-contrib`). The action downloads a collector binary, starts it as a
+background process, exposes OTLP receivers for your benchmark code, and then
+stops and flushes telemetry automatically in the action post step.
 
-**Linux only.** On macOS/Windows runners the action emits a warning and no-ops — your workflow still passes.
+## What it does
+
+- collects host metrics through the collector's `hostmetrics` receiver
+- enables OTLP gRPC (`4317`) and HTTP (`4318`) receivers by default so your
+  benchmark code can emit custom metrics to the same collector
+- writes a raw OTLP JSONL sidecar to the data branch at
+  `data/telemetry/{run-id}.otlp.json`
+- filters process metrics to runner-descendant processes before pushing, so the
+  stored telemetry stays focused on the benchmark job instead of the whole host
 
 ## Usage
 
@@ -10,67 +21,94 @@ Background system metrics collection via `/proc` polling. Runs as a detached Nod
 jobs:
   bench:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Start monitor
+        id: monitor
         uses: strawgate/benchkit/actions/monitor@main
         with:
-          mode: start
-          poll-interval: 250    # ms (default)
-          output: monitor.json
+          scrape-interval: 1s
+          metric-sets: cpu,memory,load,process
 
       - name: Run benchmarks
-        run: go test -bench=. -benchmem -count=3 ./... | tee bench.txt
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ steps.monitor.outputs.otlp-http-endpoint }}
+        run: |
+          go test -bench=. -benchmem -count=3 ./... | tee bench.txt
 
-      - name: Stop monitor
-        uses: strawgate/benchkit/actions/monitor@main
-        with:
-          mode: stop
-
-      - name: Stash results
+      - name: Stash benchmark results
         uses: strawgate/benchkit/actions/stash@main
         with:
           results: bench.txt
-          monitor: monitor.json   # future: stash integration
           format: go
 ```
+
+There is no explicit stop step. The action post step runs automatically when the
+job finishes, shuts down the collector, flushes telemetry, and pushes the raw
+OTLP sidecar to the data branch.
 
 ## Inputs
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `mode` | yes | — | `start` or `stop` |
-| `poll-interval` | no | `250` | Poll interval in ms (50–60000) |
-| `output` | no | `monitor.json` | Path for the output JSON file |
-| `ignore-commands` | no | `""` | Comma-separated substrings to filter out (e.g. `git,sh`) |
+| `collector-version` | no | `0.102.0` | OTel Collector Contrib version to download. |
+| `scrape-interval` | no | `1s` | Host-metrics scrape interval. |
+| `metric-sets` | no | `cpu,memory,load,process` | Comma-separated host metric scrapers to enable. |
+| `otlp-grpc-port` | no | `4317` | OTLP gRPC receiver port. Set to `0` to disable. |
+| `otlp-http-port` | no | `4318` | OTLP HTTP receiver port. Set to `0` to disable. |
+| `data-branch` | no | `bench-data` | Branch where the telemetry sidecar is pushed. |
+| `run-id` | no | `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` | Run identifier used for the stored telemetry file. |
+| `github-token` | no | `${{ github.token }}` | Token used to push telemetry to the data branch. |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
-| `output-file` | Path to the monitor JSON (set on `stop`) |
+| `otlp-grpc-endpoint` | OTLP gRPC endpoint, e.g. `localhost:4317` |
+| `otlp-http-endpoint` | OTLP HTTP endpoint, e.g. `http://localhost:4318` |
 
-## Output format
+## Stored output
 
-Standard benchkit-native JSON with `_monitor/` prefix:
+The collector exports line-delimited OTLP JSON to a temporary file during the
+job. In the post step, benchkit:
 
-- **`_monitor/process/{name}`** — per-process metrics: `peak_rss_kb`, `cpu_user_ms`, `cpu_system_ms`, `wall_clock_ms`, `io_read_bytes`, `io_write_bytes`, `voluntary_ctx_switches`, `involuntary_ctx_switches`
-- **`_monitor/system`** — system-wide: `cpu_user_pct`, `cpu_system_pct`, `mem_available_min_mb`, `load_avg_1m_max`
+1. stops the collector gracefully
+2. filters process resources to runner-descendant processes
+3. copies the telemetry sidecar to `data/telemetry/{run-id}.otlp.json`
+4. commits and pushes that file to the data branch
+
+Benchkit also stamps resource attributes such as `benchkit.run_id`,
+`benchkit.kind=hybrid`, `benchkit.source_format=otlp`, and, when available,
+`benchkit.ref` and `benchkit.commit`.
 
 ## How it works
 
-1. **Start**: forks a detached background worker, takes a baseline PID snapshot, writes state to `$RUNNER_TEMP`
-2. **Poll loop**: scans `/proc` for new processes, tracks CPU/memory/IO deltas, records system metrics
-3. **Stop**: writes a sentinel file, worker detects it and writes final JSON output
-4. **Filtering**: processes seen fewer than 2 polls are dropped; `ignore-commands` filters by substring match on `comm` and `cmdline`
+1. **Start**: download `otelcol-contrib` from the GitHub release, generate a
+   collector config from action inputs, and launch it as a detached process
+2. **Collect**: scrape host metrics and accept user OTLP metrics through the
+   enabled OTLP receivers
+3. **Post step**: stop the collector automatically, let it flush pending data,
+   filter process metrics, and push the sidecar to the data branch
 
-## Architecture
+## Platform support
 
-```
-main.ts            → Action entry (start/stop)
-monitor-worker.ts  → Background poll loop (forked)
-monitor.ts         → Pure functions: filtering, grouping, output generation
-proc.ts            → /proc parsers (stat, status, io, meminfo, loadavg)
-types.ts           → Shared interfaces
-```
+The action supports the collector platforms that the implementation knows how to
+fetch today:
+
+- Linux (`x64`, `arm64`)
+- macOS (`x64`, `arm64`)
+- Windows (`x64`, `arm64`)
+
+## Relationship to stash and aggregate
+
+- `actions/stash` still stores the benchmark result itself at
+  `data/runs/{run-id}.json`
+- `actions/monitor` stores raw OTLP telemetry separately at
+  `data/telemetry/{run-id}.otlp.json`
+- aggregate and chart work can then consume those sidecars through OTLP-aware
+  pipelines without forcing an eager conversion to `BenchmarkResult` at capture
+  time

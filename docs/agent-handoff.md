@@ -3,8 +3,8 @@
 This document is the current high-signal handoff for future agents working on
 benchkit.
 
-It supersedes the older GitHub issue handoff notes, which are now stale in
-multiple places.
+It supersedes older GitHub issue handoff notes. In particular, issue `#71`
+should be treated as historical context rather than the current source of truth.
 
 ## Read order
 
@@ -46,9 +46,6 @@ The long-term migration targets are:
 - `beats-bench` for run / PR style benchmarking
 - `memagent` for competitive benchmarking
 
-Benchkit should be ready to power both, while still leaving room for future use
-cases.
-
 ## Strategic architecture decisions
 
 ### 1. Runs and scenarios are the primary UX surfaces
@@ -63,7 +60,7 @@ not around one monolithic metric-first dashboard.
 ### 2. Runner diagnostics belong in run detail
 
 Runner / monitor metrics are useful, but not as top-level overview content.
-They should appear in `RunDetail` and related diagnostics surfaces.
+They should appear in run detail and related diagnostics surfaces.
 
 ### 3. OTLP is the canonical raw direction
 
@@ -75,16 +72,14 @@ Benchkit is moving toward:
 
 ### 4. No universal benchkit telemetry point model
 
-This is important.
-
 Do **not** invent a generic benchkit-wide telemetry intermediate that all OTLP
-data must normalize into.
+work must normalize into.
 
 Instead:
 
 - keep OTLP as raw canonical storage
 - provide typed OTLP parsing / traversal helpers
-- provide **adapter-specific projections** for downstream consumers
+- provide adapter-specific projections for downstream consumers
 
 Examples:
 
@@ -110,7 +105,7 @@ The frontend should **not**:
 
 ### Format package
 
-Shipped and pushed:
+Shipped:
 
 - `compare()`
 - `formatComparisonMarkdown()`
@@ -134,7 +129,7 @@ Shipped and pushed:
 
 ### Stash action
 
-Shipped and pushed:
+Shipped:
 
 - `save-data-file`
 - `summary`
@@ -142,7 +137,7 @@ Shipped and pushed:
 
 ### Compare action
 
-Shipped and pushed:
+Shipped:
 
 - `actions/compare`
 - baseline loading from `bench-data`
@@ -150,67 +145,37 @@ Shipped and pushed:
 - PR comment update behavior
 - optional fail-on-regression
 
-### Chart package / demo direction
+### Aggregate action
 
-Shipped and pushed:
+Shipped:
 
-- substantial chart package cleanup
-- density / containment improvements
-- straight line segments instead of curves
-- thinner default lines with configurable `lineWidth`
-- demo app with three modes:
-  - `Custom metric`
-  - `Competitive`
-  - `PR`
-- shared run-detail flow in the demo
+- classic outputs:
+  - `data/index.json`
+  - `data/series/*.json`
+- additional navigation/detail artifacts:
+  - `data/index/refs.json`
+  - `data/index/prs.json`
+  - `data/index/metrics.json`
+  - `data/views/runs/{run-id}/detail.json`
+- branch-driven aggregate workflow guidance and collision-proof raw run naming
 
-## Demo repo state
+### Monitor action
 
-The `benchkit-demo` repo is no longer just a Go microbenchmark demo.
-
-It now includes:
-
-- code benchmark workflow
-- workflow benchmark workflow
-- hybrid workflow benchmark workflow
-- workflow benchmark guide
-- native benchmark examples
-- mock workflow benchmark scripts
-- generic JSON collector helper
-- generic Prometheus collector helper
-
-Important demo repo principles now in use:
-
-- PRs compare against baseline
-- `main` writes long-term data and aggregates
-
-GitHub validation already run:
-
-- `Workflow Benchmark`: success
-- `Hybrid Workflow Benchmark`: success
-
-The one thing still intentionally not fully validated is the real PR comment
-path under an actual `pull_request` event.
+The current monitor work in this repository is the OTel Collector-based model
+tracked by PR `#101`. It is a single-step action with automatic post cleanup
+and raw OTLP sidecar storage under `data/telemetry/`.
 
 ## Current roadmap / milestones
 
 ### `v0.1.0: First Release`
 
-Still open:
+Open follow-up:
 
-- `#38` release automation
 - `#63` CI simplification
 
-### `v0.2.0: PR Comparison`
+Already landed:
 
-The originally critical PR comparison issues are now implemented:
-
-- `#46` closed
-- `#47` closed
-- `#48` closed
-- `#50` closed
-
-This milestone is effectively the shipped PR comparison foundation.
+- `#38` release automation
 
 ### `v0.4.0: Run & Competitive Dashboards`
 
@@ -219,7 +184,7 @@ Main dashboard-surface milestone:
 - `#61` RunDashboard
 - `#82` RunDetail
 - `#83` CompetitiveDashboard
-- plus chart-support issues like `#59`, `#60`, `#54`
+- supporting refactor: `#54`
 
 ### `v0.5.0: Workflow Benchmark Ergonomics`
 
@@ -230,80 +195,42 @@ Ergonomics / starter-kit milestone:
 - `#81`
 - `#7`
 
-This milestone is partly fulfilled but still open for productization.
-
 ### `v0.6.0: OTLP Aggregation Architecture`
 
-Current core architecture milestone:
+Current architecture milestone:
 
 - `#89` semantic conventions
 - `#90` OTLP parser / traversal + adapter projections
-- `#91` aggregate view artifacts
-- `#92` bench-data push aggregation flow
 - `#93` dataset-local frontend transform layer
 
-## Open PR queue
+Already landed from this milestone:
 
-At the time of this handoff, the remaining open PRs are Copilot drafts that
-were marked ready purely so CI can run:
+- `#91` aggregate view artifacts (first emitted set)
+- `#92` bench-data push aggregation flow / stash naming guidance
 
-- `#87` RunDetail
-- `#88` CompetitiveDashboard
-- `#94` aggregate view artifacts
-- `#95` aggregate-on-push / stash naming
-- `#96` dataset-local transforms
-- `#97` ComparisonChart
-- `#98` SampleChart
+## Current open PRs
 
-Important:
+At the time of this handoff, the only open repository PR is:
 
-- `ready for review` does **not** mean approved
-- they were flipped out of draft so checks could start
-- several are likely to need rebase and direction corrections before merge
+- `#101` — collector-backed monitor implementation and raw OTLP telemetry storage
 
-Current recommendation:
-
-- keep `#94`, `#95`, `#97`, `#98` as the most plausible near-term merge
-  candidates once rebased and green
-- be more cautious with `#87`, `#88`, `#96` until the data / OTLP contract
-  stabilizes further
-
-## Copilot assignment split
-
-### Best things for Copilot to own in parallel
-
-- `#59` ComparisonChart
-- `#60` SampleChart
-- `#79` workflow starter kit
-- `#80` native emitter ergonomics
-- `#81` JSON / Prometheus collectors
-- `#82` RunDetail
-- `#83` CompetitiveDashboard
-- `#91` aggregate view artifacts
-- `#92` bench-data push aggregation flow
-- `#93` dataset-local transform layer
-
-### Best things to keep local / primary
-
-- `#89` OTLP semantic conventions
-- `#90` OTLP parser / traversal + adapter projection work
-
-These are the contract and ingestion layers that too many other tasks depend on.
+Treat older PR queue notes from stale docs or issue bodies as historical only.
 
 ## What prototypes already exist
 
-### Backend prototypes
+### Aggregate artifact builders
 
-In `actions/aggregate/src/prototype-views.ts`:
+In `actions/aggregate/src/views.ts` and related tests:
 
-- by-ref index builder
-- by-PR index builder
-- run detail artifact shape
-- metric summary artifact shape
+- ref index builder
+- PR index builder
+- metric index builder
+- run detail artifact builder
 
-These are prototypes, not final emitted artifacts yet.
+These are no longer just conceptual prototypes; the aggregate action writes a
+first emitted set of these artifacts on `main`.
 
-### Frontend prototype
+### Frontend transform prototype
 
 In `packages/chart/src/dataset-transforms.ts`:
 
@@ -314,15 +241,8 @@ In `packages/chart/src/dataset-transforms.ts`:
 - sort-by-latest
 - limiting visible series
 
-This is the prototype for the bounded frontend transform layer.
-
-### Why they matter
-
-They are useful because they make the architecture concrete.
-They are dangerous because it is easy to accidentally harden them into a public
-API before the surrounding OTLP/storage plan is settled.
-
-Treat them as scaffolding.
+Treat this as scaffolding for the bounded frontend transform layer, not as a
+final public product surface.
 
 ## What not to do
 
@@ -330,20 +250,21 @@ Treat them as scaffolding.
 2. Do not invent a universal benchkit telemetry intermediate model.
 3. Do not re-promote runner metrics as top-level overview content.
 4. Do not overfit the product to only Go microbenchmarks.
-5. Do not assume a Copilot PR being marked ready means it is mergeable.
+5. Do not assume old Copilot PR references are still active without checking GitHub.
 6. Do not forget that action `dist/` bundles are committed artifacts.
 
 ## Practical next steps
 
 The most coherent execution order from here is:
 
-1. finish `#89` semantic conventions in a way parsers and producers can enforce
-2. continue `#90` with typed OTLP traversal and narrowly scoped
+1. keep `#89` as the semantic-contract source of truth
+2. continue `#90` with typed OTLP traversal and narrowly scoped,
    adapter-specific projections
-3. promote `#91` prototype aggregate artifacts into a real first emitted set
-4. align `#92` around append-only raw writes + aggregate-on-branch-push
-5. then let `#93`, `#82`, `#83`, and `#61` stabilize against the now-clear
+3. keep `#93` aligned with the emitted aggregate artifact shapes
+4. ship workflow benchmark ergonomics (`#79`, `#80`, `#81`, `#7`)
+5. then let `#61`, `#82`, `#83`, and `#54` stabilize against the now-clear
    data contracts
+6. only update monitor docs after `#101` lands or is replaced
 
 ## Commands and checks
 
@@ -367,22 +288,13 @@ npm run test --workspace=actions/aggregate
 npm run test --workspace=packages/chart
 ```
 
-For the demo dashboard:
-
-```bash
-cd ../benchkit-demo/dashboard
-npm run test
-npm run build
-npm run preview -- --host 127.0.0.1 --port 4173
-```
-
 ## Recommended first questions for a new agent
 
 Before changing code, answer:
 
 1. Am I changing the semantic contract or just consuming it?
 2. Is this work raw-format work, aggregate-artifact work, or view/UI work?
-3. Does this require a new issue comment or PR guidance to keep Copilot aligned?
+3. Does this require updated issue/PR guidance to keep collaborators aligned?
 4. Am I accidentally introducing a universal telemetry abstraction we said we
    do not want?
 5. Could this work be delayed until after `#90` if it depends on the OTLP
