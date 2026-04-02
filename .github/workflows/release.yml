@@ -17,22 +17,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - run: npm ci
 
-      - name: Build format package
-        run: npm run build --workspace=packages/format
+      - name: Validate schemas
+        run: node --test schema/schema.test.mjs
 
-      - name: Test format package
-        run: npm run test --workspace=packages/format
+      - name: Build and test workspaces
+        run: npm run test
 
-      - name: Build chart package
-        run: npm run build --workspace=packages/chart
-
-      - name: Test chart package
-        run: npm run test --workspace=packages/chart
+      - name: Lint workspaces
+        run: npm run lint
 
   publish:
     needs: build-and-test
@@ -42,7 +39,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org
 
