@@ -237,6 +237,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.platformArch = platformArch;
 exports.downloadUrl = downloadUrl;
+exports.snapshotBaselinePids = snapshotBaselinePids;
 exports.startOtelCollector = startOtelCollector;
 const core = __importStar(__nccwpck_require__(7184));
 const tc = __importStar(__nccwpck_require__(532));
@@ -308,6 +309,24 @@ function resolveRunId() {
         return `${runId}-${attempt}`;
     return `local-${Date.now()}`;
 }
+/**
+ * Snapshot current PIDs so the post step can filter out processes
+ * that existed before the benchmark started. Linux only — returns
+ * undefined on other platforms.
+ */
+function snapshotBaselinePids() {
+    if (process.platform !== "linux")
+        return undefined;
+    try {
+        return fs
+            .readdirSync("/proc")
+            .filter((d) => /^\d+$/.test(d))
+            .map(Number);
+    }
+    catch {
+        return undefined;
+    }
+}
 async function startOtelCollector() {
     const version = core.getInput("collector-version") || "0.102.0";
     const scrapeInterval = core.getInput("scrape-interval") || "1s";
@@ -318,6 +337,11 @@ async function startOtelCollector() {
     const dataBranch = core.getInput("data-branch") || "bench-data";
     const runId = resolveRunId();
     const metricSets = (0, otel_config_js_1.validateMetricSets)(metricSetsRaw);
+    // Snapshot PIDs before starting the collector so we can filter
+    // baseline processes out of the telemetry in the post step.
+    const baselinePids = metricSets.includes("process")
+        ? snapshotBaselinePids()
+        : undefined;
     const outputPath = path.join(runnerTemp(), "benchkit-telemetry.otlp.jsonl");
     const configPath = path.join(runnerTemp(), "otelcol-config.yaml");
     // Generate collector config
@@ -352,6 +376,7 @@ async function startOtelCollector() {
         startTime: Date.now(),
         runId,
         dataBranch,
+        baselinePids,
     };
     const statePath = path.join(runnerTemp(), STATE_NAME);
     fs.writeFileSync(statePath, JSON.stringify(state));

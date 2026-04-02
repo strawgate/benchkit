@@ -8,4 +8,6 @@ export interface OtelState {
   startTime: number;
   runId: string;
   dataBranch: string;
+  /** PIDs that existed before the collector started (Linux only). */
+  baselinePids?: number[];
 }

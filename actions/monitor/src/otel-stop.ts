@@ -75,6 +75,71 @@ function git(args: string[], cwd?: string): string {
   }).trim();
 }
 
+/**
+ * Extract the process.pid integer value from an OTLP resource's attributes.
+ * Returns undefined if no process.pid attribute exists (i.e. system-level metrics).
+ */
+function getResourcePid(
+  attributes: Array<{ key: string; value: Record<string, unknown> }>,
+): number | undefined {
+  const attr = attributes.find((a) => a.key === "process.pid");
+  if (!attr) return undefined;
+  const raw = attr.value.intValue ?? attr.value.stringValue;
+  if (raw === undefined) return undefined;
+  return typeof raw === "number" ? raw : parseInt(String(raw), 10);
+}
+
+/**
+ * Filter OTLP JSONL to remove process-scoped resourceMetrics whose
+ * process.pid was in the baseline set. System-level metrics (no process.pid)
+ * and user-sent OTLP metrics (no process.pid) pass through unmodified.
+ *
+ * Returns the filtered content and the count of removed/kept resources.
+ */
+export function filterBaselineProcesses(
+  content: string,
+  baselinePids: Set<number>,
+): { filtered: string; kept: number; removed: number } {
+  let kept = 0;
+  let removed = 0;
+  const outputLines: string[] = [];
+
+  for (const line of content.split("\n")) {
+    if (!line.trim()) continue;
+
+    let parsed: { resourceMetrics: Array<{ resource: { attributes: Array<{ key: string; value: Record<string, unknown> }> }; scopeMetrics: unknown[] }> };
+    try {
+      parsed = JSON.parse(line);
+    } catch {
+      // Keep unparseable lines as-is
+      outputLines.push(line);
+      continue;
+    }
+
+    if (!parsed.resourceMetrics) {
+      outputLines.push(line);
+      continue;
+    }
+
+    const filteredResources = parsed.resourceMetrics.filter((rm) => {
+      const pid = getResourcePid(rm.resource?.attributes ?? []);
+      // Keep if: no PID (system metrics), or PID is NOT in baseline
+      if (pid === undefined || !baselinePids.has(pid)) {
+        kept++;
+        return true;
+      }
+      removed++;
+      return false;
+    });
+
+    if (filteredResources.length > 0) {
+      outputLines.push(JSON.stringify({ resourceMetrics: filteredResources }));
+    }
+  }
+
+  return { filtered: outputLines.join("\n") + "\n", kept, removed };
+}
+
 function pushTelemetryToDataBranch(state: OtelState): void {
   if (!fs.existsSync(state.outputPath)) {
     core.warning("No telemetry output file found — nothing to push.");
@@ -199,6 +264,18 @@ export async function stopOtelCollector(): Promise<void> {
   const state: OtelState = JSON.parse(fs.readFileSync(statePath, "utf-8"));
 
   await stopCollector(state);
+
+  // Filter out baseline processes before pushing
+  if (state.baselinePids?.length && fs.existsSync(state.outputPath)) {
+    const raw = fs.readFileSync(state.outputPath, "utf-8");
+    const baselineSet = new Set(state.baselinePids);
+    const { filtered, kept, removed } = filterBaselineProcesses(raw, baselineSet);
+    fs.writeFileSync(state.outputPath, filtered);
+    core.info(
+      `Filtered processes: ${kept} resources kept, ${removed} baseline resources removed`,
+    );
+  }
+
   pushTelemetryToDataBranch(state);
 
   // Clean up temp files
