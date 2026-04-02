@@ -134,7 +134,6 @@ function parseAttributes(raw) {
     const result = {};
     const entries = trimmed
         .split(/\r?\n/)
-        .flatMap((line) => line.split(","))
         .map((part) => part.trim())
         .filter(Boolean);
     for (const entry of entries) {
@@ -269,6 +268,9 @@ async function emitMetricRequest(options) {
 async function runEmitMetricAction() {
     const endpoint = normalizeOtlpHttpMetricsUrl(core.getInput("otlp-http-endpoint") || "http://localhost:4318");
     const name = core.getInput("name", { required: true }).trim();
+    if (!name) {
+        throw new Error("Input 'name' must not be blank.");
+    }
     const unit = core.getInput("unit").trim();
     const metricKind = parseMetricKind(core.getInput("metric-kind") || "gauge");
     const aggregationTemporality = parseTemporality(core.getInput("aggregation-temporality") || "cumulative");
@@ -283,7 +285,11 @@ async function runEmitMetricAction() {
     const benchkitKind = parseBenchkitKind(core.getInput("benchkit-kind") || "hybrid");
     const serviceName = core.getInput("service-name").trim() || process.env.GITHUB_REPOSITORY;
     const timeoutMs = parsePositiveInteger("timeout-ms", core.getInput("timeout-ms") || "10000");
-    const value = parseFiniteNumber("value", core.getInput("value", { required: true }));
+    const rawValue = core.getInput("value", { required: true }).trim();
+    if (!rawValue) {
+        throw new Error("Input 'value' must not be blank.");
+    }
+    const value = parseFiniteNumber("value", rawValue);
     const payload = buildOtlpMetricPayload({
         endpoint,
         name,

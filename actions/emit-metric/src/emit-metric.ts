@@ -149,7 +149,6 @@ export function parseAttributes(raw: string): Record<string, AttributeValue> {
   const result: Record<string, AttributeValue> = {};
   const entries = trimmed
     .split(/\r?\n/)
-    .flatMap((line) => line.split(","))
     .map((part) => part.trim())
     .filter(Boolean);
 
@@ -308,6 +307,9 @@ export async function runEmitMetricAction(): Promise<void> {
     core.getInput("otlp-http-endpoint") || "http://localhost:4318",
   );
   const name = core.getInput("name", { required: true }).trim();
+  if (!name) {
+    throw new Error("Input 'name' must not be blank.");
+  }
   const unit = core.getInput("unit").trim();
   const metricKind = parseMetricKind(core.getInput("metric-kind") || "gauge");
   const aggregationTemporality = parseTemporality(
@@ -330,7 +332,11 @@ export async function runEmitMetricAction(): Promise<void> {
     "timeout-ms",
     core.getInput("timeout-ms") || "10000",
   );
-  const value = parseFiniteNumber("value", core.getInput("value", { required: true }));
+  const rawValue = core.getInput("value", { required: true }).trim();
+  if (!rawValue) {
+    throw new Error("Input 'value' must not be blank.");
+  }
+  const value = parseFiniteNumber("value", rawValue);
 
   const payload = buildOtlpMetricPayload({
     endpoint,

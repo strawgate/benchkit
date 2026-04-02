@@ -58,6 +58,16 @@ describe("parseAttributes", () => {
       /key=value/,
     );
   });
+
+  it("preserves commas in line-mode values", () => {
+    assert.deepEqual(
+      parseAttributes("label=hello, world\nregion=us-east-1"),
+      {
+        label: "hello, world",
+        region: "us-east-1",
+      },
+    );
+  });
 });
 
 describe("buildOtlpMetricPayload", () => {
@@ -164,6 +174,7 @@ describe("emitMetricRequest", () => {
     let capturedUrl = "";
     let capturedMethod = "";
     let capturedBody = "";
+    let capturedContentType = "";
 
     await emitMetricRequest({
       url: "http://localhost:4318/v1/metrics",
@@ -173,6 +184,8 @@ describe("emitMetricRequest", () => {
         capturedUrl = String(url);
         capturedMethod = String(init?.method);
         capturedBody = String(init?.body);
+        const headers = new Headers(init?.headers as HeadersInit);
+        capturedContentType = headers.get("content-type") || "";
         return new Response("", { status: 200 });
       },
     });
@@ -180,6 +193,7 @@ describe("emitMetricRequest", () => {
     assert.equal(capturedUrl, "http://localhost:4318/v1/metrics");
     assert.equal(capturedMethod, "POST");
     assert.equal(capturedBody, '{"resourceMetrics":[]}');
+    assert.equal(capturedContentType, "application/json");
   });
 
   it("surfaces collector errors", async () => {
