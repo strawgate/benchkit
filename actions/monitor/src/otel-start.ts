@@ -93,8 +93,8 @@ export function resolveRunId(): string {
 export async function startOtelCollector(): Promise<void> {
   const version = core.getInput("collector-version") || "0.102.0";
   const scrapeInterval = core.getInput("scrape-interval") || "5s";
-  const metricSetsRaw = (core.getInput("metric-sets") || "cpu,memory,load,process")
-    .split(",");
+  const metricSetsInput = core.getInput("metric-sets");
+  const metricSetsRaw = metricSetsInput === "" ? [] : (metricSetsInput || "cpu,memory,load,process").split(",");
   const otlpGrpcPort = parseInt(core.getInput("otlp-grpc-port") || "4317", 10);
   const otlpHttpPort = parseInt(core.getInput("otlp-http-port") || "4318", 10);
   const dataBranch = core.getInput("data-branch") || "bench-data";
@@ -162,7 +162,7 @@ export async function startOtelCollector(): Promise<void> {
 
   // Set outputs
   if (otlpGrpcPort > 0) {
-    core.setOutput("otlp-grpc-endpoint", `localhost:${otlpGrpcPort}`);
+    core.setOutput("otlp-grpc-endpoint", `grpc://localhost:${otlpGrpcPort}`);
   }
   if (otlpHttpPort > 0) {
     core.setOutput("otlp-http-endpoint", `http://localhost:${otlpHttpPort}`);
@@ -171,6 +171,6 @@ export async function startOtelCollector(): Promise<void> {
   core.info(
     `OTel Collector started (PID ${child.pid}, scrape interval ${scrapeInterval})`,
   );
-  if (otlpGrpcPort > 0) core.info(`OTLP gRPC endpoint: localhost:${otlpGrpcPort}`);
+  if (otlpGrpcPort > 0) core.info(`OTLP gRPC endpoint: grpc://localhost:${otlpGrpcPort}`);
   if (otlpHttpPort > 0) core.info(`OTLP HTTP endpoint: http://localhost:${otlpHttpPort}`);
 }

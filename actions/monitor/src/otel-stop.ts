@@ -42,9 +42,14 @@ export async function stopCollector(state: OtelState): Promise<void> {
     return;
   }
 
-  core.info(`Sending SIGTERM to collector (PID ${state.pid})...`);
+  // On Windows, SIGTERM/SIGKILL don't work; use process.kill(pid) without signal
+  const isWindows = process.platform === "win32";
+  const signal = isWindows ? undefined : ("SIGTERM" as const);
+  const signalName = isWindows ? "terminate" : "SIGTERM";
+
+  core.info(`Sending ${signalName} to collector (PID ${state.pid})...`);
   try {
-    process.kill(state.pid, "SIGTERM");
+    process.kill(state.pid, signal);
   } catch {
     core.info("Collector already gone.");
     return;
@@ -61,9 +66,9 @@ export async function stopCollector(state: OtelState): Promise<void> {
   }
 
   // Force kill if still running
-  core.warning("Collector did not exit in time, sending SIGKILL.");
+  core.warning("Collector did not exit in time, sending force kill.");
   try {
-    process.kill(state.pid, "SIGKILL");
+    process.kill(state.pid, isWindows ? undefined : ("SIGKILL" as const));
   } catch {
     // already gone
   }
@@ -179,8 +184,10 @@ export function filterToRunnerDescendants(
 
     const filteredResources = parsed.resourceMetrics.filter((rm) => {
       const pid = getIntAttribute(rm.resource?.attributes ?? [], "process.pid");
-      // Keep if: no PID (system/OTLP metrics), or PID is a runner descendant
-      if (pid === undefined || descendants.has(pid)) {
+      const ppid = getIntAttribute(rm.resource?.attributes ?? [], "process.parent_pid");
+      // Only filter hostmetrics process resources (those with process.parent_pid).
+      // Keep: no PID (system metrics), no parent_pid (user OTLP metrics), or descendant process
+      if (ppid === undefined || pid === undefined || descendants.has(pid)) {
         kept++;
         return true;
       }
