@@ -10,7 +10,7 @@ export { Leaderboard, type LeaderboardProps } from "./components/Leaderboard.js"
 export { Dashboard, type DashboardProps } from "./Dashboard.js";
 
 // Data fetching
-export { fetchIndex, fetchSeries, fetchRun, type DataSource } from "./fetch.js";
+export { fetchIndex, fetchSeries, fetchRun, fetchPrIndex, fetchRefIndex, fetchMetricSummary, fetchRunDetail, type DataSource } from "./fetch.js";
 
 // Ranking utilities
 export { rankSeries, getWinner, type RankedEntry } from "./leaderboard.js";

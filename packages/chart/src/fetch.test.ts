@@ -59,4 +59,52 @@ describe("fetch", () => {
       { message: "DataSource must have either baseUrl or owner+repo" },
     );
   });
+
+  it("constructs correct URL for prs index", () => {
+    const ds: DataSource = { owner: "strawgate", repo: "benchkit", branch: "bench-data" };
+    const url = rawUrl(ds, "data/index/prs.json");
+    assert.equal(
+      url,
+      "https://raw.githubusercontent.com/strawgate/benchkit/bench-data/data/index/prs.json",
+    );
+  });
+
+  it("constructs correct URL for refs index", () => {
+    const ds: DataSource = { owner: "strawgate", repo: "benchkit", branch: "bench-data" };
+    const url = rawUrl(ds, "data/index/refs.json");
+    assert.equal(
+      url,
+      "https://raw.githubusercontent.com/strawgate/benchkit/bench-data/data/index/refs.json",
+    );
+  });
+
+  it("constructs correct URL for metrics index", () => {
+    const ds: DataSource = { owner: "strawgate", repo: "benchkit", branch: "bench-data" };
+    const url = rawUrl(ds, "data/index/metrics.json");
+    assert.equal(
+      url,
+      "https://raw.githubusercontent.com/strawgate/benchkit/bench-data/data/index/metrics.json",
+    );
+  });
+
+  it("constructs correct URL for run detail view", () => {
+    const ds: DataSource = { owner: "strawgate", repo: "benchkit", branch: "bench-data" };
+    const url = rawUrl(ds, "data/views/runs/123456789-1/detail.json");
+    assert.equal(
+      url,
+      "https://raw.githubusercontent.com/strawgate/benchkit/bench-data/data/views/runs/123456789-1/detail.json",
+    );
+  });
+
+  it("constructs correct URL for prs index with baseUrl", () => {
+    const ds: DataSource = { baseUrl: "https://my-server.example.com/data" };
+    const url = rawUrl(ds, "data/index/prs.json");
+    assert.equal(url, "https://my-server.example.com/data/data/index/prs.json");
+  });
+
+  it("constructs correct URL for run detail view with baseUrl", () => {
+    const ds: DataSource = { baseUrl: "https://my-server.example.com/data" };
+    const url = rawUrl(ds, "data/views/runs/abc-1/detail.json");
+    assert.equal(url, "https://my-server.example.com/data/data/views/runs/abc-1/detail.json");
+  });
 });
