@@ -32,6 +32,12 @@ export type {
   ComparisonStatus,
   FormatComparisonMarkdownOptions,
   ThresholdConfig,
+  RefIndexEntry,
+  PrIndexEntry,
+  RunSnapshotMetric,
+  RunDetailMetricSnapshot,
+  RunDetailView,
+  MetricSummaryEntry,
 } from "./types.js";
 
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */

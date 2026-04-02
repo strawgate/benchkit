@@ -1,49 +1,25 @@
 import type {
   Benchmark,
-  Metric,
+  MetricSummaryEntry,
+  PrIndexEntry,
+  RefIndexEntry,
+  RunDetailMetricSnapshot,
+  RunDetailView,
   RunEntry,
+  RunSnapshotMetric,
   SeriesFile,
 } from "@benchkit/format";
 import type { ParsedRun } from "./aggregate.js";
 import { resolveMetricName } from "./aggregate.js";
 
-export interface RefIndexEntry {
-  ref: string;
-  latestRunId: string;
-  latestTimestamp: string;
-  latestCommit?: string;
-  runCount: number;
-}
-
-export interface PrIndexEntry {
-  prNumber: number;
-  ref: string;
-  latestRunId: string;
-  latestTimestamp: string;
-  latestCommit?: string;
-  runCount: number;
-}
-
-export interface RunSnapshotMetric {
-  name: string;
-  value: number;
-  unit?: string;
-  direction?: Metric["direction"];
-  range?: number;
-  tags?: Record<string, string>;
-}
-
-export interface RunDetailMetricSnapshot {
-  metric: string;
-  unit?: string;
-  direction?: Metric["direction"];
-  values: RunSnapshotMetric[];
-}
-
-export interface RunDetailView {
-  run: RunEntry;
-  metricSnapshots: RunDetailMetricSnapshot[];
-}
+export type {
+  RefIndexEntry,
+  PrIndexEntry,
+  RunSnapshotMetric,
+  RunDetailMetricSnapshot,
+  RunDetailView,
+  MetricSummaryEntry,
+};
 
 function benchmarkSeriesKey(benchmark: Benchmark): string {
   const tags = benchmark.tags
@@ -170,13 +146,6 @@ export function buildRunDetail(runId: string, runs: ParsedRun[]): RunDetailView 
     run: runEntry,
     metricSnapshots: [...groupedMetrics.values()].sort((a, b) => a.metric.localeCompare(b.metric)),
   };
-}
-
-export interface MetricSummaryEntry {
-  metric: string;
-  latestSeriesCount: number;
-  latestRunId?: string;
-  latestTimestamp?: string;
 }
 
 export function buildMetricSummaryViews(seriesMap: Map<string, SeriesFile>): MetricSummaryEntry[] {

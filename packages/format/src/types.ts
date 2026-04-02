@@ -210,3 +210,50 @@ export interface ThresholdConfig {
   test: "percentage";
   threshold: number;
 }
+
+/** View types — produced by the aggregate action for use by frontends. */
+
+export interface RefIndexEntry {
+  ref: string;
+  latestRunId: string;
+  latestTimestamp: string;
+  latestCommit?: string;
+  runCount: number;
+}
+
+export interface PrIndexEntry {
+  prNumber: number;
+  ref: string;
+  latestRunId: string;
+  latestTimestamp: string;
+  latestCommit?: string;
+  runCount: number;
+}
+
+export interface RunSnapshotMetric {
+  name: string;
+  value: number;
+  unit?: string;
+  direction?: Metric["direction"];
+  range?: number;
+  tags?: Record<string, string>;
+}
+
+export interface RunDetailMetricSnapshot {
+  metric: string;
+  unit?: string;
+  direction?: Metric["direction"];
+  values: RunSnapshotMetric[];
+}
+
+export interface RunDetailView {
+  run: RunEntry;
+  metricSnapshots: RunDetailMetricSnapshot[];
+}
+
+export interface MetricSummaryEntry {
+  metric: string;
+  latestSeriesCount: number;
+  latestRunId?: string;
+  latestTimestamp?: string;
+}
