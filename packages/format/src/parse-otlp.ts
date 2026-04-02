@@ -1,4 +1,19 @@
 import { inferDirection } from "./infer-direction.js";
+import {
+  ATTR_COMMIT,
+  ATTR_KIND,
+  ATTR_METRIC_DIRECTION,
+  ATTR_REF,
+  ATTR_RUN_ID,
+  ATTR_RUNNER,
+  ATTR_SCENARIO,
+  ATTR_SERIES,
+  ATTR_SERVICE_NAME,
+  ATTR_SOURCE_FORMAT,
+  MONITOR_METRIC_PREFIX,
+  RESERVED_DATAPOINT_ATTRIBUTES,
+} from "./otlp-conventions.js";
+import { isValidDirection } from "./otlp-validation.js";
 import type {
   Benchmark,
   BenchmarkResult,
@@ -13,13 +28,6 @@ import type {
   OtlpMetricsDocument,
   Sample,
 } from "./types.js";
-
-const RESERVED_POINT_KEYS = new Set([
-  "benchkit.scenario",
-  "benchkit.series",
-  "benchkit.metric.direction",
-  "benchkit.metric.role",
-]);
 
 function anyValueToString(value: OtlpAnyValue | undefined): string {
   if (!value) return "";
@@ -117,7 +125,7 @@ function datapointNumberValue(point: OtlpGaugeDataPoint): number {
 
 function benchmarkTags(pointAttributes: Record<string, string>): Record<string, string> | undefined {
   const tags = Object.fromEntries(
-    Object.entries(pointAttributes).filter(([key]) => !RESERVED_POINT_KEYS.has(key)),
+    Object.entries(pointAttributes).filter(([key]) => !RESERVED_DATAPOINT_ATTRIBUTES.has(key)),
   );
   return Object.keys(tags).length > 0 ? tags : undefined;
 }
@@ -198,8 +206,14 @@ function requiredResourceAttr(attributes: Record<string, string>, key: string, m
 }
 
 function resolveDirection(metricName: string, unit: string | undefined, pointAttributes: Record<string, string>): Metric["direction"] {
-  const explicit = pointAttributes["benchkit.metric.direction"];
-  if (explicit === "bigger_is_better" || explicit === "smaller_is_better") {
+  const explicit = pointAttributes[ATTR_METRIC_DIRECTION];
+  if (explicit) {
+    if (!isValidDirection(explicit)) {
+      throw new Error(
+        `Invalid '${ATTR_METRIC_DIRECTION}' value '${explicit}' on metric '${metricName}'. ` +
+          `Expected 'bigger_is_better' or 'smaller_is_better'.`,
+      );
+    }
     return explicit;
   }
   return inferDirection(unit ?? metricName);
@@ -213,15 +227,15 @@ function projectGaugeLikeMetric(
 ): void {
   for (const point of points ?? []) {
     const pointAttributes = otlpAttributesToRecord(point.attributes);
-    const benchmarkName = pointAttributes["benchkit.scenario"]
-      || (metric.name.startsWith("_monitor.") ? "diagnostic" : "");
+    const benchmarkName = pointAttributes[ATTR_SCENARIO]
+      || (metric.name.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
     if (!benchmarkName) {
-      throw new Error(`Missing required datapoint attribute 'benchkit.scenario' for OTLP metric '${metric.name}'.`);
+      throw new Error(`Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP metric '${metric.name}'.`);
     }
 
-    const series = pointAttributes["benchkit.series"];
+    const series = pointAttributes[ATTR_SERIES];
     if (!series) {
-      throw new Error(`Missing required datapoint attribute 'benchkit.series' for OTLP metric '${metric.name}'.`);
+      throw new Error(`Missing required datapoint attribute '${ATTR_SERIES}' for OTLP metric '${metric.name}'.`);
     }
 
     const group = ensureGroup(groups, benchmarkName, series, {
@@ -264,15 +278,15 @@ function projectHistogramMetric(
 ): void {
   for (const point of points ?? []) {
     const pointAttributes = otlpAttributesToRecord(point.attributes);
-    const benchmarkName = pointAttributes["benchkit.scenario"]
-      || (metric.name.startsWith("_monitor.") ? "diagnostic" : "");
+    const benchmarkName = pointAttributes[ATTR_SCENARIO]
+      || (metric.name.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
     if (!benchmarkName) {
-      throw new Error(`Missing required datapoint attribute 'benchkit.scenario' for OTLP histogram '${metric.name}'.`);
+      throw new Error(`Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP histogram '${metric.name}'.`);
     }
 
-    const series = pointAttributes["benchkit.series"];
+    const series = pointAttributes[ATTR_SERIES];
     if (!series) {
-      throw new Error(`Missing required datapoint attribute 'benchkit.series' for OTLP histogram '${metric.name}'.`);
+      throw new Error(`Missing required datapoint attribute '${ATTR_SERIES}' for OTLP histogram '${metric.name}'.`);
     }
 
     const group = ensureGroup(groups, benchmarkName, series, {
@@ -332,20 +346,22 @@ function projectHistogramMetric(
  * @returns A `BenchmarkResult` containing all projected benchmarks and context.
  */
 export function projectBenchmarkResultFromOtlp(document: OtlpMetricsDocument): BenchmarkResult {
+  // Phase 1: Initialize groups and context
   const groups = new Map<string, MutableBenchmarkGroup>();
   let latestTimestamp: string | undefined;
   let contextTemplate: Context | undefined;
 
+  // Phase 2: Traverse resourceMetrics → scopeMetrics → metrics → datapoints
   for (const resourceMetric of document.resourceMetrics) {
     const resourceAttributes = otlpAttributesToRecord(resourceMetric.resource?.attributes);
-    requiredResourceAttr(resourceAttributes, "benchkit.run_id", "<resource>");
-    requiredResourceAttr(resourceAttributes, "benchkit.kind", "<resource>");
-    requiredResourceAttr(resourceAttributes, "benchkit.source_format", "<resource>");
+    requiredResourceAttr(resourceAttributes, ATTR_RUN_ID, "<resource>");
+    requiredResourceAttr(resourceAttributes, ATTR_KIND, "<resource>");
+    requiredResourceAttr(resourceAttributes, ATTR_SOURCE_FORMAT, "<resource>");
 
     contextTemplate = {
-      commit: resourceAttributes["benchkit.commit"],
-      ref: resourceAttributes["benchkit.ref"],
-      runner: resourceAttributes["benchkit.runner"] || resourceAttributes["service.name"],
+      commit: contextTemplate?.commit || resourceAttributes[ATTR_COMMIT],
+      ref: contextTemplate?.ref || resourceAttributes[ATTR_REF],
+      runner: contextTemplate?.runner || resourceAttributes[ATTR_RUNNER] || resourceAttributes[ATTR_SERVICE_NAME],
       timestamp: contextTemplate?.timestamp,
     };
 
@@ -375,6 +391,7 @@ export function projectBenchmarkResultFromOtlp(document: OtlpMetricsDocument): B
     }
   }
 
+  // Phase 3: Finalize benchmarks — sort samples and build result
   const benchmarks = [...groups.values()].map((group) => {
     const samples = [...group.samplesByMillis.entries()]
       .sort((left, right) => left[0] - right[0])
