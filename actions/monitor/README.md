@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Start monitor
-        uses: strawgate/benchkit/actions/monitor@v1
+        uses: strawgate/benchkit/actions/monitor@main
         with:
           mode: start
           poll-interval: 250    # ms (default)
@@ -24,12 +24,12 @@ jobs:
         run: go test -bench=. -benchmem -count=3 ./... | tee bench.txt
 
       - name: Stop monitor
-        uses: strawgate/benchkit/actions/monitor@v1
+        uses: strawgate/benchkit/actions/monitor@main
         with:
           mode: stop
 
       - name: Stash results
-        uses: strawgate/benchkit/actions/stash@v1
+        uses: strawgate/benchkit/actions/stash@main
         with:
           results: bench.txt
           monitor: monitor.json   # future: stash integration

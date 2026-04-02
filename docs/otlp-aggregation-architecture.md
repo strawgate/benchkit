@@ -304,9 +304,10 @@ This keeps core views stable and user-specific views flexible.
 
 ### Phase 2 — OTLP normalization
 
-- add OTLP parser/normalizer in `@benchkit/format`
-- produce a benchkit-specific normalized point model
-- support cumulative/delta awareness in normalization
+- add OTLP parsing and traversal helpers in `@benchkit/format`
+- add adapter-specific projection helpers rather than a universal benchkit
+  telemetry intermediate
+- support cumulative/delta awareness in projection logic where needed
 
 ### Phase 3 — Aggregated view artifacts
 

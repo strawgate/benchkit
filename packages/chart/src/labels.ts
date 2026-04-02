@@ -28,6 +28,11 @@ export function defaultMetricLabel(metric: string): string {
     .replace(/_/g, " ");
 }
 
+/** Returns true when the metric name belongs to the monitor action's output. */
+export function isMonitorMetric(metric: string): boolean {
+  return metric.startsWith("_monitor/");
+}
+
 export function defaultMonitorMetricLabel(metric: string): string {
   const raw = metric.replace(/^_monitor\//, "");
   if (MONITOR_METRIC_LABELS[raw]) {

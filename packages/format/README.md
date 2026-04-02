@@ -81,6 +81,7 @@ omitted or `"auto"`, the parser inspects the input and picks the right strategy:
 |---|---|---|
 | JSON object with a `benchmarks` array whose entries have a `stats` object | `benchmarks[0].stats` is an object | `pytest-benchmark` |
 | JSON object with a `benchmarks` array | Top-level `benchmarks` key present | `native` |
+| JSON object with a `resourceMetrics` array | Top-level `resourceMetrics` key present | `otlp` |
 | JSON object with a `results` array | Top-level `results` key with objects containing a `command` string | `hyperfine` |
 | JSON array of objects | Array whose first element has both a string `name` and a numeric `value` | `benchmark-action` |
 | Plain text lines | Lines matching `/^Benchmark\w.*\s+\d+\s+[\d.]+\s+\w+\/\w+/` | `go` |
@@ -96,6 +97,29 @@ const result = parse(goOutput, "go");
 
 // Auto-detect (default)
 const result = parse(unknownInput);
+```
+
+### `parseOtlpMetrics(input)` and `projectBenchmarkResultFromOtlp(document)`
+
+Parses OTLP metrics JSON and provides helpers for:
+
+- reading resource and datapoint attributes
+- discriminating metric kinds (`gauge`, `sum`, `histogram`)
+- reading aggregation temporality
+- projecting one OTLP run into a benchmark-oriented `BenchmarkResult`
+
+This projection is intended as a compatibility adapter for downstream
+benchkit-specific consumers such as compare, aggregation, and summaries. It is
+not a universal benchkit telemetry intermediate.
+
+```ts
+import {
+  parseOtlpMetrics,
+  projectBenchmarkResultFromOtlp,
+} from "@benchkit/format";
+
+const document = parseOtlpMetrics(otlpJson);
+const result = projectBenchmarkResultFromOtlp(document);
 ```
 
 ### `parseGoBench(input)`

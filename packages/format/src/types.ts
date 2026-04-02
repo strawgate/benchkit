@@ -38,6 +38,78 @@ export interface NativeResultInit {
   context?: Context;
 }
 
+export type BenchkitRunKind = "code" | "workflow" | "hybrid";
+export type OtlpAggregationTemporality = "unspecified" | "delta" | "cumulative";
+
+export interface OtlpAnyValue {
+  stringValue?: string;
+  boolValue?: boolean;
+  intValue?: string | number;
+  doubleValue?: number;
+}
+
+export interface OtlpAttribute {
+  key: string;
+  value?: OtlpAnyValue;
+}
+
+export interface OtlpGaugeDataPoint {
+  attributes?: OtlpAttribute[];
+  startTimeUnixNano?: string;
+  timeUnixNano?: string;
+  asDouble?: number;
+  asInt?: string;
+}
+
+export interface OtlpHistogramDataPoint {
+  attributes?: OtlpAttribute[];
+  startTimeUnixNano?: string;
+  timeUnixNano?: string;
+  count?: string | number;
+  sum?: number;
+}
+
+export interface OtlpGaugeMetric {
+  dataPoints?: OtlpGaugeDataPoint[];
+}
+
+export interface OtlpSumMetric {
+  dataPoints?: OtlpGaugeDataPoint[];
+  aggregationTemporality?: number;
+  isMonotonic?: boolean;
+}
+
+export interface OtlpHistogramMetric {
+  dataPoints?: OtlpHistogramDataPoint[];
+  aggregationTemporality?: number;
+}
+
+export interface OtlpMetric {
+  name: string;
+  description?: string;
+  unit?: string;
+  gauge?: OtlpGaugeMetric;
+  sum?: OtlpSumMetric;
+  histogram?: OtlpHistogramMetric;
+}
+
+export interface OtlpScopeMetrics {
+  metrics?: OtlpMetric[];
+}
+
+export interface OtlpResource {
+  attributes?: OtlpAttribute[];
+}
+
+export interface OtlpResourceMetrics {
+  resource?: OtlpResource;
+  scopeMetrics?: OtlpScopeMetrics[];
+}
+
+export interface OtlpMetricsDocument {
+  resourceMetrics: OtlpResourceMetrics[];
+}
+
 export interface Sample {
   t: number;
   [metricName: string]: number;
