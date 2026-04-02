@@ -26271,7 +26271,7 @@ function formatComparisonMarkdown(result, options = {}) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.isValidRunKind = exports.validateSourceFormat = exports.validateMetricRole = exports.validateDirection = exports.validateRunKind = exports.validateRequiredDatapointAttributes = exports.validateRequiredResourceAttributes = exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlpMetrics = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.unitToMetricName = exports.inferDirection = exports.parse = void 0;
-exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.getMetricUnits = exports.getMetricTemporality = exports.extractResourceContext = exports.extractComparisonMetrics = exports.extractScenarioMetrics = exports.extractRunMetrics = exports.isMonitorMetric = exports.isValidSourceFormat = exports.isValidMetricRole = exports.isValidDirection = void 0;
+exports.detailViewToBenchmarkResult = exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.getMetricUnits = exports.getMetricTemporality = exports.extractResourceContext = exports.extractComparisonMetrics = exports.extractScenarioMetrics = exports.extractRunMetrics = exports.isMonitorMetric = exports.isValidSourceFormat = exports.isValidMetricRole = exports.isValidDirection = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
@@ -26370,6 +26370,9 @@ Object.defineProperty(exports, "defineMetric", ({ enumerable: true, get: functio
 Object.defineProperty(exports, "defineBenchmark", ({ enumerable: true, get: function () { return native_builder_js_1.defineBenchmark; } }));
 Object.defineProperty(exports, "buildNativeResult", ({ enumerable: true, get: function () { return native_builder_js_1.buildNativeResult; } }));
 Object.defineProperty(exports, "stringifyNativeResult", ({ enumerable: true, get: function () { return native_builder_js_1.stringifyNativeResult; } }));
+/** Convert a RunDetailView back into a BenchmarkResult for use with compare(). */
+var run_detail_converter_js_1 = __nccwpck_require__(5627);
+Object.defineProperty(exports, "detailViewToBenchmarkResult", ({ enumerable: true, get: function () { return run_detail_converter_js_1.detailViewToBenchmarkResult; } }));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
@@ -27771,6 +27774,56 @@ function unitToMetricName(unit) {
     return unit.replace(/\//g, "_per_").replace(/\s+/g, "_").toLowerCase();
 }
 //# sourceMappingURL=parser-utils.js.map
+
+/***/ }),
+
+/***/ 5627:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.detailViewToBenchmarkResult = detailViewToBenchmarkResult;
+/**
+ * Convert a `RunDetailView` back into a `BenchmarkResult`.
+ *
+ * This allows consumers to use `compare()` with runs that were loaded from
+ * the data branch as `data/views/runs/{id}/detail.json` files.
+ */
+function detailViewToBenchmarkResult(detail) {
+    const benchmarks = [];
+    for (const snapshot of detail.metricSnapshots) {
+        for (const snapshotMetric of snapshot.values) {
+            // Find or create the benchmark entry for this series name
+            let bench = benchmarks.find((b) => b.name === snapshotMetric.name &&
+                JSON.stringify(b.tags) === JSON.stringify(snapshotMetric.tags));
+            if (!bench) {
+                bench = {
+                    name: snapshotMetric.name,
+                    tags: snapshotMetric.tags,
+                    metrics: {},
+                };
+                benchmarks.push(bench);
+            }
+            bench.metrics[snapshot.metric] = {
+                value: snapshotMetric.value,
+                unit: snapshotMetric.unit ?? snapshot.unit,
+                direction: snapshotMetric.direction ?? snapshot.direction,
+                range: snapshotMetric.range,
+            };
+        }
+    }
+    return {
+        benchmarks,
+        context: {
+            commit: detail.run.commit,
+            ref: detail.run.ref,
+            timestamp: detail.run.timestamp,
+            monitor: detail.run.monitor,
+        },
+    };
+}
+//# sourceMappingURL=run-detail-converter.js.map
 
 /***/ }),
 

@@ -129,3 +129,5 @@ export { compare } from "./compare.js";
 export { formatComparisonMarkdown } from "./format-comparison-markdown.js";
 /** Helpers for building and serializing native benchmark results. */
 export { defineMetric, defineBenchmark, buildNativeResult, stringifyNativeResult } from "./native-builder.js";
+/** Convert a RunDetailView back into a BenchmarkResult for use with compare(). */
+export { detailViewToBenchmarkResult } from "./run-detail-converter.js";
