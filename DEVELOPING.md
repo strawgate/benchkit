@@ -11,8 +11,10 @@ This guide is for contributors working on benchkit internals.
 
 - `packages/format/`: benchmark types and parsers
 - `packages/chart/`: Preact dashboard components
+- `packages/dashboard/`: self-benchmark dashboard deployed to GitHub Pages
 - `actions/stash/`: GitHub Action to parse and store run data
 - `actions/aggregate/`: GitHub Action to build index and series
+- `actions/compare/`: GitHub Action to compare results against a baseline
 - `actions/monitor/`: GitHub Action for background system metrics collection
 - `schema/`: JSON schemas for generated data files
 
@@ -35,8 +37,10 @@ Build a specific workspace:
 ```bash
 npm run build --workspace=packages/format
 npm run build --workspace=packages/chart
+npm run build --workspace=packages/dashboard
 npm run build --workspace=actions/stash
 npm run build --workspace=actions/aggregate
+npm run build --workspace=actions/compare
 npm run build --workspace=actions/monitor
 ```
 

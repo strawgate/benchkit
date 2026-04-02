@@ -63,18 +63,19 @@ export function transformSeriesDataset(
     .filter(([, entry]) => filterEntry(entry, filters));
 
   if (options.groupByTag) {
+    const groupByTag = options.groupByTag;
     const groups = new Map<string, SeriesEntry[]>();
     for (const [, entry] of entries) {
-      const groupKey = entry.tags?.[options.groupByTag] ?? "__missing__";
+      const groupKey = entry.tags?.[groupByTag] ?? "__missing__";
       const existing = groups.get(groupKey);
       if (existing) existing.push(entry);
       else groups.set(groupKey, [entry]);
     }
 
     entries = [...groups.entries()].map(([groupKey, groupEntries]) => [
-      `${options.groupByTag}=${groupKey}`,
+      `${groupByTag}=${groupKey}`,
       {
-        tags: { [options.groupByTag!]: groupKey },
+        tags: { [groupByTag]: groupKey },
         points: aggregatePoints(groupEntries, aggregate),
       },
     ]);
