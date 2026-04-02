@@ -59762,7 +59762,7 @@ function formatComparisonMarkdown(result, options = {}) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.formatComparisonMarkdown = exports.compare = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
+exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlpMetrics = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.inferDirection = exports.parse = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
@@ -59784,12 +59784,28 @@ Object.defineProperty(exports, "parseBenchmarkAction", ({ enumerable: true, get:
 /** Parse Hyperfine JSON format. */
 var parse_hyperfine_js_1 = __nccwpck_require__(9347);
 Object.defineProperty(exports, "parseHyperfine", ({ enumerable: true, get: function () { return parse_hyperfine_js_1.parseHyperfine; } }));
+/** Parse pytest-benchmark JSON format. */
+var parse_pytest_benchmark_js_1 = __nccwpck_require__(3956);
+Object.defineProperty(exports, "parsePytestBenchmark", ({ enumerable: true, get: function () { return parse_pytest_benchmark_js_1.parsePytestBenchmark; } }));
+/** Parse OTLP metrics JSON and project it into benchmark-oriented structures. */
+var parse_otlp_js_1 = __nccwpck_require__(3158);
+Object.defineProperty(exports, "parseOtlpMetrics", ({ enumerable: true, get: function () { return parse_otlp_js_1.parseOtlpMetrics; } }));
+Object.defineProperty(exports, "otlpAttributesToRecord", ({ enumerable: true, get: function () { return parse_otlp_js_1.otlpAttributesToRecord; } }));
+Object.defineProperty(exports, "getOtlpMetricKind", ({ enumerable: true, get: function () { return parse_otlp_js_1.getOtlpMetricKind; } }));
+Object.defineProperty(exports, "getOtlpTemporality", ({ enumerable: true, get: function () { return parse_otlp_js_1.getOtlpTemporality; } }));
+Object.defineProperty(exports, "projectBenchmarkResultFromOtlp", ({ enumerable: true, get: function () { return parse_otlp_js_1.projectBenchmarkResultFromOtlp; } }));
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 var compare_js_1 = __nccwpck_require__(2016);
 Object.defineProperty(exports, "compare", ({ enumerable: true, get: function () { return compare_js_1.compare; } }));
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */
 var format_comparison_markdown_js_1 = __nccwpck_require__(1160);
 Object.defineProperty(exports, "formatComparisonMarkdown", ({ enumerable: true, get: function () { return format_comparison_markdown_js_1.formatComparisonMarkdown; } }));
+/** Helpers for building and serializing native benchmark results. */
+var native_builder_js_1 = __nccwpck_require__(9666);
+Object.defineProperty(exports, "defineMetric", ({ enumerable: true, get: function () { return native_builder_js_1.defineMetric; } }));
+Object.defineProperty(exports, "defineBenchmark", ({ enumerable: true, get: function () { return native_builder_js_1.defineBenchmark; } }));
+Object.defineProperty(exports, "buildNativeResult", ({ enumerable: true, get: function () { return native_builder_js_1.buildNativeResult; } }));
+Object.defineProperty(exports, "stringifyNativeResult", ({ enumerable: true, get: function () { return native_builder_js_1.stringifyNativeResult; } }));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
@@ -59821,6 +59837,65 @@ function inferDirection(unit) {
     return "smaller_is_better";
 }
 //# sourceMappingURL=infer-direction.js.map
+
+/***/ }),
+
+/***/ 9666:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.defineMetric = defineMetric;
+exports.defineBenchmark = defineBenchmark;
+exports.buildNativeResult = buildNativeResult;
+exports.stringifyNativeResult = stringifyNativeResult;
+const infer_direction_js_1 = __nccwpck_require__(5083);
+const parse_native_js_1 = __nccwpck_require__(1470);
+function cloneContext(context) {
+    if (!context)
+        return undefined;
+    return {
+        ...context,
+        monitor: context.monitor ? { ...context.monitor } : undefined,
+    };
+}
+function defineMetric(value, options = {}) {
+    const direction = options.direction ?? (options.unit ? (0, infer_direction_js_1.inferDirection)(options.unit) : undefined);
+    return {
+        value,
+        unit: options.unit,
+        direction,
+        range: options.range,
+    };
+}
+function defineBenchmark(init) {
+    const metrics = Object.fromEntries(Object.entries(init.metrics).map(([name, metric]) => {
+        if (typeof metric === "number") {
+            return [name, defineMetric(metric)];
+        }
+        return [name, defineMetric(metric.value, metric)];
+    }));
+    return {
+        name: init.name,
+        tags: init.tags ? { ...init.tags } : undefined,
+        metrics,
+        samples: init.samples ? [...init.samples] : undefined,
+    };
+}
+function buildNativeResult(init) {
+    return {
+        benchmarks: init.benchmarks.map((benchmark) => defineBenchmark(benchmark)),
+        context: cloneContext(init.context),
+    };
+}
+function stringifyNativeResult(resultOrInit, indent = 2) {
+    const result = buildNativeResult(resultOrInit);
+    const json = JSON.stringify(result, null, indent);
+    (0, parse_native_js_1.parseNative)(json);
+    return `${json}\n`;
+}
+//# sourceMappingURL=native-builder.js.map
 
 /***/ }),
 
@@ -60026,6 +60101,359 @@ function parseNative(input) {
 
 /***/ }),
 
+/***/ 3158:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.otlpAttributesToRecord = otlpAttributesToRecord;
+exports.parseOtlpMetrics = parseOtlpMetrics;
+exports.getOtlpMetricKind = getOtlpMetricKind;
+exports.getOtlpTemporality = getOtlpTemporality;
+exports.projectBenchmarkResultFromOtlp = projectBenchmarkResultFromOtlp;
+const infer_direction_js_1 = __nccwpck_require__(5083);
+const RESERVED_POINT_KEYS = new Set([
+    "benchkit.scenario",
+    "benchkit.series",
+    "benchkit.metric.direction",
+    "benchkit.metric.role",
+]);
+function anyValueToString(value) {
+    if (!value)
+        return "";
+    if (value.stringValue !== undefined)
+        return value.stringValue;
+    if (value.boolValue !== undefined)
+        return String(value.boolValue);
+    if (value.intValue !== undefined)
+        return String(value.intValue);
+    if (value.doubleValue !== undefined)
+        return String(value.doubleValue);
+    return "";
+}
+function otlpAttributesToRecord(attributes) {
+    const record = {};
+    for (const attribute of attributes ?? []) {
+        record[attribute.key] = anyValueToString(attribute.value);
+    }
+    return record;
+}
+function parseOtlpMetrics(input) {
+    const parsed = JSON.parse(input);
+    if (!Array.isArray(parsed.resourceMetrics)) {
+        throw new Error("OTLP metrics JSON must contain a top-level resourceMetrics array.");
+    }
+    return parsed;
+}
+function getOtlpMetricKind(metric) {
+    if (metric.gauge)
+        return "gauge";
+    if (metric.sum)
+        return "sum";
+    if (metric.histogram)
+        return "histogram";
+    throw new Error(`Unsupported OTLP metric kind for metric '${metric.name}'.`);
+}
+function getOtlpTemporality(metric) {
+    const raw = metric.sum?.aggregationTemporality ?? metric.histogram?.aggregationTemporality;
+    if (raw === 1)
+        return "delta";
+    if (raw === 2)
+        return "cumulative";
+    return "unspecified";
+}
+function nanosToMillis(nanos) {
+    if (!nanos)
+        return undefined;
+    return Number(BigInt(nanos) / 1000000n);
+}
+function nanosToIso(nanos) {
+    const millis = nanosToMillis(nanos);
+    return millis === undefined ? undefined : new Date(millis).toISOString();
+}
+function datapointNumberValue(point) {
+    if (typeof point.asDouble === "number")
+        return point.asDouble;
+    if (point.asInt !== undefined)
+        return Number(point.asInt);
+    throw new Error("OTLP datapoint is missing both asDouble and asInt numeric values.");
+}
+function benchmarkTags(pointAttributes) {
+    const tags = Object.fromEntries(Object.entries(pointAttributes).filter(([key]) => !RESERVED_POINT_KEYS.has(key)));
+    return Object.keys(tags).length > 0 ? tags : undefined;
+}
+function buildBenchmarkKey(name, series) {
+    return `${name}|${series}`;
+}
+function pushSample(samplesByMillis, millis, baselineMillis, metricName, value) {
+    let sample = samplesByMillis.get(millis);
+    if (!sample) {
+        sample = { t: (millis - baselineMillis) / 1000 };
+        samplesByMillis.set(millis, sample);
+    }
+    sample[metricName] = value;
+}
+function ensureGroup(groups, benchmarkName, series, tags) {
+    const groupKey = buildBenchmarkKey(benchmarkName, series);
+    const existing = groups.get(groupKey);
+    if (existing) {
+        if (tags) {
+            existing.benchmark.tags = { ...(existing.benchmark.tags ?? {}), ...tags };
+        }
+        return existing;
+    }
+    const created = {
+        benchmark: {
+            name: benchmarkName,
+            tags,
+            metrics: {},
+        },
+        samplesByMillis: new Map(),
+        metricTimestamps: new Map(),
+    };
+    groups.set(groupKey, created);
+    return created;
+}
+function upsertMetric(group, metricName, metric, pointTimestampMillis) {
+    const previousTimestamp = group.metricTimestamps.get(metricName);
+    const nextTimestamp = pointTimestampMillis ?? Number.POSITIVE_INFINITY;
+    if (previousTimestamp === undefined || nextTimestamp >= previousTimestamp) {
+        group.benchmark.metrics[metricName] = metric;
+        group.metricTimestamps.set(metricName, nextTimestamp);
+    }
+}
+function requiredResourceAttr(attributes, key, metricName) {
+    const value = attributes[key];
+    if (!value) {
+        throw new Error(`Missing required resource attribute '${key}' for OTLP metric '${metricName}'.`);
+    }
+    return value;
+}
+function resolveDirection(metricName, unit, pointAttributes) {
+    const explicit = pointAttributes["benchkit.metric.direction"];
+    if (explicit === "bigger_is_better" || explicit === "smaller_is_better") {
+        return explicit;
+    }
+    return (0, infer_direction_js_1.inferDirection)(unit ?? metricName);
+}
+function projectGaugeLikeMetric(groups, metric, points, _resourceAttributes) {
+    for (const point of points ?? []) {
+        const pointAttributes = otlpAttributesToRecord(point.attributes);
+        const benchmarkName = pointAttributes["benchkit.scenario"]
+            || (metric.name.startsWith("_monitor.") ? "diagnostic" : "");
+        if (!benchmarkName) {
+            throw new Error(`Missing required datapoint attribute 'benchkit.scenario' for OTLP metric '${metric.name}'.`);
+        }
+        const series = pointAttributes["benchkit.series"];
+        if (!series) {
+            throw new Error(`Missing required datapoint attribute 'benchkit.series' for OTLP metric '${metric.name}'.`);
+        }
+        const group = ensureGroup(groups, benchmarkName, series, {
+            series,
+            ...(benchmarkTags(pointAttributes) ?? {}),
+        });
+        const timestampMillis = nanosToMillis(point.timeUnixNano);
+        const timestampIso = nanosToIso(point.timeUnixNano);
+        const metricValue = datapointNumberValue(point);
+        const direction = resolveDirection(metric.name, metric.unit, pointAttributes);
+        const metricRecord = {
+            value: metricValue,
+            unit: metric.unit,
+            direction,
+        };
+        upsertMetric(group, metric.name, metricRecord, timestampMillis);
+        if (timestampMillis !== undefined) {
+            if (group.sampleBaselineMillis === undefined || timestampMillis < group.sampleBaselineMillis) {
+                group.sampleBaselineMillis = timestampMillis;
+            }
+            pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, metric.name, metricValue);
+        }
+        else if (timestampIso === undefined) {
+            // no-op, metric still captured as latest snapshot
+        }
+    }
+}
+function projectHistogramMetric(groups, metric, points, _resourceAttributes) {
+    for (const point of points ?? []) {
+        const pointAttributes = otlpAttributesToRecord(point.attributes);
+        const benchmarkName = pointAttributes["benchkit.scenario"]
+            || (metric.name.startsWith("_monitor.") ? "diagnostic" : "");
+        if (!benchmarkName) {
+            throw new Error(`Missing required datapoint attribute 'benchkit.scenario' for OTLP histogram '${metric.name}'.`);
+        }
+        const series = pointAttributes["benchkit.series"];
+        if (!series) {
+            throw new Error(`Missing required datapoint attribute 'benchkit.series' for OTLP histogram '${metric.name}'.`);
+        }
+        const group = ensureGroup(groups, benchmarkName, series, {
+            series,
+            ...(benchmarkTags(pointAttributes) ?? {}),
+        });
+        const timestampMillis = nanosToMillis(point.timeUnixNano);
+        const direction = resolveDirection(metric.name, metric.unit, pointAttributes);
+        const count = point.count !== undefined ? Number(point.count) : undefined;
+        const sum = point.sum;
+        if (count !== undefined) {
+            upsertMetric(group, `${metric.name}.count`, {
+                value: count,
+                unit: "count",
+                direction: "bigger_is_better",
+            }, timestampMillis);
+        }
+        if (typeof sum === "number") {
+            upsertMetric(group, `${metric.name}.sum`, {
+                value: sum,
+                unit: metric.unit,
+                direction,
+            }, timestampMillis);
+        }
+        if (timestampMillis !== undefined) {
+            if (group.sampleBaselineMillis === undefined || timestampMillis < group.sampleBaselineMillis) {
+                group.sampleBaselineMillis = timestampMillis;
+            }
+            if (count !== undefined) {
+                pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, `${metric.name}.count`, count);
+            }
+            if (typeof sum === "number") {
+                pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, `${metric.name}.sum`, sum);
+            }
+        }
+    }
+}
+function projectBenchmarkResultFromOtlp(document) {
+    const groups = new Map();
+    let latestTimestamp;
+    let contextTemplate;
+    for (const resourceMetric of document.resourceMetrics) {
+        const resourceAttributes = otlpAttributesToRecord(resourceMetric.resource?.attributes);
+        const runId = requiredResourceAttr(resourceAttributes, "benchkit.run_id", "<resource>");
+        const kind = requiredResourceAttr(resourceAttributes, "benchkit.kind", "<resource>");
+        const sourceFormat = requiredResourceAttr(resourceAttributes, "benchkit.source_format", "<resource>");
+        void runId;
+        void kind;
+        void sourceFormat;
+        contextTemplate = {
+            commit: resourceAttributes["benchkit.commit"],
+            ref: resourceAttributes["benchkit.ref"],
+            runner: resourceAttributes["benchkit.runner"] || resourceAttributes["service.name"],
+            timestamp: contextTemplate?.timestamp,
+        };
+        for (const scopeMetric of resourceMetric.scopeMetrics ?? []) {
+            for (const metric of scopeMetric.metrics ?? []) {
+                const metricKind = getOtlpMetricKind(metric);
+                if (metricKind === "gauge" || metricKind === "sum") {
+                    const points = metricKind === "gauge" ? metric.gauge?.dataPoints : metric.sum?.dataPoints;
+                    projectGaugeLikeMetric(groups, metric, points, resourceAttributes);
+                    for (const point of points ?? []) {
+                        const iso = nanosToIso(point.timeUnixNano);
+                        if (iso && (!latestTimestamp || iso > latestTimestamp)) {
+                            latestTimestamp = iso;
+                        }
+                    }
+                }
+                else if (metricKind === "histogram") {
+                    const points = metric.histogram?.dataPoints;
+                    projectHistogramMetric(groups, metric, points, resourceAttributes);
+                    for (const point of points ?? []) {
+                        const iso = nanosToIso(point.timeUnixNano);
+                        if (iso && (!latestTimestamp || iso > latestTimestamp)) {
+                            latestTimestamp = iso;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    const benchmarks = [...groups.values()].map((group) => {
+        const samples = [...group.samplesByMillis.entries()]
+            .sort((left, right) => left[0] - right[0])
+            .map(([, sample]) => sample);
+        return {
+            ...group.benchmark,
+            samples: samples.length > 1 ? samples : undefined,
+        };
+    });
+    return {
+        benchmarks,
+        context: contextTemplate ? {
+            ...contextTemplate,
+            timestamp: latestTimestamp ?? contextTemplate.timestamp,
+        } : latestTimestamp ? { timestamp: latestTimestamp } : undefined,
+    };
+}
+//# sourceMappingURL=parse-otlp.js.map
+
+/***/ }),
+
+/***/ 3956:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parsePytestBenchmark = parsePytestBenchmark;
+function parsePytestBenchmark(input) {
+    const parsed = JSON.parse(input);
+    if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
+        throw new Error("pytest-benchmark format must have a 'benchmarks' array.");
+    }
+    const benchmarks = parsed.benchmarks.map((entry) => {
+        if (typeof entry.name !== "string") {
+            throw new Error("Each pytest-benchmark entry must have a 'name' string.");
+        }
+        if (!entry.stats || typeof entry.stats !== "object") {
+            throw new Error(`pytest-benchmark entry '${entry.name}' must have a 'stats' object.`);
+        }
+        const stats = entry.stats;
+        const metrics = {
+            mean: {
+                value: stats.mean,
+                unit: "s",
+                direction: "smaller_is_better",
+                range: stats.stddev,
+            },
+            median: {
+                value: stats.median,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            min: {
+                value: stats.min,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            max: {
+                value: stats.max,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            stddev: {
+                value: stats.stddev,
+                unit: "s",
+                direction: "smaller_is_better",
+            },
+            ops: {
+                value: stats.ops,
+                unit: "ops/s",
+                direction: "bigger_is_better",
+            },
+            rounds: {
+                value: stats.rounds,
+                direction: "bigger_is_better",
+            },
+        };
+        return {
+            name: entry.name,
+            metrics,
+        };
+    });
+    return { benchmarks };
+}
+//# sourceMappingURL=parse-pytest-benchmark.js.map
+
+/***/ }),
+
 /***/ 7215:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -60087,6 +60515,8 @@ const parse_rust_js_1 = __nccwpck_require__(7215);
 const parse_benchmark_action_js_1 = __nccwpck_require__(5985);
 const parse_native_js_1 = __nccwpck_require__(1470);
 const parse_hyperfine_js_1 = __nccwpck_require__(9347);
+const parse_pytest_benchmark_js_1 = __nccwpck_require__(3956);
+const parse_otlp_js_1 = __nccwpck_require__(3158);
 /**
  * Detect the input format and parse into the native BenchmarkResult.
  */
@@ -60105,6 +60535,10 @@ function parse(input, format = "auto") {
             return (0, parse_benchmark_action_js_1.parseBenchmarkAction)(input);
         case "hyperfine":
             return (0, parse_hyperfine_js_1.parseHyperfine)(input);
+        case "pytest-benchmark":
+            return (0, parse_pytest_benchmark_js_1.parsePytestBenchmark)(input);
+        case "otlp":
+            return (0, parse_otlp_js_1.projectBenchmarkResultFromOtlp)((0, parse_otlp_js_1.parseOtlpMetrics)(input));
         default:
             throw new Error(`Unknown format: ${format}`);
     }
@@ -60112,7 +60546,9 @@ function parse(input, format = "auto") {
 /**
  * Auto-detect format from content.
  *
+ * - If it parses as JSON with a "benchmarks" key and entries with "stats" → pytest-benchmark
  * - If it parses as JSON with a "benchmarks" key → native
+ * - If it parses as JSON with a "resourceMetrics" key → otlp
  * - If it parses as JSON with a "results" key containing objects with "command" → hyperfine
  * - If it parses as a JSON array of objects with "name"/"value"/"unit" → benchmark-action
  * - If it contains lines matching "Benchmark...\s+\d+" → go
@@ -60125,7 +60561,15 @@ function detectFormat(input) {
         try {
             const parsed = JSON.parse(trimmed);
             if (parsed.benchmarks && Array.isArray(parsed.benchmarks)) {
+                if (parsed.benchmarks.length > 0 &&
+                    parsed.benchmarks[0].stats &&
+                    typeof parsed.benchmarks[0].stats === "object") {
+                    return "pytest-benchmark";
+                }
                 return "native";
+            }
+            if (parsed.resourceMetrics && Array.isArray(parsed.resourceMetrics)) {
+                return "otlp";
             }
             if (parsed.results &&
                 Array.isArray(parsed.results) &&
@@ -60152,7 +60596,7 @@ function detectFormat(input) {
     if (/^test\s+\S+\s+\.\.\.\s+bench:/m.test(trimmed)) {
         return "rust";
     }
-    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine.");
+    throw new Error("Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine, pytest-benchmark, otlp.");
 }
 //# sourceMappingURL=parse.js.map
 

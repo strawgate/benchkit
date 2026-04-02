@@ -170,7 +170,7 @@ function projectGaugeLikeMetric(
   groups: Map<string, MutableBenchmarkGroup>,
   metric: OtlpMetric,
   points: OtlpGaugeDataPoint[] | undefined,
-  resourceAttributes: Record<string, string>,
+  _resourceAttributes: Record<string, string>,
 ): void {
   for (const point of points ?? []) {
     const pointAttributes = otlpAttributesToRecord(point.attributes);
@@ -221,7 +221,7 @@ function projectHistogramMetric(
   groups: Map<string, MutableBenchmarkGroup>,
   metric: OtlpMetric,
   points: OtlpHistogramDataPoint[] | undefined,
-  resourceAttributes: Record<string, string>,
+  _resourceAttributes: Record<string, string>,
 ): void {
   for (const point of points ?? []) {
     const pointAttributes = otlpAttributesToRecord(point.attributes);
