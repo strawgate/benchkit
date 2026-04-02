@@ -61,6 +61,62 @@ export {
   getOtlpTemporality,
   projectBenchmarkResultFromOtlp,
 } from "./parse-otlp.js";
+/** OTLP semantic convention constants — attribute names, valid values, reserved keys. */
+export {
+  ATTR_RUN_ID,
+  ATTR_KIND,
+  ATTR_SOURCE_FORMAT,
+  ATTR_REF,
+  ATTR_COMMIT,
+  ATTR_WORKFLOW,
+  ATTR_JOB,
+  ATTR_RUN_ATTEMPT,
+  ATTR_RUNNER,
+  ATTR_SERVICE_NAME,
+  ATTR_SERVICE_VERSION,
+  ATTR_SCENARIO,
+  ATTR_SERIES,
+  ATTR_METRIC_DIRECTION,
+  ATTR_METRIC_ROLE,
+  ATTR_IMPL,
+  ATTR_DATASET,
+  ATTR_TRANSPORT,
+  ATTR_BATCH_SIZE,
+  ATTR_PROCESS,
+  ATTR_PIPELINE,
+  ATTR_VARIANT,
+  REQUIRED_RESOURCE_ATTRIBUTES,
+  RESERVED_DATAPOINT_ATTRIBUTES,
+  VALID_RUN_KINDS,
+  VALID_DIRECTIONS,
+  VALID_METRIC_ROLES,
+  VALID_SOURCE_FORMATS,
+  MONITOR_METRIC_PREFIX,
+} from "./otlp-conventions.js";
+export type { RunKind, Direction, MetricRole, SourceFormat } from "./otlp-conventions.js";
+/** Runtime validators for the benchkit OTLP semantic contract. */
+export {
+  validateRequiredResourceAttributes,
+  validateRequiredDatapointAttributes,
+  validateRunKind,
+  validateDirection,
+  validateMetricRole,
+  validateSourceFormat,
+  isValidRunKind,
+  isValidDirection,
+  isValidMetricRole,
+  isValidSourceFormat,
+  isMonitorMetric,
+} from "./otlp-validation.js";
+/** Higher-level projection helpers for specific consumer use cases. */
+export {
+  extractRunMetrics,
+  extractScenarioMetrics,
+  extractComparisonMetrics,
+  extractResourceContext,
+  getMetricTemporality,
+  getMetricUnits,
+} from "./otlp-projections.js";
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 export { compare } from "./compare.js";
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */
