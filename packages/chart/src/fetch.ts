@@ -1,4 +1,4 @@
-import type { IndexFile, SeriesFile, BenchmarkResult } from "@benchkit/format";
+import type { IndexFile, SeriesFile, BenchmarkResult, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, RunDetailView } from "@benchkit/format";
 
 export interface DataSource {
   owner?: string;
@@ -10,7 +10,11 @@ export interface DataSource {
 
 export function rawUrl(ds: DataSource, filePath: string): string {
   if (ds.baseUrl) {
-    return `${ds.baseUrl.replace(/\/+$/, "")}/${filePath.replace(/^\/+/, "")}`;
+    let base = ds.baseUrl;
+    while (base.endsWith("/")) base = base.slice(0, -1);
+    let path = filePath;
+    while (path.startsWith("/")) path = path.slice(1);
+    return `${base}/${path}`;
   }
   if (!ds.owner || !ds.repo) {
     throw new Error("DataSource must have either baseUrl or owner+repo");
@@ -36,4 +40,20 @@ export function fetchSeries(ds: DataSource, metric: string, signal?: AbortSignal
 
 export function fetchRun(ds: DataSource, runId: string, signal?: AbortSignal): Promise<BenchmarkResult> {
   return fetchJson<BenchmarkResult>(ds, `data/runs/${runId}.json`, signal);
+}
+
+export function fetchPrIndex(ds: DataSource, signal?: AbortSignal): Promise<PrIndexEntry[]> {
+  return fetchJson<PrIndexEntry[]>(ds, "data/index/prs.json", signal);
+}
+
+export function fetchRefIndex(ds: DataSource, signal?: AbortSignal): Promise<RefIndexEntry[]> {
+  return fetchJson<RefIndexEntry[]>(ds, "data/index/refs.json", signal);
+}
+
+export function fetchMetricSummary(ds: DataSource, signal?: AbortSignal): Promise<MetricSummaryEntry[]> {
+  return fetchJson<MetricSummaryEntry[]>(ds, "data/index/metrics.json", signal);
+}
+
+export function fetchRunDetail(ds: DataSource, runId: string, signal?: AbortSignal): Promise<RunDetailView> {
+  return fetchJson<RunDetailView>(ds, `data/views/runs/${runId}/detail.json`, signal);
 }
