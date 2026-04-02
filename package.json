@@ -6,7 +6,7 @@
     "actions/*"
   ],
   "scripts": {
-    "build": "npm run build -w packages/format && npm run build --workspaces --if-present",
+    "build": "npm run build -w packages/format && npm run build -w packages/chart && npm run build -w packages/dashboard && npm run build -w actions/stash && npm run build -w actions/aggregate && npm run build -w actions/compare && npm run build -w actions/monitor",
     "test": "npm run build && npm run test:workspaces",
     "test:workspaces": "npm run test --workspaces --if-present",
     "lint": "eslint . && npm run lint --workspaces --if-present"
