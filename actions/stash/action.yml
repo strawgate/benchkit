@@ -11,7 +11,7 @@ inputs:
     description: 'Branch used for benchmark data storage.'
     default: 'bench-data'
   github-token:
-    description: 'Token with push access to the repository.'
+    description: 'Token with push access to the data branch.'
     default: ${{ github.token }}
   run-id:
     description: >-

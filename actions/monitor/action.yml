@@ -24,7 +24,7 @@ inputs:
     description: 'Run identifier. Defaults to $GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.'
     default: ''
   github-token:
-    description: 'Token for pushing to data branch.'
+    description: 'Token with push access to the data branch.'
     default: ${{ github.token }}
 
 outputs:
