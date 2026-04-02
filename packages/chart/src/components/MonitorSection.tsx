@@ -78,8 +78,18 @@ export function MonitorSection({
         {[...monitorSeriesMap.entries()].map(([metric, sf]) => (
           <div
             key={metric}
+            role="button"
+            tabIndex={0}
             onClick={() => onMetricClick?.(metric)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onMetricClick?.(metric);
+              }
+            }}
             class={`bk-card bk-card--interactive ${selectedMetric === metric ? "bk-card--selected" : ""}`}
+            aria-label={`View ${displayLabel(metric)} metric`}
+            aria-pressed={selectedMetric === metric}
           >
             <TrendChart
               series={sf}
