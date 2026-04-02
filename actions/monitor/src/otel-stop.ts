@@ -8,6 +8,7 @@
 
 import * as core from "@actions/core";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import type { OtelState } from "./types.js";
@@ -67,11 +68,11 @@ export async function stopCollector(state: OtelState): Promise<void> {
   }
 }
 
-function git(args: string[], cwd?: string): string {
+function git(args: string[], cwd?: string, timeout = 30_000): string {
   return execFileSync("git", args, {
     cwd,
     encoding: "utf-8",
-    timeout: 30_000,
+    timeout,
   }).trim();
 }
 
@@ -214,6 +215,7 @@ function pushTelemetryToDataBranch(state: OtelState): void {
     core.warning("No github-token provided — skipping data branch push.");
     return;
   }
+  core.setSecret(token);
 
   const workspace = process.env.GITHUB_WORKSPACE;
   if (!workspace) {
@@ -226,7 +228,7 @@ function pushTelemetryToDataBranch(state: OtelState): void {
   // Use a temporary worktree to commit to the data branch without
   // disturbing the main checkout.
   const worktreePath = path.join(
-    process.env.RUNNER_TEMP || "/tmp",
+    process.env.RUNNER_TEMP || os.tmpdir(),
     "benchkit-data-worktree",
   );
 
@@ -272,7 +274,7 @@ function pushTelemetryToDataBranch(state: OtelState): void {
     // Write telemetry file
     const telemetryDir = path.join(worktreePath, "data", "telemetry");
     fs.mkdirSync(telemetryDir, { recursive: true });
-    const targetPath = path.join(telemetryDir, `${state.runId}.otlp.json`);
+    const targetPath = path.join(telemetryDir, `${state.runId}.otlp.jsonl`);
     fs.copyFileSync(state.outputPath, targetPath);
 
     // Commit and push
@@ -295,9 +297,15 @@ function pushTelemetryToDataBranch(state: OtelState): void {
       ],
       worktreePath,
     );
-    git(["push", "origin", state.dataBranch], worktreePath);
+    git(["push", "origin", state.dataBranch], worktreePath, 120_000);
     core.info(`Telemetry pushed to ${state.dataBranch} for run ${state.runId}`);
   } finally {
+    // Clean up git auth header
+    try {
+      git(["config", "--local", "--unset", `http.${serverUrl}/.extraheader`], workspace);
+    } catch {
+      // best effort
+    }
     // Clean up worktree
     try {
       git(["worktree", "remove", "--force", worktreePath], workspace);
@@ -314,7 +322,18 @@ export async function stopOtelCollector(): Promise<void> {
     return;
   }
 
-  const state: OtelState = JSON.parse(fs.readFileSync(statePath, "utf-8"));
+  let state: OtelState;
+  try {
+    state = JSON.parse(fs.readFileSync(statePath, "utf-8"));
+  } catch (err) {
+    core.warning(`Failed to read collector state: ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+
+  if (!state.pid || !state.outputPath) {
+    core.warning("Collector state is incomplete — skipping.");
+    return;
+  }
 
   await stopCollector(state);
 
@@ -328,7 +347,11 @@ export async function stopOtelCollector(): Promise<void> {
     );
   }
 
-  pushTelemetryToDataBranch(state);
+  try {
+    pushTelemetryToDataBranch(state);
+  } catch (err) {
+    core.warning(`Failed to push telemetry: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   // Clean up temp files
   safeUnlink(statePath);

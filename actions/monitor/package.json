@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@actions/core": "^1.11.0",
-    "@actions/tool-cache": "^2.0.1",
-    "@benchkit/format": "*"
+    "@actions/tool-cache": "^2.0.1"
   }
 }

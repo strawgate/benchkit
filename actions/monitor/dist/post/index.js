@@ -55,6 +55,7 @@ exports.filterToRunnerDescendants = filterToRunnerDescendants;
 exports.stopOtelCollector = stopOtelCollector;
 const core = __importStar(__nccwpck_require__(7184));
 const fs = __importStar(__nccwpck_require__(3024));
+const os = __importStar(__nccwpck_require__(8161));
 const path = __importStar(__nccwpck_require__(6760));
 const node_child_process_1 = __nccwpck_require__(1421);
 function isProcessRunning(pid) {
@@ -110,11 +111,11 @@ async function stopCollector(state) {
         // already gone
     }
 }
-function git(args, cwd) {
+function git(args, cwd, timeout = 30_000) {
     return (0, node_child_process_1.execFileSync)("git", args, {
         cwd,
         encoding: "utf-8",
-        timeout: 30_000,
+        timeout,
     }).trim();
 }
 /**
@@ -236,6 +237,7 @@ function pushTelemetryToDataBranch(state) {
         core.warning("No github-token provided — skipping data branch push.");
         return;
     }
+    core.setSecret(token);
     const workspace = process.env.GITHUB_WORKSPACE;
     if (!workspace) {
         core.warning("GITHUB_WORKSPACE not set — skipping data branch push.");
@@ -244,7 +246,7 @@ function pushTelemetryToDataBranch(state) {
     const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
     // Use a temporary worktree to commit to the data branch without
     // disturbing the main checkout.
-    const worktreePath = path.join(process.env.RUNNER_TEMP || "/tmp", "benchkit-data-worktree");
+    const worktreePath = path.join(process.env.RUNNER_TEMP || os.tmpdir(), "benchkit-data-worktree");
     // Clean up any leftover worktree from a previous run
     if (fs.existsSync(worktreePath)) {
         try {
@@ -280,7 +282,7 @@ function pushTelemetryToDataBranch(state) {
         // Write telemetry file
         const telemetryDir = path.join(worktreePath, "data", "telemetry");
         fs.mkdirSync(telemetryDir, { recursive: true });
-        const targetPath = path.join(telemetryDir, `${state.runId}.otlp.json`);
+        const targetPath = path.join(telemetryDir, `${state.runId}.otlp.jsonl`);
         fs.copyFileSync(state.outputPath, targetPath);
         // Commit and push
         git(["add", targetPath], worktreePath);
@@ -298,10 +300,17 @@ function pushTelemetryToDataBranch(state) {
             "-c", "user.email=benchkit[bot]@users.noreply.github.com",
             "commit", "-m", `telemetry: store run ${state.runId}`,
         ], worktreePath);
-        git(["push", "origin", state.dataBranch], worktreePath);
+        git(["push", "origin", state.dataBranch], worktreePath, 120_000);
         core.info(`Telemetry pushed to ${state.dataBranch} for run ${state.runId}`);
     }
     finally {
+        // Clean up git auth header
+        try {
+            git(["config", "--local", "--unset", `http.${serverUrl}/.extraheader`], workspace);
+        }
+        catch {
+            // best effort
+        }
         // Clean up worktree
         try {
             git(["worktree", "remove", "--force", worktreePath], workspace);
@@ -317,7 +326,18 @@ async function stopOtelCollector() {
         core.info("No OTel Collector state found — was the monitor started?");
         return;
     }
-    const state = JSON.parse(fs.readFileSync(statePath, "utf-8"));
+    let state;
+    try {
+        state = JSON.parse(fs.readFileSync(statePath, "utf-8"));
+    }
+    catch (err) {
+        core.warning(`Failed to read collector state: ${err instanceof Error ? err.message : String(err)}`);
+        return;
+    }
+    if (!state.pid || !state.outputPath) {
+        core.warning("Collector state is incomplete — skipping.");
+        return;
+    }
     await stopCollector(state);
     // Filter process metrics to only runner descendants
     if (state.runnerPpid && fs.existsSync(state.outputPath)) {
@@ -326,7 +346,12 @@ async function stopOtelCollector() {
         fs.writeFileSync(state.outputPath, filtered);
         core.info(`Filtered processes: ${kept} resources kept, ${removed} non-runner resources removed`);
     }
-    pushTelemetryToDataBranch(state);
+    try {
+        pushTelemetryToDataBranch(state);
+    }
+    catch (err) {
+        core.warning(`Failed to push telemetry: ${err instanceof Error ? err.message : String(err)}`);
+    }
     // Clean up temp files
     safeUnlink(statePath);
     safeUnlink(state.configPath);
@@ -26169,6 +26194,14 @@ module.exports = require("node:events");
 
 "use strict";
 module.exports = require("node:fs");
+
+/***/ }),
+
+/***/ 8161:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:os");
 
 /***/ }),
 

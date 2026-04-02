@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   generateCollectorConfig,
   validateMetricSets,
+  validateScrapeInterval,
   type CollectorConfigOptions,
 } from "./otel-config.js";
 
@@ -58,8 +59,8 @@ describe("generateCollectorConfig", () => {
     assert.match(yaml, /memory: \{\}/);
     assert.match(yaml, /load: \{\}/);
     assert.match(yaml, /otlp:/);
-    assert.match(yaml, /endpoint: "0\.0\.0\.0:4317"/);
-    assert.match(yaml, /endpoint: "0\.0\.0\.0:4318"/);
+    assert.match(yaml, /endpoint: "127\.0\.0\.1:4317"/);
+    assert.match(yaml, /endpoint: "127\.0\.0\.1:4318"/);
     assert.match(yaml, /receivers: \[hostmetrics, otlp\]/);
     assert.match(yaml, /exporters: \[file\]/);
   });
@@ -175,5 +176,27 @@ describe("generateCollectorConfig", () => {
     assert.match(yaml, /benchkit\.run_id/);
     assert.match(yaml, /benchkit\.kind/);
     assert.match(yaml, /benchkit\.source_format/);
+  });
+
+  it("binds OTLP to localhost not 0.0.0.0", () => {
+    const yaml = generateCollectorConfig(baseOpts());
+    assert.match(yaml, /127\.0\.0\.1/);
+    assert.doesNotMatch(yaml, /0\.0\.0\.0/);
+  });
+});
+
+describe("validateScrapeInterval", () => {
+  it("accepts valid intervals", () => {
+    assert.equal(validateScrapeInterval("1s"), "1s");
+    assert.equal(validateScrapeInterval("250ms"), "250ms");
+    assert.equal(validateScrapeInterval("5m"), "5m");
+    assert.equal(validateScrapeInterval("1h"), "1h");
+  });
+
+  it("rejects invalid intervals", () => {
+    assert.throws(() => validateScrapeInterval("banana"), /Invalid scrape interval/);
+    assert.throws(() => validateScrapeInterval(""), /Invalid scrape interval/);
+    assert.throws(() => validateScrapeInterval("1x"), /Invalid scrape interval/);
+    assert.throws(() => validateScrapeInterval("1s\nmalicious: true"), /Invalid scrape interval/);
   });
 });

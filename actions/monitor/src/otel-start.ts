@@ -8,6 +8,7 @@
 import * as core from "@actions/core";
 import * as tc from "@actions/tool-cache";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
 import {
@@ -19,7 +20,7 @@ import type { OtelState } from "./types.js";
 const STATE_NAME = ".benchkit-otel.state.json";
 
 function runnerTemp(): string {
-  return process.env.RUNNER_TEMP || "/tmp";
+  return process.env.RUNNER_TEMP || os.tmpdir();
 }
 
 export function platformArch(): { os: string; arch: string; ext: string } {
@@ -75,12 +76,17 @@ async function ensureCollectorBinary(version: string): Promise<string> {
   return binaryPath;
 }
 
-function resolveRunId(): string {
+/** Sanitize a runId for safe use as a filename (strip path separators). */
+function sanitizeRunId(raw: string): string {
+  return raw.replace(/[/\\:*?"<>|]/g, "_");
+}
+
+export function resolveRunId(): string {
   const explicit = core.getInput("run-id");
-  if (explicit) return explicit;
+  if (explicit) return sanitizeRunId(explicit);
   const runId = process.env.GITHUB_RUN_ID;
   const attempt = process.env.GITHUB_RUN_ATTEMPT || "1";
-  if (runId) return `${runId}-${attempt}`;
+  if (runId) return sanitizeRunId(`${runId}-${attempt}`);
   return `local-${Date.now()}`;
 }
 
