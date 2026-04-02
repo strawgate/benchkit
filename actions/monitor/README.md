@@ -1,8 +1,19 @@
 # Benchkit Monitor
 
-Background system and custom metrics collection via [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/). Runs `otelcol-contrib` as a detached background process alongside your workflow steps, capturing host metrics and accepting custom OTLP telemetry. Raw OTLP JSONL is pushed to the data branch on completion.
+System and custom metrics collection via the OpenTelemetry Collector
+(`otelcol-contrib`). The action downloads a collector binary, starts it as a
+background process, exposes OTLP receivers for your benchmark code, and then
+stops and flushes telemetry automatically in the action post step.
 
-**Cross-platform.** Works on Linux, macOS, and Windows runners.
+## What it does
+
+- collects host metrics through the collector's `hostmetrics` receiver
+- enables OTLP gRPC (`4317`) and HTTP (`4318`) receivers by default so your
+  benchmark code can emit custom metrics to the same collector
+- writes a raw OTLP JSONL sidecar to the data branch at
+  `data/telemetry/{run-id}.otlp.json`
+- filters process metrics to runner-descendant processes before pushing, so the
+  stored telemetry stays focused on the benchmark job instead of the whole host
 
 ## Usage
 
@@ -10,81 +21,94 @@ Background system and custom metrics collection via [OpenTelemetry Collector](ht
 jobs:
   bench:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Start monitor
-        uses: strawgate/benchkit/actions/monitor@main
         id: monitor
+        uses: strawgate/benchkit/actions/monitor@main
+        with:
+          scrape-interval: 1s
+          metric-sets: cpu,memory,load,process
 
       - name: Run benchmarks
-        run: go test -bench=. -benchmem -count=3 ./... | tee bench.txt
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ steps.monitor.outputs.otlp-http-endpoint }}
+        run: |
+          go test -bench=. -benchmem -count=3 ./... | tee bench.txt
 
-      # Monitor stops automatically via post step — no explicit stop needed.
-
-      - name: Stash results
+      - name: Stash benchmark results
         uses: strawgate/benchkit/actions/stash@main
         with:
           results: bench.txt
           format: go
 ```
 
-The action uses a `post` entry point, so the collector is automatically stopped and telemetry is pushed when the job completes. No `mode: start/stop` needed.
-
-### Sending custom metrics
-
-The OTLP receivers are enabled by default. Your benchmarks can send custom metrics to the collector:
-
-```yaml
-      - name: Run benchmarks
-        run: ./my-benchmark --otlp-endpoint=${{ steps.monitor.outputs.otlp-grpc-endpoint }}
-```
+There is no explicit stop step. The action post step runs automatically when the
+job finishes, shuts down the collector, flushes telemetry, and pushes the raw
+OTLP sidecar to the data branch.
 
 ## Inputs
 
-| Input | Default | Description |
-|-------|---------|-------------|
-| `collector-version` | `0.102.0` | OTel Collector Contrib version to download. See [releases](https://github.com/open-telemetry/opentelemetry-collector-releases/releases). |
-| `scrape-interval` | `1s` | Host metrics scrape interval (e.g. `1s`, `250ms`, `5m`). |
-| `metric-sets` | `cpu,memory,load,process` | Comma-separated host metric scrapers: `cpu`, `memory`, `disk`, `network`, `process`, `load`, `filesystem`, `paging`. |
-| `otlp-grpc-port` | `4317` | OTLP gRPC receiver port. Set to `0` to disable. |
-| `otlp-http-port` | `4318` | OTLP HTTP receiver port. Set to `0` to disable. |
-| `data-branch` | `bench-data` | Branch to push telemetry data to. |
-| `run-id` | _(auto)_ | Run identifier. Defaults to `$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT`. |
-| `github-token` | `${{ github.token }}` | Token for pushing to the data branch. |
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `collector-version` | no | `0.102.0` | OTel Collector Contrib version to download. |
+| `scrape-interval` | no | `1s` | Host-metrics scrape interval. |
+| `metric-sets` | no | `cpu,memory,load,process` | Comma-separated host metric scrapers to enable. |
+| `otlp-grpc-port` | no | `4317` | OTLP gRPC receiver port. Set to `0` to disable. |
+| `otlp-http-port` | no | `4318` | OTLP HTTP receiver port. Set to `0` to disable. |
+| `data-branch` | no | `bench-data` | Branch where the telemetry sidecar is pushed. |
+| `run-id` | no | `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` | Run identifier used for the stored telemetry file. |
+| `github-token` | no | `${{ github.token }}` | Token used to push telemetry to the data branch. |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
-| `otlp-grpc-endpoint` | OTLP gRPC endpoint (e.g. `localhost:4317`). |
-| `otlp-http-endpoint` | OTLP HTTP endpoint (e.g. `http://localhost:4318`). |
+| `otlp-grpc-endpoint` | OTLP gRPC endpoint, e.g. `localhost:4317` |
+| `otlp-http-endpoint` | OTLP HTTP endpoint, e.g. `http://localhost:4318` |
 
-## Output format
+## Stored output
 
-Raw OTLP JSONL is pushed to `<data-branch>/data/telemetry/<run-id>.otlp.jsonl`. Each line is a JSON object with `resourceMetrics[]` containing `scopeMetrics[]` with metric data points.
+The collector exports line-delimited OTLP JSON to a temporary file during the
+job. In the post step, benchkit:
 
-Resource attributes include benchkit semantic conventions:
-- `benchkit.run_id` — run identifier
-- `benchkit.kind` — `hybrid`
-- `benchkit.source_format` — `otlp`
-- `benchkit.ref` — git ref (when available)
-- `benchkit.commit` — commit SHA (when available)
+1. stops the collector gracefully
+2. filters process resources to runner-descendant processes
+3. copies the telemetry sidecar to `data/telemetry/{run-id}.otlp.json`
+4. commits and pushes that file to the data branch
+
+Benchkit also stamps resource attributes such as `benchkit.run_id`,
+`benchkit.kind=hybrid`, `benchkit.source_format=otlp`, and, when available,
+`benchkit.ref` and `benchkit.commit`.
 
 ## How it works
 
-1. **Start** (main step): downloads `otelcol-contrib`, generates collector config, spawns it as a detached process, records state
-2. **Collect**: hostmetrics receiver scrapes system/process metrics at the configured interval; OTLP receivers accept custom metrics from benchmarks
-3. **Stop** (post step): sends SIGTERM, waits for graceful flush, dumps collector logs for diagnostics, filters process metrics to runner descendants, pushes OTLP JSONL to data branch
-4. **Process filtering**: records the runner worker PID at start; in post-processing, builds a process tree from OTLP `process.pid`/`process.parent_pid` attributes and keeps only runner descendants
+1. **Start**: download `otelcol-contrib` from the GitHub release, generate a
+   collector config from action inputs, and launch it as a detached process
+2. **Collect**: scrape host metrics and accept user OTLP metrics through the
+   enabled OTLP receivers
+3. **Post step**: stop the collector automatically, let it flush pending data,
+   filter process metrics, and push the sidecar to the data branch
 
-## Architecture
+## Platform support
 
-```
-main.ts          → Action entry (start collector)
-post.ts          → Post-step entry (stop, filter, push)
-otel-config.ts   → Collector YAML config generation
-otel-start.ts    → Download, cache, spawn collector
-otel-stop.ts     → Stop collector, filter processes, push telemetry
-types.ts         → OtelState interface
-```
+The action supports the collector platforms that the implementation knows how to
+fetch today:
+
+- Linux (`x64`, `arm64`)
+- macOS (`x64`, `arm64`)
+- Windows (`x64`, `arm64`)
+
+## Relationship to stash and aggregate
+
+- `actions/stash` still stores the benchmark result itself at
+  `data/runs/{run-id}.json`
+- `actions/monitor` stores raw OTLP telemetry separately at
+  `data/telemetry/{run-id}.otlp.json`
+- aggregate and chart work can then consume those sidecars through OTLP-aware
+  pipelines without forcing an eager conversion to `BenchmarkResult` at capture
+  time

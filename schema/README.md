@@ -1,6 +1,6 @@
 # benchkit JSON schemas
 
-This directory contains [JSON Schema (2020-12)](https://json-schema.org/draft/2020-12/schema) definitions for the data files produced by benchkit. Every file on the `bench-data` branch conforms to one of these schemas.
+This directory contains [JSON Schema (2020-12)](https://json-schema.org/draft/2020-12/schema) definitions for the benchkit-native files produced by benchkit. Normalized run files and derived aggregate views conform to these schemas. Raw OTLP telemetry sidecars written by `actions/monitor` live under `data/telemetry/*.otlp.json` and follow the OTLP JSON format instead.
 
 ## Schemas
 
@@ -99,6 +99,28 @@ Defines **pre-aggregated time-series** data for a single metric.
 
 Written to `data/series/{metricName}.json` by `bench-aggregate`.
 
+### `index-refs.schema.json`
+
+Defines the ref-grouped navigation index written to `data/index/refs.json`.
+Each entry summarizes the latest run and total run count for a git ref.
+
+### `index-prs.schema.json`
+
+Defines the pull-request navigation index written to `data/index/prs.json`.
+Each entry summarizes the latest run and total run count for one PR ref.
+
+### `index-metrics.schema.json`
+
+Defines the metric navigation index written to `data/index/metrics.json`.
+Each entry records a metric name plus latest-activity metadata used by metric
+discovery or custom metric surfaces.
+
+### `view-run-detail.schema.json`
+
+Defines the run-detail artifact written to `data/views/runs/{runId}/detail.json`.
+This groups one run's metrics into a detail-friendly view so run-oriented UIs do
+not need to fetch and reshape all raw run files client-side.
+
 ### `comparison-result.schema.json`
 
 Defines the output of `compare()` — per-benchmark per-metric comparison with
@@ -144,7 +166,11 @@ When direction is absent, consumers should default to `smaller_is_better`.
 ```bash
 npx ajv validate -s schema/benchmark-result.schema.json -d my-results.json
 npx ajv validate -s schema/index.schema.json -d data/index.json
+npx ajv validate -s schema/index-refs.schema.json -d data/index/refs.json
+npx ajv validate -s schema/index-prs.schema.json -d data/index/prs.json
+npx ajv validate -s schema/index-metrics.schema.json -d data/index/metrics.json
 npx ajv validate -s schema/series.schema.json -d data/series/ns_per_op.json
+npx ajv validate -s schema/view-run-detail.schema.json -d data/views/runs/my-run/detail.json
 ```
 
 ### Programmatic (with @benchkit/format)
@@ -164,11 +190,19 @@ bench-stash                      bench-aggregate
     │                                  │
     ▼                                  ▼
 data/runs/{id}.json ───────► data/index.json
-  (benchmark-result)           (index)
+  (benchmark-result)           data/index/refs.json
+                               data/index/prs.json
+                               data/index/metrics.json
                                data/series/{metric}.json
-                                 (series)
+                               data/views/runs/{id}/detail.json
+
+actions/monitor
+    │
+    ▼
+data/telemetry/{id}.otlp.json
+  (raw OTLP JSON sidecar)
 ```
 
 1. `bench-stash` parses benchmark output and writes a run file.
-2. `bench-aggregate` reads all run files and rebuilds the index and series.
-3. `@benchkit/chart` reads the index and series to render dashboards.
+2. `bench-aggregate` reads all run files and rebuilds the backward-compatible index, per-metric series, navigation indexes, and run-detail views.
+3. `@benchkit/chart` and future run/PR-oriented surfaces read those derived files instead of joining many raw runs in the browser.
