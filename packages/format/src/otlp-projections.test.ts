@@ -202,6 +202,32 @@ describe("extractScenarioMetrics", () => {
     assert.ok(diag);
     assert.ok("_monitor.cpu_user_pct" in diag.metrics);
   });
+
+  it("treats monitor datapoints without benchkit.scenario as diagnostic", () => {
+    const doc = makeDocument({
+      extraMetrics: [
+        {
+          name: "_monitor.mem_rss_mb",
+          gauge: {
+            dataPoints: [
+              {
+                attributes: [
+                  makeAttribute("benchkit.series", "runner"),
+                  makeAttribute("benchkit.metric.direction", "smaller_is_better"),
+                ],
+                timeUnixNano: "1700000000000000000",
+                asDouble: 512,
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const result = extractScenarioMetrics(doc, "diagnostic");
+    const diag = result.benchmarks.find((b) => b.name === "diagnostic");
+    assert.ok(diag);
+    assert.ok("_monitor.mem_rss_mb" in diag.metrics);
+  });
 });
 
 // ---------------------------------------------------------------------------

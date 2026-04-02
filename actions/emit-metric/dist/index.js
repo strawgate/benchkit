@@ -26728,6 +26728,10 @@ function getMetricUnits(metrics) {
 // ---------------------------------------------------------------------------
 // Internal filtering helpers
 // ---------------------------------------------------------------------------
+function effectiveScenario(metricName, attrs) {
+    return attrs[otlp_conventions_js_1.ATTR_SCENARIO]
+        || (metricName.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
+}
 function filterDocumentByScenario(doc, scenario) {
     return {
         resourceMetrics: doc.resourceMetrics.map((rm) => ({
@@ -26743,7 +26747,7 @@ function filterDocumentByScenario(doc, scenario) {
                                 ...metric.gauge,
                                 dataPoints: (metric.gauge?.dataPoints ?? []).filter((dp) => {
                                     const attrs = (0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes);
-                                    return attrs[otlp_conventions_js_1.ATTR_SCENARIO] === scenario;
+                                    return effectiveScenario(metric.name, attrs) === scenario;
                                 }),
                             },
                         };
@@ -26755,7 +26759,7 @@ function filterDocumentByScenario(doc, scenario) {
                                 ...metric.sum,
                                 dataPoints: (metric.sum?.dataPoints ?? []).filter((dp) => {
                                     const attrs = (0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes);
-                                    return attrs[otlp_conventions_js_1.ATTR_SCENARIO] === scenario;
+                                    return effectiveScenario(metric.name, attrs) === scenario;
                                 }),
                             },
                         };
@@ -26767,7 +26771,7 @@ function filterDocumentByScenario(doc, scenario) {
                             ...metric.histogram,
                             dataPoints: (metric.histogram?.dataPoints ?? []).filter((dp) => {
                                 const attrs = (0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes);
-                                return attrs[otlp_conventions_js_1.ATTR_SCENARIO] === scenario;
+                                return effectiveScenario(metric.name, attrs) === scenario;
                             }),
                         },
                     };
@@ -26897,8 +26901,10 @@ function validateRequiredResourceAttributes(attrs) {
  * to `"diagnostic"` scenario.
  */
 function validateRequiredDatapointAttributes(attrs, metricName) {
-    if (isMonitorMetric(metricName))
+    if (isMonitorMetric(metricName)) {
+        requireAttribute(attrs, otlp_conventions_js_1.ATTR_SERIES);
         return;
+    }
     requireAttribute(attrs, otlp_conventions_js_1.ATTR_SCENARIO);
     requireAttribute(attrs, otlp_conventions_js_1.ATTR_SERIES);
 }
@@ -27344,7 +27350,11 @@ function requiredResourceAttr(attributes, key, metricName) {
 }
 function resolveDirection(metricName, unit, pointAttributes) {
     const explicit = pointAttributes[otlp_conventions_js_1.ATTR_METRIC_DIRECTION];
-    if (explicit && (0, otlp_validation_js_1.isValidDirection)(explicit)) {
+    if (explicit) {
+        if (!(0, otlp_validation_js_1.isValidDirection)(explicit)) {
+            throw new Error(`Invalid '${otlp_conventions_js_1.ATTR_METRIC_DIRECTION}' value '${explicit}' on metric '${metricName}'. ` +
+                `Expected 'bigger_is_better' or 'smaller_is_better'.`);
+        }
         return explicit;
     }
     return (0, infer_direction_js_1.inferDirection)(unit ?? metricName);
@@ -27463,9 +27473,9 @@ function projectBenchmarkResultFromOtlp(document) {
         requiredResourceAttr(resourceAttributes, otlp_conventions_js_1.ATTR_KIND, "<resource>");
         requiredResourceAttr(resourceAttributes, otlp_conventions_js_1.ATTR_SOURCE_FORMAT, "<resource>");
         contextTemplate = {
-            commit: resourceAttributes[otlp_conventions_js_1.ATTR_COMMIT],
-            ref: resourceAttributes[otlp_conventions_js_1.ATTR_REF],
-            runner: resourceAttributes[otlp_conventions_js_1.ATTR_RUNNER] || resourceAttributes[otlp_conventions_js_1.ATTR_SERVICE_NAME],
+            commit: contextTemplate?.commit || resourceAttributes[otlp_conventions_js_1.ATTR_COMMIT],
+            ref: contextTemplate?.ref || resourceAttributes[otlp_conventions_js_1.ATTR_REF],
+            runner: contextTemplate?.runner || resourceAttributes[otlp_conventions_js_1.ATTR_RUNNER] || resourceAttributes[otlp_conventions_js_1.ATTR_SERVICE_NAME],
             timestamp: contextTemplate?.timestamp,
         };
         for (const scopeMetric of resourceMetric.scopeMetrics ?? []) {
