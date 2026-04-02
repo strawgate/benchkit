@@ -1,12 +1,12 @@
 # Benchkit Vision and Roadmap
 
 This document captures the intended product direction for benchkit and maps the
-current issue backlog to a plan that gets us there.
+current issue backlog to the work that is still open on `main`.
 
 ## Product vision
 
 Benchkit should become the simplest way to publish, compare, and investigate
- benchmark results from GitHub workflows, whether the thing being benchmarked is:
+benchmark results from GitHub workflows, whether the thing being benchmarked is:
 
 - a microbenchmark (`go test -bench`, Rust bench, Hyperfine, etc.)
 - a workflow benchmark (hit an HTTP endpoint, load a page, scrape a metrics
@@ -23,11 +23,9 @@ Benchkit should power three first-class user journeys:
 
 1. **Custom metric exploration**
    Use benchkit primitives directly to explore arbitrary metrics over time.
-
 2. **Competitive benchmarking**
    Compare one product or implementation against several others across a small
    set of scenarios, track rank, and explain changes.
-
 3. **PR and run benchmarking**
    Compare a PR or a single run against a baseline, identify regressions, and
    inspect the exact run that produced them.
@@ -66,33 +64,47 @@ Supporting primitives remain reusable:
 Runner and monitor metrics should not be overview content by default. They
 belong in run detail and diagnostics.
 
-## Benchmark model
+## Current state on `main`
 
-Benchkit needs to equally support two kinds of metrics in the same run:
+Benchkit has already shipped several pieces that older planning docs still list
+as future work:
 
-1. **Outcome metrics**
-   The metrics users actually care about:
-   - `events_per_sec`
-   - `docs_indexed_per_sec`
-   - `p95_latency_ms`
-   - `service_rss_mb`
-   - `success_rate_pct`
+- release automation for npm packages and GitHub releases (`#38`)
+- PR comparison foundations:
+  - `compare()`
+  - `formatComparisonMarkdown()`
+  - `actions/compare`
+  - stash job summaries
+  - `save-data-file`
+- expanded parser support in `@benchkit/format`:
+  - Rust bench
+  - Hyperfine
+  - pytest-benchmark
+  - initial OTLP parsing and compatibility projection helpers
+- expanded aggregate outputs on the data branch:
+  - `data/index.json`
+  - `data/series/*.json`
+  - `data/index/refs.json`
+  - `data/index/prs.json`
+  - `data/index/metrics.json`
+  - `data/views/runs/{run-id}/detail.json`
+- recommended producer/aggregate workflow separation and collision-proof run
+  naming
 
-2. **Diagnostic metrics**
-   Metrics captured by `actions/monitor`:
-   - `_monitor/wall_clock_ms`
-   - `_monitor/cpu_user_pct`
-   - `_monitor/peak_rss_kb`
-   - `_monitor/io_write_bytes`
+The collector-backed monitor work tracked by PR `#101` is the current monitor
+direction for this repository. It starts a single-step OTel Collector, exposes
+OTLP endpoints during the job, and stores raw telemetry sidecars under
+`data/telemetry/` in its post step.
 
-The native benchmark format already supports this shape. The missing work is
-mostly around authoring ergonomics and productized dashboards.
+## Aggregation architecture direction
 
-## Aggregation architecture
+Benchkit is moving toward a more explicit OTLP-first aggregation model. See:
 
-Benchkit is also moving toward a more explicit OTLP-first aggregation model.
-See [`docs/otlp-aggregation-architecture.md`](otlp-aggregation-architecture.md)
-for the current proposal around:
+- [`docs/otlp-aggregation-architecture.md`](otlp-aggregation-architecture.md)
+- [`docs/otlp-semantic-conventions.md`](otlp-semantic-conventions.md)
+- [`docs/artifact-layout.md`](artifact-layout.md)
+
+The direction is:
 
 - OTLP as canonical raw storage
 - benchkit semantic conventions on top of OTLP
@@ -101,75 +113,85 @@ for the current proposal around:
 
 ## Issue audit
 
-### Issues that are directly on the critical path
+### Recently shipped foundations
 
-- **#46 — `actions/compare`**
-  This is central to the PR/run workflow.
+These are done and should not be treated as upcoming roadmap items anymore:
 
-- **#47 — stash job summary**
-  Useful for visibility and adoption, especially before users have a polished
-  dashboard.
+- `#38` — release automation
+- `#46` — `actions/compare`
+- `#47` — stash job summary support
+- `#48` — `save-data-file` in stash
+- `#50` — `formatComparisonMarkdown`
+- `#91` — aggregate view artifacts (first emitted set landed)
+- `#92` — aggregate-on-push / collision-proof raw run flow
 
-- **#48 — `save-data-file` option in stash**
-  Needed for PR workflows that should compare without polluting long-term data.
+### Current critical path
 
-- **#50 — `formatComparisonMarkdown`**
-  A core building block for compare action output and run/PR summaries.
+The most important open architecture work is now the OTLP transition:
 
-- **#38 — release automation**
-  Required before the package is easy to consume outside the demo repo.
+- `#89` — benchkit OTLP semantic conventions
+- `#90` — OTLP parser / traversal + projection helpers in `@benchkit/format`
+- `#93` — dataset-local transform layer for chart views
 
-### Issues that are directionally correct but should be reframed
+These issues define the contract and bounded transform model that later UI work
+should build on.
 
-- **#61 — PR-grouped dashboard view**
-  The real target is larger than a grouped section. This should evolve into a
-  dedicated run/PR-oriented dashboard surface with drilldown into run detail.
+### Workflow benchmark ergonomics
 
-- **#54 — refactor `Dashboard.tsx`**
-  Refactoring is still valuable, but the current dashboard shape should not be
-  treated as the final UX. Refactor after the top-level IA is settled, not
-  before.
+This backlog now exists explicitly and no longer needs to be described as a gap
+in issue coverage:
 
-- **#7 — integration examples**
-  Correct and still needed. This should explicitly include workflow/native and
-  hybrid benchmark examples, not just hosting guidance.
+- `#79` — workflow benchmark starter kit
+- `#80` — native result emitter helper
+- `#81` — JSON and Prometheus collector helpers
+- `#7` — integration examples and benchmark recipes
 
-### Gaps not well represented by current issues
+### Dashboard surfaces
 
-The current backlog does not yet capture several pieces of the vision:
+The main chart-surface work remains open:
 
-- workflow benchmark starter kit
-- native result emitter helper
-- JSON / Prometheus metric collection helpers
-- competitive dashboard surface
-- shared run detail surface across all entry points
-- documentation that teaches "measure anything in a workflow"
-- demo repo examples covering code, workflow, and hybrid benchmark types
+- `#61` — `RunDashboard`
+- `#82` — `RunDetail`
+- `#83` — `CompetitiveDashboard`
+- `#54` — chart refactor after the IA split settles
 
-These should become explicit issues or epics.
+### Infra follow-up
+
+- `#63` — simplify CI workflow to use the root build command
 
 ## Plan
 
-### Phase 1 — Make PR and run workflows real
+### Phase 1 — Shipped PR and run workflow foundation
+
+Done on `main`:
+
+- compare pipeline and markdown formatting
+- PR comment / summary support
+- stash support for non-persistent PR runs
+- release automation
+
+This phase is now complete enough that docs should describe it as shipped.
+
+### Phase 2 — Stabilize the OTLP contract
 
 Goal:
 
-- make benchkit genuinely useful for PR regression detection and run analysis
+- make OTLP a safe long-term raw format without introducing a universal
+  benchkit telemetry intermediate
 
 Work:
 
-- ship `formatComparisonMarkdown` (#50)
-- ship `actions/compare` (#46)
-- add `save-data-file` to stash (#48)
-- add stash job summary support (#47)
-- keep compare output useful in PR comments and job summaries
+- finalize semantic conventions (`#89`)
+- continue typed OTLP parsing and narrowly scoped projections (`#90`)
+- keep aggregate and chart work aligned with that contract
 
 Exit criteria:
 
-- users can benchmark a PR, compare against baseline, and review results
-  without opening the dashboard
+- producers and parsers can agree on required OTLP semantics
+- downstream code can consume OTLP safely through typed helpers and
+  purpose-built projections
 
-### Phase 2 — Make workflow benchmarks ergonomic
+### Phase 3 — Workflow benchmark ergonomics
 
 Goal:
 
@@ -177,21 +199,19 @@ Goal:
 
 Work:
 
-- add a native result emitter helper
-- add example collectors for JSON and Prometheus endpoints
-- add cookbook docs for code, workflow, and hybrid benchmark patterns
-- strengthen integration examples (#7)
+- ship the starter kit and helpers (`#79`, `#80`, `#81`)
+- strengthen examples and cookbook docs (`#7`)
+- keep recipes aligned with the aggregate artifact layout already on `main`
 
 Exit criteria:
 
 - a new user can copy a minimal recipe to benchmark:
-
   - an HTTP API
-  - a service that exposes JSON stats
-  - a service with Prometheus metrics
+  - a service exposing JSON stats
+  - a service exposing Prometheus metrics
   - a browser/page-load workflow
 
-### Phase 3 — Split the dashboard into real user journeys
+### Phase 4 — Split the dashboard into real user journeys
 
 Goal:
 
@@ -199,54 +219,35 @@ Goal:
 
 Work:
 
-- design a `RunDashboard` / PR-oriented surface
-- design a `CompetitiveDashboard`
-- make `RunDetail` a first-class reusable surface
-- keep monitor metrics in run detail
-- re-scope #61 toward the new run/PR dashboard model
+- design and ship `RunDashboard`, `RunDetail`, and `CompetitiveDashboard`
+- keep monitor diagnostics in run detail
+- build on the emitted aggregate artifacts instead of browser-side cross-file
+  joins
+- refactor shared chart code after the target IA settles (`#54`)
 
 Exit criteria:
 
-- beats-bench style projects feel natural in benchkit
+- run / PR style projects feel natural in benchkit
 - competitive benchmarking projects feel natural in benchkit
 
-### Phase 4 — Polish, refactor, and publish
+### Phase 5 — Monitor architecture follow-up
 
 Goal:
 
-- package the system as a polished toolkit ready for wider adoption
+- land the collector-backed monitor cleanly and keep the OTLP telemetry story
+  aligned with the rest of the architecture
 
 Work:
 
-- release automation (#38)
-- dashboard/package refactors (#54 and follow-ups)
-- additional chart polish and ergonomics
-- demo repo switch to published packages
+- review PR `#101` together with the OTLP semantic and aggregate-artifact work
+- keep monitor examples, telemetry storage docs, and aggregation plans aligned
+- avoid reintroducing stash-time monitor conversion now that telemetry is stored
+  as raw OTLP sidecars
 
 Exit criteria:
 
-- consumers can install published packages and follow documented recipes without
-  cloning benchkit internals
-
-## Suggested new epics
-
-These do not yet have clear issue coverage and should be filed:
-
-1. **Workflow benchmark starter kit**
-   Provide emitter helpers, collector helpers, and starter workflows.
-
-2. **Run detail as a first-class chart package surface**
-   A reusable run inspection component shared by all dashboard entry points.
-
-3. **Competitive dashboard**
-   Scenario-first dashboard for ranking and gap analysis.
-
-4. **Run / PR dashboard**
-   Baseline vs selected-run workflow with diagnostics and drilldown.
-
-5. **Workflow benchmark cookbook**
-   Documentation with copy-paste recipes for measuring arbitrary stats in
-   workflows.
+- monitor docs and OTLP storage docs match the action implementation and the
+  intended aggregate path
 
 ## What we should not optimize for
 
@@ -254,14 +255,20 @@ These do not yet have clear issue coverage and should be filed:
   direction is still changing
 - presenting runner metrics as top-level overview content
 - over-fitting the toolkit to only Go microbenchmarks
+- inventing a universal benchkit telemetry point model on top of OTLP
+- frontend cross-file joins as the default query model
 
 ## Near-term recommendation
 
 The next implementation priority should be:
 
-1. finish the PR comparison workflow (#46, #47, #48, #50)
-2. add the workflow benchmark ergonomics layer (helpers + cookbook docs)
-3. only then reshape the chart package into the scenario/run-oriented surfaces
+1. finish `#89` and `#90`
+2. keep `#93` aligned with emitted aggregate artifacts rather than inventing a
+   separate frontend data model
+3. ship the workflow benchmark ergonomics layer (`#79`, `#80`, `#81`, `#7`)
+4. then reshape the chart package into run-first and scenario-first surfaces
+   (`#61`, `#82`, `#83`, `#54`)
+5. keep monitor docs aligned with PR `#101` and the raw-OTLP telemetry flow
 
-That sequence gives benchkit immediate user value while still moving toward the
-larger product vision.
+That sequence keeps the repo accurate today while still moving toward the larger
+product vision.
