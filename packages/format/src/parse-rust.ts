@@ -1,4 +1,5 @@
 import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import { unitToMetricName } from "./parser-utils.js";
 
 /**
  * Parse Rust cargo bench (libtest) output into native format.
@@ -42,7 +43,3 @@ export function parseRustBench(input: string): BenchmarkResult {
   return { benchmarks };
 }
 
-function unitToMetricName(unit: string): string {
-  if (unit === "ns/iter") return "ns_per_iter";
-  return unit.replace(/\//g, "_per_").replace(/\s+/g, "_").toLowerCase();
-}

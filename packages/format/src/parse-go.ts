@@ -1,5 +1,6 @@
 import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
 import { inferDirection } from "./infer-direction.js";
+import { unitToMetricName } from "./parser-utils.js";
 
 /**
  * Parse Go benchmark text output into native format.
@@ -51,16 +52,6 @@ export function parseGoBench(input: string): BenchmarkResult {
   }
 
   return { benchmarks };
-}
-
-function unitToMetricName(unit: string): string {
-  // "ns/op" -> "ns_per_op", "B/op" -> "bytes_per_op", "allocs/op" -> "allocs_per_op"
-  const aliases: Record<string, string> = {
-    "B/op": "bytes_per_op",
-    "MB/s": "mb_per_s",
-  };
-  if (aliases[unit]) return aliases[unit];
-  return unit.replace(/\//g, "_per_").replace(/\s+/g, "_").toLowerCase();
 }
 
 
