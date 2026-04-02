@@ -23,6 +23,7 @@ Benchkit dogfoods itself. View live results at **[strawgate.github.io/benchkit](
 | **Benchkit Aggregate** | [`actions/aggregate`](actions/aggregate) | GitHub Action — reads every stored run and rebuilds `index.json`, per-metric `series/*.json`, navigation indexes under `data/index/`, and run detail views under `data/views/runs/`. |
 | **Benchkit Compare** | [`actions/compare`](actions/compare) | GitHub Action — compares the current run against recent baseline runs, posts a PR comment, and optionally fails CI on regression. |
 | **Benchkit Monitor** | [`actions/monitor`](actions/monitor) | GitHub Action — starts an OpenTelemetry Collector, scrapes host metrics, accepts OTLP metrics from benchmark code, and stores raw telemetry sidecars on the data branch in its post step. |
+| **Benchkit Emit Metric** | [`actions/emit-metric`](actions/emit-metric) | GitHub Action — sends a one-off OTLP metric to the collector started by `actions/monitor`, so workflows can record custom scores without shipping their own OTLP client logic. |
 
 ## Architecture
 
@@ -77,7 +78,7 @@ bench-data
     │   ├── ns_per_op.json        # pre-aggregated time-series per metric
     │   └── allocs.json
     ├── telemetry/
-    │   └── 12345-1.otlp.json     # raw OTLP telemetry sidecar (written by monitor)
+    │   └── 12345-1.otlp.jsonl.gz # raw OTLP telemetry sidecar (written by monitor)
     └── views/
         └── runs/
             └── 12345-1--bench/
@@ -141,7 +142,7 @@ and then flushes telemetry automatically in the action post step:
   id: monitor
   uses: strawgate/benchkit/actions/monitor@main
   with:
-    scrape-interval: 1s
+    scrape-interval: 5s
     metric-sets: cpu,memory,load,process
 
 - name: Run benchmarks
@@ -156,7 +157,25 @@ and then flushes telemetry automatically in the action post step:
     format: auto
 ```
 
-The monitor action stores raw OTLP telemetry at `data/telemetry/{run-id}.otlp.json` on the data branch. Host metrics are scraped automatically, and your benchmark code can optionally send custom OTLP metrics to the collector using the emitted endpoint outputs.
+The monitor action stores raw OTLP telemetry at `data/telemetry/{run-id}.otlp.jsonl.gz` on the data branch. Host metrics are scraped automatically, and your benchmark code can optionally send custom OTLP metrics to the collector using the emitted endpoint outputs.
+
+If you just need to record a one-off workflow value, you can pair the monitor with `actions/emit-metric`:
+
+```yaml
+- name: Emit score metric
+  uses: strawgate/benchkit/actions/emit-metric@main
+  with:
+    otlp-http-endpoint: ${{ steps.monitor.outputs.otlp-http-endpoint }}
+    name: test_score
+    value: 74
+    unit: points
+    scenario: search-relevance
+    series: baseline
+    direction: bigger_is_better
+    attributes: |
+      dataset=wiki
+      variant=bm25
+```
 
 ### 2. Aggregate into index, series, and view files
 
