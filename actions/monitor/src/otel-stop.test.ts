@@ -354,4 +354,27 @@ describe("filterToRunnerDescendants", () => {
     assert.equal(removed, 0);
     assert.equal(filtered.trim(), "");
   });
+
+  it("keeps user OTLP metrics with process.pid but no parent_pid", () => {
+    // User-sent OTLP metrics may have process.pid set but not parent_pid
+    const customOtlpResource = {
+      resource: {
+        attributes: [
+          { key: "process.pid", value: { intValue: 999 } },
+          { key: "custom.metric", value: { stringValue: "user-metric" } },
+          // Note: no process.parent_pid attribute
+        ],
+      },
+      scopeMetrics: [
+        {
+          scope: { name: "user-app" },
+          metrics: [{ name: "custom.duration", gauge: { dataPoints: [{ asDouble: 42 }] } }],
+        },
+      ],
+    };
+    const content = makeJsonlLine(customOtlpResource);
+    const { kept, removed } = filterToRunnerDescendants(content, 1);
+    assert.equal(kept, 1, "user OTLP metric should be kept");
+    assert.equal(removed, 0);
+  });
 });
