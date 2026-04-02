@@ -66,11 +66,15 @@ export function otlpAttributesToRecord(attributes: OtlpAttribute[] | undefined):
  * @returns The parsed `OtlpMetricsDocument`.
  */
 export function parseOtlpMetrics(input: string): OtlpMetricsDocument {
-  const parsed = JSON.parse(input) as Record<string, unknown>;
-  if (!Array.isArray(parsed.resourceMetrics)) {
-    throw new Error("OTLP metrics JSON must contain a top-level resourceMetrics array.");
+  const parsed: unknown = JSON.parse(input);
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    !Array.isArray((parsed as Record<string, unknown>).resourceMetrics)
+  ) {
+    throw new Error("[parse-otlp] OTLP metrics JSON must contain a top-level resourceMetrics array.");
   }
-  return parsed as unknown as OtlpMetricsDocument;
+  return parsed as OtlpMetricsDocument;
 }
 
 /**

@@ -74,7 +74,7 @@ describe("parseHyperfine", () => {
 
   it("throws on invalid hyperfine JSON", () => {
     assert.throws(() => parseHyperfine('{"foo": "bar"}'), {
-      message: "Hyperfine format must have a 'results' array.",
+      message: /\[parse-hyperfine\].*results/,
     });
   });
 });

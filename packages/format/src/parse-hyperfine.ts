@@ -1,4 +1,5 @@
 import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import { inferDirection } from "./infer-direction.js";
 
 /**
  * Parse Hyperfine JSON output into BenchmarkResult.
@@ -33,41 +34,42 @@ export function parseHyperfine(input: string): BenchmarkResult {
   const parsed = JSON.parse(input);
 
   if (!parsed.results || !Array.isArray(parsed.results)) {
-    throw new Error("Hyperfine format must have a 'results' array.");
+    throw new Error("[parse-hyperfine] Hyperfine format must have a 'results' array.");
   }
 
   const benchmarks: Benchmark[] = (parsed.results as HyperfineResult[]).map(
     (result) => {
       if (typeof result.command !== "string") {
-        throw new Error("Each Hyperfine result must have a 'command' string.");
+        throw new Error("[parse-hyperfine] Each Hyperfine result must have a 'command' string.");
       }
 
+      const timeDirection = inferDirection("s");
       const metrics: Record<string, Metric> = {
         mean: {
           value: result.mean,
           unit: "s",
-          direction: "smaller_is_better",
+          direction: timeDirection,
           range: result.stddev,
         },
         stddev: {
           value: result.stddev,
           unit: "s",
-          direction: "smaller_is_better",
+          direction: timeDirection,
         },
         median: {
           value: result.median,
           unit: "s",
-          direction: "smaller_is_better",
+          direction: timeDirection,
         },
         min: {
           value: result.min,
           unit: "s",
-          direction: "smaller_is_better",
+          direction: timeDirection,
         },
         max: {
           value: result.max,
           unit: "s",
-          direction: "smaller_is_better",
+          direction: timeDirection,
         },
       };
 

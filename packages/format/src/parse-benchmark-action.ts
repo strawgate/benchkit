@@ -10,34 +10,47 @@ import { inferDirection } from "./infer-direction.js";
  * Direction is inferred from the unit string.
  */
 
-interface BenchmarkActionEntry {
-  name: string;
-  value: number;
-  unit: string;
-  range?: string;
-  extra?: string;
-}
-
 export function parseBenchmarkAction(input: string): BenchmarkResult {
-  const entries: BenchmarkActionEntry[] = JSON.parse(input);
+  const entries: unknown = JSON.parse(input);
 
   if (!Array.isArray(entries)) {
     throw new Error(
-      "benchmark-action format must be a JSON array of {name, value, unit} objects.",
+      "[parse-benchmark-action] Input must be a JSON array of {name, value, unit} objects.",
     );
   }
 
-  const benchmarks: Benchmark[] = entries.map((entry) => {
-    const range = parseRange(entry.range);
+  const benchmarks: Benchmark[] = entries.map((entry: unknown, index: number) => {
+    if (typeof entry !== "object" || entry === null) {
+      throw new Error(
+        `[parse-benchmark-action] Entry at index ${index} must be an object.`,
+      );
+    }
+    const e = entry as Record<string, unknown>;
+    if (typeof e.name !== "string") {
+      throw new Error(
+        `[parse-benchmark-action] Entry at index ${index} must have a string 'name'.`,
+      );
+    }
+    if (typeof e.value !== "number") {
+      throw new Error(
+        `[parse-benchmark-action] Entry '${e.name}' must have a numeric 'value'.`,
+      );
+    }
+    if (typeof e.unit !== "string") {
+      throw new Error(
+        `[parse-benchmark-action] Entry '${e.name}' must have a string 'unit'.`,
+      );
+    }
+    const range = parseRange(e.range as string | undefined);
     const metric: Metric = {
-      value: entry.value,
-      unit: entry.unit,
-      direction: inferDirection(entry.unit),
+      value: e.value,
+      unit: e.unit,
+      direction: inferDirection(e.unit),
     };
     if (range !== undefined) metric.range = range;
 
     return {
-      name: entry.name,
+      name: e.name,
       metrics: { value: metric },
     };
   });
