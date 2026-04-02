@@ -68,7 +68,7 @@ OTLP sidecar to the data branch.
 
 | Output | Description |
 |--------|-------------|
-| `otlp-grpc-endpoint` | OTLP gRPC endpoint, e.g. `localhost:4317` |
+| `otlp-grpc-endpoint` | OTLP gRPC endpoint, e.g. `grpc://localhost:4317` |
 | `otlp-http-endpoint` | OTLP HTTP endpoint, e.g. `http://localhost:4318` |
 
 ## Stored output
