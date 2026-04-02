@@ -50,7 +50,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.isProcessRunning = isProcessRunning;
 exports.safeUnlink = safeUnlink;
 exports.stopCollector = stopCollector;
-exports.filterBaselineProcesses = filterBaselineProcesses;
 exports.stopOtelCollector = stopOtelCollector;
 const core = __importStar(__nccwpck_require__(7184));
 const fs = __importStar(__nccwpck_require__(3024));
@@ -115,62 +114,6 @@ function git(args, cwd) {
         encoding: "utf-8",
         timeout: 30_000,
     }).trim();
-}
-/**
- * Extract the process.pid integer value from an OTLP resource's attributes.
- * Returns undefined if no process.pid attribute exists (i.e. system-level metrics).
- */
-function getResourcePid(attributes) {
-    const attr = attributes.find((a) => a.key === "process.pid");
-    if (!attr)
-        return undefined;
-    const raw = attr.value.intValue ?? attr.value.stringValue;
-    if (raw === undefined)
-        return undefined;
-    return typeof raw === "number" ? raw : parseInt(String(raw), 10);
-}
-/**
- * Filter OTLP JSONL to remove process-scoped resourceMetrics whose
- * process.pid was in the baseline set. System-level metrics (no process.pid)
- * and user-sent OTLP metrics (no process.pid) pass through unmodified.
- *
- * Returns the filtered content and the count of removed/kept resources.
- */
-function filterBaselineProcesses(content, baselinePids) {
-    let kept = 0;
-    let removed = 0;
-    const outputLines = [];
-    for (const line of content.split("\n")) {
-        if (!line.trim())
-            continue;
-        let parsed;
-        try {
-            parsed = JSON.parse(line);
-        }
-        catch {
-            // Keep unparseable lines as-is
-            outputLines.push(line);
-            continue;
-        }
-        if (!parsed.resourceMetrics) {
-            outputLines.push(line);
-            continue;
-        }
-        const filteredResources = parsed.resourceMetrics.filter((rm) => {
-            const pid = getResourcePid(rm.resource?.attributes ?? []);
-            // Keep if: no PID (system metrics), or PID is NOT in baseline
-            if (pid === undefined || !baselinePids.has(pid)) {
-                kept++;
-                return true;
-            }
-            removed++;
-            return false;
-        });
-        if (filteredResources.length > 0) {
-            outputLines.push(JSON.stringify({ resourceMetrics: filteredResources }));
-        }
-    }
-    return { filtered: outputLines.join("\n") + "\n", kept, removed };
 }
 function pushTelemetryToDataBranch(state) {
     if (!fs.existsSync(state.outputPath)) {
@@ -271,14 +214,6 @@ async function stopOtelCollector() {
     }
     const state = JSON.parse(fs.readFileSync(statePath, "utf-8"));
     await stopCollector(state);
-    // Filter out baseline processes before pushing
-    if (state.baselinePids?.length && fs.existsSync(state.outputPath)) {
-        const raw = fs.readFileSync(state.outputPath, "utf-8");
-        const baselineSet = new Set(state.baselinePids);
-        const { filtered, kept, removed } = filterBaselineProcesses(raw, baselineSet);
-        fs.writeFileSync(state.outputPath, filtered);
-        core.info(`Filtered processes: ${kept} resources kept, ${removed} baseline resources removed`);
-    }
     pushTelemetryToDataBranch(state);
     // Clean up temp files
     safeUnlink(statePath);

@@ -161,6 +161,7 @@ function generateCollectorConfig(opts) {
         throw new Error("No receivers enabled. Enable at least one metric set or OTLP port.");
     }
     // processors — stamp resource attributes for benchkit semantic conventions
+    const processorNames = [];
     lines.push("");
     lines.push("processors:");
     lines.push("  resource:");
@@ -169,6 +170,18 @@ function generateCollectorConfig(opts) {
         lines.push(`      - key: ${attr.key}`);
         lines.push(`        value: "${yamlEscape(attr.value)}"`);
         lines.push(`        action: ${attr.action}`);
+    }
+    processorNames.push("resource");
+    // OTTL filter — drop process metrics for PIDs that existed before the
+    // collector started (baseline processes like systemd, sshd, etc.)
+    if (opts.baselinePids && opts.baselinePids.length > 0) {
+        const pidRegex = `^(${opts.baselinePids.join("|")})$`;
+        lines.push("  filter/baseline:");
+        lines.push("    error_mode: ignore");
+        lines.push("    metrics:");
+        lines.push("      metric:");
+        lines.push(`        - 'resource.attributes["process.pid"] != nil and IsMatch(Stringify(resource.attributes["process.pid"]), "${yamlEscape(pidRegex)}")'`);
+        processorNames.push("filter/baseline");
     }
     // exporters
     lines.push("");
@@ -181,7 +194,7 @@ function generateCollectorConfig(opts) {
     lines.push("  pipelines:");
     lines.push("    metrics:");
     lines.push(`      receivers: [${receiverNames.join(", ")}]`);
-    lines.push("      processors: [resource]");
+    lines.push(`      processors: [${processorNames.join(", ")}]`);
     lines.push("      exporters: [file]");
     lines.push("");
     return lines.join("\n");
@@ -354,6 +367,7 @@ async function startOtelCollector() {
         runId,
         ref: process.env.GITHUB_REF,
         commit: process.env.GITHUB_SHA,
+        baselinePids,
     });
     fs.writeFileSync(configPath, configYaml);
     core.info(`Collector config written to ${configPath}`);
