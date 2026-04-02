@@ -9,26 +9,6 @@
       },
       "points": [
         {
-          "timestamp": "2026-04-02T02:00:49.568Z",
-          "value": 310,
-          "commit": "762be98fa4a36879a5247cfbc56402b0daf50485",
-          "run_id": "test-count-23880043571-1",
-          "range": 20
-        },
-        {
-          "timestamp": "2026-04-02T02:00:50.256Z",
-          "value": 320,
-          "commit": "762be98fa4a36879a5247cfbc56402b0daf50485",
-          "run_id": "test-go-23880043571-1"
-        },
-        {
-          "timestamp": "2026-04-02T03:31:37.838Z",
-          "value": 310,
-          "commit": "07af9a974541e9ef481d0202ef455859e8657abd",
-          "run_id": "test-count-23882389114-1",
-          "range": 20
-        },
-        {
           "timestamp": "2026-04-02T03:31:39.267Z",
           "value": 320,
           "commit": "07af9a974541e9ef481d0202ef455859e8657abd",
@@ -42,26 +22,6 @@
       },
       "points": [
         {
-          "timestamp": "2026-04-02T02:00:49.568Z",
-          "value": 110,
-          "commit": "762be98fa4a36879a5247cfbc56402b0daf50485",
-          "run_id": "test-count-23880043571-1",
-          "range": 20
-        },
-        {
-          "timestamp": "2026-04-02T02:00:50.256Z",
-          "value": 120,
-          "commit": "762be98fa4a36879a5247cfbc56402b0daf50485",
-          "run_id": "test-go-23880043571-1"
-        },
-        {
-          "timestamp": "2026-04-02T03:31:37.838Z",
-          "value": 110,
-          "commit": "07af9a974541e9ef481d0202ef455859e8657abd",
-          "run_id": "test-count-23882389114-1",
-          "range": 20
-        },
-        {
           "timestamp": "2026-04-02T03:31:39.267Z",
           "value": 120,
           "commit": "07af9a974541e9ef481d0202ef455859e8657abd",
@@ -74,12 +34,6 @@
         "procs": "4"
       },
       "points": [
-        {
-          "timestamp": "2026-04-02T02:00:50.256Z",
-          "value": 450,
-          "commit": "762be98fa4a36879a5247cfbc56402b0daf50485",
-          "run_id": "test-go-23880043571-1"
-        },
         {
           "timestamp": "2026-04-02T03:31:39.267Z",
           "value": 450,
