@@ -57,6 +57,11 @@ export interface ComparisonChartProps {
   /** Label for the current/PR trace. Defaults to "Current". */
   currentLabel?: string;
 
+  /** Color for the base/baseline trace. Defaults to blue (#3b82f6). */
+  baseColor?: string;
+  /** Color for the current/PR trace. Defaults to green (#22c55e). */
+  currentColor?: string;
+
   height?: number;
   title?: string;
   subtitle?: string;
@@ -77,6 +82,8 @@ export function ComparisonChart({
   currentPoints,
   baseLabel = "Base",
   currentLabel = "Current",
+  baseColor = BASE_COLOR,
+  currentColor = CURRENT_COLOR,
   height = 300,
   title,
   subtitle,
@@ -120,8 +127,8 @@ export function ComparisonChart({
       {
         label: baseLabel,
         data: baseData as { x: number; y: number }[],
-        borderColor: BASE_COLOR,
-        backgroundColor: `${BASE_COLOR}22`,
+        borderColor: baseColor,
+        backgroundColor: `${baseColor}22`,
         fill: false,
         tension: 0,
         borderWidth: 1.75,
@@ -129,14 +136,14 @@ export function ComparisonChart({
         spanGaps: true,
         pointRadius: 2.5,
         pointHoverRadius: 6,
-        pointBackgroundColor: BASE_COLOR,
-        pointBorderColor: BASE_COLOR,
+        pointBackgroundColor: baseColor,
+        pointBorderColor: baseColor,
       },
       {
         label: currentLabel,
         data: currentData as { x: number; y: number }[],
-        borderColor: CURRENT_COLOR,
-        backgroundColor: `${CURRENT_COLOR}22`,
+        borderColor: currentColor,
+        backgroundColor: `${currentColor}22`,
         fill: false,
         tension: 0,
         borderWidth: 1.75,
@@ -144,8 +151,8 @@ export function ComparisonChart({
         spanGaps: true,
         pointRadius: 2.5,
         pointHoverRadius: 6,
-        pointBackgroundColor: CURRENT_COLOR,
-        pointBorderColor: CURRENT_COLOR,
+        pointBackgroundColor: currentColor,
+        pointBorderColor: currentColor,
       },
     ].filter((ds) => ds.data.length > 0);
 
@@ -258,13 +265,15 @@ export function ComparisonChart({
     currentData,
     baseLabel,
     currentLabel,
+    baseColor,
+    currentColor,
     metric,
     unit,
   ]);
 
   const visibleLabels = [
-    ...(baseData.length > 0 ? [{ label: baseLabel, color: BASE_COLOR }] : []),
-    ...(currentData.length > 0 ? [{ label: currentLabel, color: CURRENT_COLOR }] : []),
+    ...(baseData.length > 0 ? [{ label: baseLabel, color: baseColor }] : []),
+    ...(currentData.length > 0 ? [{ label: currentLabel, color: currentColor }] : []),
   ];
 
   return (

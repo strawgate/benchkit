@@ -6,6 +6,10 @@ export interface RunTableProps {
   onSelectRun?: (runId: string) => void;
   /** Link commits to GitHub or other VCS */
   commitHref?: (commit: string, run: RunEntry) => string | undefined;
+  /** Custom Git ref formatter. Defaults to stripping refs/heads/, formatting PR refs, etc. */
+  formatRef?: (ref: string | undefined) => string;
+  /** Column header for the benchmark count column. Default: "Benchmarks" */
+  benchmarksColumnLabel?: string;
   class?: string;
 }
 
@@ -18,8 +22,9 @@ function formatRef(ref: string | undefined): string {
   return ref;
 }
 
-export function RunTable({ index, maxRows, onSelectRun, commitHref, class: className }: RunTableProps) {
+export function RunTable({ index, maxRows, onSelectRun, commitHref, formatRef: formatRefProp, benchmarksColumnLabel = "Benchmarks", class: className }: RunTableProps) {
   const runs = maxRows ? index.runs.slice(0, maxRows) : index.runs;
+  const resolvedFormatRef = formatRefProp ?? formatRef;
 
   return (
     <div class={["bk-table-shell", className].filter(Boolean).join(" ")}>
@@ -31,7 +36,7 @@ export function RunTable({ index, maxRows, onSelectRun, commitHref, class: class
               <th>Time</th>
               <th>Commit</th>
               <th>Ref</th>
-              <th class="bk-table__numeric">Benchmarks</th>
+              <th class="bk-table__numeric">{benchmarksColumnLabel}</th>
               <th>Metrics</th>
             </tr>
           </thead>
@@ -57,7 +62,7 @@ export function RunTable({ index, maxRows, onSelectRun, commitHref, class: class
                     <span class="bk-muted">—</span>
                   )}
                 </td>
-                <td>{formatRef(run.ref)}</td>
+                <td>{resolvedFormatRef(run.ref)}</td>
                 <td class="bk-table__numeric">{run.benchmarks ?? "—"}</td>
                 <td class="bk-muted">{run.metrics?.join(", ") ?? "—"}</td>
               </tr>

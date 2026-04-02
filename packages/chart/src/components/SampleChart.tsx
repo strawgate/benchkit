@@ -32,6 +32,8 @@ export interface SampleChartProps {
   /** Custom label for a metric key. */
   metricLabelFormatter?: (metric: string) => string;
   showLegend?: boolean;
+  /** Custom message shown when there are no samples to display. */
+  emptyMessage?: string;
   /** CSS class name */
   class?: string;
 }
@@ -56,6 +58,7 @@ export function SampleChart({
   lineWidth,
   metricLabelFormatter,
   showLegend = true,
+  emptyMessage,
   class: className,
 }: SampleChartProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -215,7 +218,7 @@ export function SampleChart({
           <div class="bk-chart-panel__empty">
             <div>
               <strong>No sample data.</strong>
-              <div>No intra-run time-series samples are available for this benchmark.</div>
+              <div>{emptyMessage ?? "No intra-run time-series samples are available for this benchmark."}</div>
             </div>
           </div>
         ) : (

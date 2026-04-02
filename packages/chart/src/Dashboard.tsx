@@ -11,6 +11,29 @@ import { getWinner } from "./leaderboard.js";
 import { detectRegressions, regressionTooltip, type RegressionResult } from "./utils.js";
 import { defaultMetricLabel, isMonitorMetric } from "./labels.js";
 
+export interface DashboardLabels {
+  /** Text shown while data is loading. Default: "Loading benchmark dashboard" */
+  loading?: string;
+  /** Hero eyebrow text. Default: "Benchkit dashboard" */
+  heroEyebrow?: string;
+  /** Hero title. Default: "Performance overview" */
+  heroTitle?: string;
+  /** KPI label for metric count. Default: "Metrics" */
+  kpiMetrics?: string;
+  /** KPI label for run count. Default: "Runs" */
+  kpiRuns?: string;
+  /** KPI label for series count. Default: "Series" */
+  kpiSeries?: string;
+  /** KPI label for monitor metric count. Default: "Monitor" */
+  kpiMonitor?: string;
+  /** Section title for user benchmark metrics. Default: "Primary metrics" */
+  primaryMetrics?: string;
+  /** Section title for the recent runs table. Default: "Recent runs" */
+  recentRuns?: string;
+  /** Description below the recent runs section title. Default: built-in string */
+  recentRunsDescription?: string;
+}
+
 export interface DashboardProps {
   source: DataSource;
   class?: string;
@@ -28,6 +51,8 @@ export interface DashboardProps {
   regressionThreshold?: number;
   /** Number of preceding data points to average for regression detection (default: 5) */
   regressionWindow?: number;
+  /** Optional label overrides for all hardcoded text. Unset keys use defaults. */
+  labels?: DashboardLabels;
 }
 
 type View = "overview" | { metric: string };
@@ -51,6 +76,7 @@ export function Dashboard({
   commitHref,
   regressionThreshold = 10,
   regressionWindow = 5,
+  labels = {},
 }: DashboardProps) {
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [seriesMap, setSeriesMap] = useState<Map<string, SeriesFile>>(new Map());
@@ -116,7 +142,7 @@ export function Dashboard({
     return (
       <div class={rootClassName}>
         <div class="bk-loading">
-          <h2 class="bk-loading__title">Loading benchmark dashboard</h2>
+          <h2 class="bk-loading__title">{labels.loading ?? "Loading benchmark dashboard"}</h2>
           <p class="bk-loading__body">Fetching benchmark index and metric series for the latest runs.</p>
         </div>
       </div>
@@ -172,24 +198,24 @@ export function Dashboard({
         <section class="bk-hero bk-hero--compact">
           <div class="bk-hero__header bk-hero__header--compact">
             <div>
-              <p class="bk-hero__eyebrow">Benchkit dashboard</p>
-              <h2 class="bk-hero__title bk-hero__title--compact">Performance overview</h2>
+              <p class="bk-hero__eyebrow">{labels.heroEyebrow ?? "Benchkit dashboard"}</p>
+              <h2 class="bk-hero__title bk-hero__title--compact">{labels.heroTitle ?? "Performance overview"}</h2>
             </div>
             <div class="bk-kpis bk-kpis--compact">
               <div class="bk-kpi">
-                <span class="bk-kpi__label">Metrics</span>
+                <span class="bk-kpi__label">{labels.kpiMetrics ?? "Metrics"}</span>
                 <span class="bk-kpi__value">{userMetricNames.length}</span>
               </div>
               <div class="bk-kpi">
-                <span class="bk-kpi__label">Runs</span>
+                <span class="bk-kpi__label">{labels.kpiRuns ?? "Runs"}</span>
                 <span class="bk-kpi__value">{index.runs.length}</span>
               </div>
               <div class="bk-kpi">
-                <span class="bk-kpi__label">Series</span>
+                <span class="bk-kpi__label">{labels.kpiSeries ?? "Series"}</span>
                 <span class="bk-kpi__value">{visibleSeriesCount}</span>
               </div>
               <div class="bk-kpi">
-                <span class="bk-kpi__label">Monitor</span>
+                <span class="bk-kpi__label">{labels.kpiMonitor ?? "Monitor"}</span>
                 <span class="bk-kpi__value">{monitorMetricCount}</span>
               </div>
             </div>
@@ -298,7 +324,7 @@ export function Dashboard({
           <section class="bk-section">
             <div class="bk-section__header">
               <div>
-                <h3 class="bk-section__title">Primary metrics</h3>
+                <h3 class="bk-section__title">{labels.primaryMetrics ?? "Primary metrics"}</h3>
               </div>
             </div>
             <div class="bk-overview-grid">
@@ -392,8 +418,8 @@ export function Dashboard({
         <section class="bk-section">
           <div class="bk-section__header">
             <div>
-              <h3 class="bk-section__title">Recent runs</h3>
-              <p class="bk-section__description">Commit context and captured metric coverage for the latest benchmark executions.</p>
+              <h3 class="bk-section__title">{labels.recentRuns ?? "Recent runs"}</h3>
+              <p class="bk-section__description">{labels.recentRunsDescription ?? "Commit context and captured metric coverage for the latest benchmark executions."}</p>
             </div>
           </div>
           <RunTable index={index} maxRows={maxRuns} commitHref={commitHref} />

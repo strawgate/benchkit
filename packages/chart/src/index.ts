@@ -10,7 +10,7 @@ export { Leaderboard, type LeaderboardProps } from "./components/Leaderboard.js"
 export { VerdictBanner, type VerdictBannerProps } from "./components/VerdictBanner.js";
 export { ComparisonSummaryTable, type ComparisonSummaryTableProps, formatPct, formatValue, sortEntries, statusIcon, directionLabel } from "./components/ComparisonSummaryTable.js";
 export { RunSelector, type RunSelectorProps, formatTimestamp, shortCommit, defaultFormatRef } from "./components/RunSelector.js";
-export { Dashboard, type DashboardProps } from "./Dashboard.js";
+export { Dashboard, type DashboardProps, type DashboardLabels } from "./Dashboard.js";
 
 // Data fetching
 export { fetchIndex, fetchSeries, fetchRun, fetchPrIndex, fetchRefIndex, fetchMetricSummary, fetchRunDetail, type DataSource } from "./fetch.js";

@@ -36,9 +36,11 @@ export interface TagFilterProps {
   seriesMap: Map<string, SeriesFile>;
   activeFilters: Record<string, string>;
   onFilterChange: (filters: Record<string, string>) => void;
+  /** Label for the clear-all button. Default: "Clear filters" */
+  clearFiltersLabel?: string;
 }
 
-export function TagFilter({ seriesMap, activeFilters, onFilterChange }: TagFilterProps) {
+export function TagFilter({ seriesMap, activeFilters, onFilterChange, clearFiltersLabel = "Clear filters" }: TagFilterProps) {
   const availableTags = extractTags(seriesMap);
   const tagKeys = Object.keys(availableTags);
 
@@ -88,7 +90,7 @@ export function TagFilter({ seriesMap, activeFilters, onFilterChange }: TagFilte
           onClick={clearAll}
           class="bk-chip bk-link-button--danger"
         >
-          Clear filters
+          {clearFiltersLabel}
         </button>
       )}
     </div>

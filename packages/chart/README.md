@@ -64,6 +64,36 @@ import { Dashboard } from "@benchkit/chart";
 | `commitHref` | `(commit: string, run: RunEntry) => string \| undefined` | — | Builds a URL for each commit SHA in the run table. |
 | `regressionThreshold` | `number` | `10` | Percentage change that triggers a regression warning. |
 | `regressionWindow` | `number` | `5` | Number of preceding data points averaged for regression detection. |
+| `labels` | `DashboardLabels` | — | Optional label overrides for all hardcoded UI text (see below). |
+
+#### `DashboardLabels`
+
+All fields are optional. Unset fields use the listed defaults.
+
+| Field | Default |
+|-------|---------|
+| `loading` | `"Loading benchmark dashboard"` |
+| `heroEyebrow` | `"Benchkit dashboard"` |
+| `heroTitle` | `"Performance overview"` |
+| `kpiMetrics` | `"Metrics"` |
+| `kpiRuns` | `"Runs"` |
+| `kpiSeries` | `"Series"` |
+| `kpiMonitor` | `"Monitor"` |
+| `primaryMetrics` | `"Primary metrics"` |
+| `recentRuns` | `"Recent runs"` |
+| `recentRunsDescription` | Built-in description string |
+
+```tsx
+<Dashboard
+  source={{ owner: "your-org", repo: "your-repo" }}
+  labels={{
+    heroEyebrow: "My App",
+    heroTitle: "Throughput overview",
+    primaryMetrics: "Key metrics",
+    recentRuns: "Recent test runs",
+  }}
+/>
+```
 
 ---
 
@@ -99,6 +129,8 @@ import type { SeriesFile } from "@benchkit/format";
 | `seriesNameFormatter` | `(name: string, entry: SeriesEntry) => string` | — | Custom legend label renderer. |
 | `class` | `string` | — | CSS class applied to the wrapper `<div>`. |
 | `regressions` | `RegressionResult[]` | — | Regression results; affected series get a red dot on their last point. |
+| `flaggedSeries` | `RegressionResult[]` | — | Alias for `regressions`; takes precedence when both are set. Prefer for non-benchmark use cases. |
+| `emptyMessage` | `string` | `"Try clearing filters or widening the selected metric."` | Message shown below the "No series to display." heading when there are no series. |
 
 ---
 
@@ -191,8 +223,9 @@ function MyDashboard({ seriesMap }: { seriesMap: Map<string, SeriesFile> }) {
 | `seriesMap` | `Map<string, SeriesFile>` | — | **Required.** All series for the current view; tags are extracted from this map. |
 | `activeFilters` | `Record<string, string>` | — | **Required.** Currently active `{ tagKey: tagValue }` pairs. |
 | `onFilterChange` | `(filters: Record<string, string>) => void` | — | **Required.** Called with a new filter map whenever the user toggles a pill. |
+| `clearFiltersLabel` | `string` | `"Clear filters"` | Label for the clear-all button shown when filters are active. |
 
-Each tag key is rendered as a group of pill buttons. Clicking an active pill deactivates it; clicking an inactive pill activates it (one active value per key at a time). A **Clear filters** button appears when any filter is active.
+Each tag key is rendered as a group of pill buttons. Clicking an active pill deactivates it; clicking an inactive pill activates it (one active value per key at a time). A button (labelled **Clear filters** by default, customizable via `clearFiltersLabel`) appears when any filter is active.
 
 ---
 
@@ -226,6 +259,8 @@ import { MonitorSection } from "@benchkit/chart";
 | `seriesNameFormatter` | `(name: string, entry: SeriesEntry) => string` | — | Custom series name renderer. |
 | `onMetricClick` | `(metric: string) => void` | — | Called when the user clicks a monitor metric card. |
 | `selectedMetric` | `string \| null` | — | Highlights the card with a matching metric name. |
+| `sectionTitle` | `string` | `"Runner metrics"` | Section heading. |
+| `sectionDescription` | `string` | Built-in description string | Section description below the heading. |
 
 The component renders `null` when `monitorSeriesMap` is empty.
 
@@ -254,7 +289,84 @@ import { RunTable } from "@benchkit/chart";
 | `maxRows` | `number` | — | Limit the number of rows shown. |
 | `onSelectRun` | `(runId: string) => void` | — | Called when a row is clicked. |
 | `commitHref` | `(commit: string, run: RunEntry) => string \| undefined` | — | Builds a URL for each commit SHA. |
+| `formatRef` | `(ref: string \| undefined) => string` | Built-in Git ref formatter | Custom Git ref formatter. Defaults to stripping `refs/heads/`, formatting PR refs as `PR #N`, etc. |
+| `benchmarksColumnLabel` | `string` | `"Benchmarks"` | Column header for the benchmark count column. |
 | `class` | `string` | — | CSS class applied to the `<table>` element. |
+
+---
+
+### `SampleChart`
+
+Renders an intra-run time-series line chart for one or more metric keys sampled during a single benchmark run.
+
+```tsx
+import "@benchkit/chart/css";
+import { SampleChart } from "@benchkit/chart";
+
+<SampleChart
+  samples={samples}
+  metrics={["eps", "heap_mb"]}
+  title="Intra-run samples"
+  height={300}
+  metricLabelFormatter={(m) => m.replace(/_/g, " ")}
+/>
+```
+
+#### `SampleChartProps`
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `samples` | `Sample[]` | — | **Required.** Intra-run time-series data points. |
+| `metrics` | `string[]` | — | Metric keys to plot. Defaults to all keys found in the samples. |
+| `height` | `number` | `300` | Canvas height in pixels. |
+| `title` | `string` | — | Chart heading. |
+| `subtitle` | `string` | — | Chart sub-heading. |
+| `compact` | `boolean` | `false` | Compact sparkline mode for embedding in summary cards. |
+| `lineWidth` | `number` | `1.75` (`1.5` compact) | Stroke width for trend lines. |
+| `metricLabelFormatter` | `(metric: string) => string` | — | Custom label for a metric key. |
+| `showLegend` | `boolean` | `true` | Show the legend when multiple metrics are plotted. |
+| `emptyMessage` | `string` | `"No intra-run time-series samples are available for this benchmark."` | Message shown when there are no samples. |
+| `class` | `string` | — | CSS class applied to the wrapper `<div>`. |
+
+---
+
+### `ComparisonChart`
+
+Renders a two-trace line chart comparing a **base** and a **current** dataset for a single metric. Supports both intra-run sample mode (`Sample[]`) and cross-run aggregated mode (`DataPoint[]`).
+
+```tsx
+import "@benchkit/chart/css";
+import { ComparisonChart } from "@benchkit/chart";
+
+<ComparisonChart
+  metric="eps"
+  unit="req/s"
+  baseLabel="main"
+  currentLabel="PR #42"
+  basePoints={baseDataPoints}
+  currentPoints={prDataPoints}
+  height={300}
+/>
+```
+
+#### `ComparisonChartProps`
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `metric` | `string` | — | **Required.** Metric name used for the y-axis label and sample extraction. |
+| `unit` | `string` | — | Unit string appended to the y-axis label and tooltip values. |
+| `baseSamples` | `Sample[]` | — | Base trace in sample mode (x-axis = elapsed seconds). |
+| `currentSamples` | `Sample[]` | — | Current trace in sample mode. |
+| `basePoints` | `DataPoint[]` | — | Base trace in aggregated mode (x-axis = ISO-8601 timestamps). |
+| `currentPoints` | `DataPoint[]` | — | Current trace in aggregated mode. |
+| `baseLabel` | `string` | `"Base"` | Legend label for the base trace. |
+| `currentLabel` | `string` | `"Current"` | Legend label for the current trace. |
+| `baseColor` | `string` | `"#3b82f6"` (blue) | Line/point color for the base trace. |
+| `currentColor` | `string` | `"#22c55e"` (green) | Line/point color for the current trace. |
+| `height` | `number` | `300` | Canvas height in pixels. |
+| `title` | `string` | — | Chart heading. |
+| `subtitle` | `string` | — | Chart sub-heading. |
+| `class` | `string` | — | CSS class applied to the wrapper `<div>`. |
 
 ---
 

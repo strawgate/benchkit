@@ -48,6 +48,13 @@ export interface TrendChartProps {
   class?: string;
   /** Regression results to highlight on the chart (last data point of each flagged series). */
   regressions?: RegressionResult[];
+  /**
+   * Alias for `regressions`. When both are provided, `flaggedSeries` takes precedence.
+   * Prefer this name for non-benchmark use cases.
+   */
+  flaggedSeries?: RegressionResult[];
+  /** Custom message shown when there are no series to display. */
+  emptyMessage?: string;
 }
 
 function formatValue(value: number, compact = false): string {
@@ -75,7 +82,10 @@ export function TrendChart({
   showSeriesCount = true,
   class: className,
   regressions,
+  flaggedSeries,
+  emptyMessage,
 }: TrendChartProps) {
+  const resolvedRegressions = flaggedSeries ?? regressions;
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
@@ -93,11 +103,11 @@ export function TrendChart({
           points,
           color: COLORS[idx % COLORS.length],
           label: seriesNameFormatter ? seriesNameFormatter(name, entry) : name,
-          isRegressed: regressions?.some((result) => result.seriesName === name) ?? false,
+          isRegressed: resolvedRegressions?.some((result) => result.seriesName === name) ?? false,
         };
       })
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
-  }, [series, maxPoints, seriesNameFormatter, regressions]);
+  }, [series, maxPoints, seriesNameFormatter, resolvedRegressions]);
 
   useEffect(() => {
     if (!canvasRef.current || !wrapperRef.current) return;
@@ -266,7 +276,7 @@ export function TrendChart({
           <div class="bk-chart-panel__empty">
             <div>
               <strong>No series to display.</strong>
-              <div>Try clearing filters or widening the selected metric.</div>
+              <div>{emptyMessage ?? "Try clearing filters or widening the selected metric."}</div>
             </div>
           </div>
         ) : (
