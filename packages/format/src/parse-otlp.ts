@@ -30,6 +30,15 @@ function anyValueToString(value: OtlpAnyValue | undefined): string {
   return "";
 }
 
+/**
+ * Flatten an OTLP `KeyValue` attribute array into a plain string record.
+ *
+ * All OTLP value types (string, bool, int, double) are coerced to strings.
+ * Attributes with an absent or unrecognised value are stored as empty strings.
+ *
+ * @param attributes - Optional OTLP attribute array to flatten.
+ * @returns A `Record<string, string>` mapping each attribute key to its string value.
+ */
 export function otlpAttributesToRecord(attributes: OtlpAttribute[] | undefined): Record<string, string> {
   const record: Record<string, string> = {};
   for (const attribute of attributes ?? []) {
@@ -38,6 +47,16 @@ export function otlpAttributesToRecord(attributes: OtlpAttribute[] | undefined):
   return record;
 }
 
+/**
+ * Parse and minimally validate an OTLP metrics JSON string.
+ *
+ * Validates that the top-level object contains a `resourceMetrics` array.
+ * Throws if the input is not valid JSON or if `resourceMetrics` is absent/not
+ * an array.
+ *
+ * @param input - Raw OTLP metrics JSON string.
+ * @returns The parsed `OtlpMetricsDocument`.
+ */
 export function parseOtlpMetrics(input: string): OtlpMetricsDocument {
   const parsed = JSON.parse(input) as Record<string, unknown>;
   if (!Array.isArray(parsed.resourceMetrics)) {
@@ -46,6 +65,15 @@ export function parseOtlpMetrics(input: string): OtlpMetricsDocument {
   return parsed as unknown as OtlpMetricsDocument;
 }
 
+/**
+ * Determine the data kind of an OTLP metric.
+ *
+ * Supported kinds are `"gauge"`, `"sum"`, and `"histogram"`.
+ * Throws an `Error` if none of those fields are present on the metric.
+ *
+ * @param metric - The OTLP metric to inspect.
+ * @returns `"gauge"`, `"sum"`, or `"histogram"`.
+ */
 export function getOtlpMetricKind(metric: OtlpMetric): "gauge" | "sum" | "histogram" {
   if (metric.gauge) return "gauge";
   if (metric.sum) return "sum";
@@ -53,6 +81,17 @@ export function getOtlpMetricKind(metric: OtlpMetric): "gauge" | "sum" | "histog
   throw new Error(`Unsupported OTLP metric kind for metric '${metric.name}'.`);
 }
 
+/**
+ * Resolve the aggregation temporality for an OTLP sum or histogram metric.
+ *
+ * Maps the raw numeric OTLP enum to a human-readable string:
+ * - `1` → `"delta"`
+ * - `2` → `"cumulative"`
+ * - anything else (including absent) → `"unspecified"`
+ *
+ * @param metric - The OTLP metric to inspect.
+ * @returns The `OtlpAggregationTemporality` string value.
+ */
 export function getOtlpTemporality(metric: OtlpMetric): OtlpAggregationTemporality {
   const raw = metric.sum?.aggregationTemporality ?? metric.histogram?.aggregationTemporality;
   if (raw === 1) return "delta";
@@ -274,6 +313,24 @@ function projectHistogramMetric(
   }
 }
 
+/**
+ * Project an `OtlpMetricsDocument` into a benchkit `BenchmarkResult`.
+ *
+ * The projection runs in three phases:
+ * 1. **Resource collection** — required resource attributes (`benchkit.run_id`,
+ *    `benchkit.kind`, `benchkit.source_format`) are validated and context
+ *    metadata (commit, ref, runner) is extracted.
+ * 2. **Datapoint traversal** — each metric datapoint is mapped to a benchmark
+ *    group keyed by `benchkit.scenario` + `benchkit.series`. Gauge and sum
+ *    metrics are treated identically; histograms are split into `.count` and
+ *    `.sum` child metrics. The latest datapoint (by timestamp) wins for each
+ *    metric within a group.
+ * 3. **Time-series building** — per-group datapoints are sorted by timestamp
+ *    and attached as `samples` when more than one datapoint exists.
+ *
+ * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlpMetrics`).
+ * @returns A `BenchmarkResult` containing all projected benchmarks and context.
+ */
 export function projectBenchmarkResultFromOtlp(document: OtlpMetricsDocument): BenchmarkResult {
   const groups = new Map<string, MutableBenchmarkGroup>();
   let latestTimestamp: string | undefined;
