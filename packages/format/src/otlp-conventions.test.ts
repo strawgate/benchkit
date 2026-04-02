@@ -75,13 +75,10 @@ describe("OTLP conventions constants", () => {
   });
 
   it("has valid source formats", () => {
-    assert.ok(VALID_SOURCE_FORMATS.includes("go"));
-    assert.ok(VALID_SOURCE_FORMATS.includes("native"));
-    assert.ok(VALID_SOURCE_FORMATS.includes("otlp"));
-    assert.ok(VALID_SOURCE_FORMATS.includes("rust"));
-    assert.ok(VALID_SOURCE_FORMATS.includes("hyperfine"));
-    assert.ok(VALID_SOURCE_FORMATS.includes("pytest-benchmark"));
-    assert.ok(VALID_SOURCE_FORMATS.includes("benchmark-action"));
+    assert.deepEqual(
+      [...VALID_SOURCE_FORMATS],
+      ["go", "native", "otlp", "rust", "hyperfine", "pytest-benchmark", "benchmark-action"],
+    );
   });
 
   it("defines the monitor metric prefix", () => {

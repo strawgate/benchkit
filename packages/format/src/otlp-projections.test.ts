@@ -193,6 +193,15 @@ describe("extractScenarioMetrics", () => {
     assert.ok("request_latency_ms.count" in ingest.metrics);
     assert.ok("request_latency_ms.sum" in ingest.metrics);
   });
+
+  it("includes monitor metrics when filtering by 'diagnostic' scenario", () => {
+    const result = extractScenarioMetrics(makeDocument(), "diagnostic");
+    const names = result.benchmarks.map((b) => b.name);
+    assert.ok(names.includes("diagnostic"));
+    const diag = result.benchmarks.find((b) => b.name === "diagnostic");
+    assert.ok(diag);
+    assert.ok("_monitor.cpu_user_pct" in diag.metrics);
+  });
 });
 
 // ---------------------------------------------------------------------------

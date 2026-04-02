@@ -56,7 +56,10 @@ export function validateRequiredDatapointAttributes(
   attrs: Record<string, string>,
   metricName: string,
 ): void {
-  if (isMonitorMetric(metricName)) return;
+  if (isMonitorMetric(metricName)) {
+    requireAttribute(attrs, ATTR_SERIES);
+    return;
+  }
 
   requireAttribute(attrs, ATTR_SCENARIO);
   requireAttribute(attrs, ATTR_SERIES);

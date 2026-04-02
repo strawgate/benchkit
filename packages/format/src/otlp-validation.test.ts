@@ -102,9 +102,19 @@ describe("validateRequiredDatapointAttributes", () => {
     );
   });
 
-  it("skips validation for monitor metrics", () => {
+  it("skips scenario validation for monitor metrics but requires series", () => {
     assert.doesNotThrow(() =>
-      validateRequiredDatapointAttributes({}, "_monitor.cpu_user_pct"),
+      validateRequiredDatapointAttributes(
+        { "benchkit.series": "runner" },
+        "_monitor.cpu_user_pct",
+      ),
+    );
+  });
+
+  it("throws when benchkit.series is missing for monitor metrics", () => {
+    assert.throws(
+      () => validateRequiredDatapointAttributes({}, "_monitor.cpu_user_pct"),
+      /Missing required attribute 'benchkit\.series'/,
     );
   });
 });

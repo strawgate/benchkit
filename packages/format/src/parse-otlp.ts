@@ -207,7 +207,13 @@ function requiredResourceAttr(attributes: Record<string, string>, key: string, m
 
 function resolveDirection(metricName: string, unit: string | undefined, pointAttributes: Record<string, string>): Metric["direction"] {
   const explicit = pointAttributes[ATTR_METRIC_DIRECTION];
-  if (explicit && isValidDirection(explicit)) {
+  if (explicit) {
+    if (!isValidDirection(explicit)) {
+      throw new Error(
+        `Invalid '${ATTR_METRIC_DIRECTION}' value '${explicit}' on metric '${metricName}'. ` +
+          `Expected 'bigger_is_better' or 'smaller_is_better'.`,
+      );
+    }
     return explicit;
   }
   return inferDirection(unit ?? metricName);
@@ -353,9 +359,9 @@ export function projectBenchmarkResultFromOtlp(document: OtlpMetricsDocument): B
     requiredResourceAttr(resourceAttributes, ATTR_SOURCE_FORMAT, "<resource>");
 
     contextTemplate = {
-      commit: resourceAttributes[ATTR_COMMIT],
-      ref: resourceAttributes[ATTR_REF],
-      runner: resourceAttributes[ATTR_RUNNER] || resourceAttributes[ATTR_SERVICE_NAME],
+      commit: contextTemplate?.commit || resourceAttributes[ATTR_COMMIT],
+      ref: contextTemplate?.ref || resourceAttributes[ATTR_REF],
+      runner: contextTemplate?.runner || resourceAttributes[ATTR_RUNNER] || resourceAttributes[ATTR_SERVICE_NAME],
       timestamp: contextTemplate?.timestamp,
     };
 

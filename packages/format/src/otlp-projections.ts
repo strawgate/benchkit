@@ -13,6 +13,7 @@ import {
   ATTR_RUNNER,
   ATTR_SCENARIO,
   ATTR_SERVICE_NAME,
+  MONITOR_METRIC_PREFIX,
 } from "./otlp-conventions.js";
 import { isMonitorMetric } from "./otlp-validation.js";
 import {
@@ -143,6 +144,11 @@ export function getMetricUnits(
 // Internal filtering helpers
 // ---------------------------------------------------------------------------
 
+function effectiveScenario(metricName: string, attrs: Record<string, string>): string {
+  return attrs[ATTR_SCENARIO]
+    || (metricName.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
+}
+
 function filterDocumentByScenario(
   doc: OtlpMetricsDocument,
   scenario: string,
@@ -161,7 +167,7 @@ function filterDocumentByScenario(
                 ...metric.gauge,
                 dataPoints: (metric.gauge?.dataPoints ?? []).filter((dp) => {
                   const attrs = otlpAttributesToRecord(dp.attributes);
-                  return attrs[ATTR_SCENARIO] === scenario;
+                  return effectiveScenario(metric.name, attrs) === scenario;
                 }),
               },
             };
@@ -173,7 +179,7 @@ function filterDocumentByScenario(
                 ...metric.sum,
                 dataPoints: (metric.sum?.dataPoints ?? []).filter((dp) => {
                   const attrs = otlpAttributesToRecord(dp.attributes);
-                  return attrs[ATTR_SCENARIO] === scenario;
+                  return effectiveScenario(metric.name, attrs) === scenario;
                 }),
               },
             };
@@ -185,7 +191,7 @@ function filterDocumentByScenario(
               ...metric.histogram,
               dataPoints: (metric.histogram?.dataPoints ?? []).filter((dp) => {
                 const attrs = otlpAttributesToRecord(dp.attributes);
-                return attrs[ATTR_SCENARIO] === scenario;
+                return effectiveScenario(metric.name, attrs) === scenario;
               }),
             },
           };
