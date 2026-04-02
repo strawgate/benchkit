@@ -108,7 +108,7 @@ describe("parsePytestBenchmark", () => {
 
   it("throws on missing benchmarks array", () => {
     assert.throws(() => parsePytestBenchmark('{"foo": "bar"}'), {
-      message: "pytest-benchmark format must have a 'benchmarks' array.",
+      message: /\[parse-pytest-benchmark\].*benchmarks/,
     });
   });
 

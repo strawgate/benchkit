@@ -27002,22 +27002,43 @@ function requireAttribute(attrs, key) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseBenchmarkAction = parseBenchmarkAction;
 const infer_direction_js_1 = __nccwpck_require__(5083);
+/**
+ * benchmark-action/github-action-benchmark compatible format.
+ *
+ * Input: [{ name, value, unit, range?, extra? }]
+ *
+ * Each entry becomes one benchmark with one metric called "value".
+ * Direction is inferred from the unit string.
+ */
 function parseBenchmarkAction(input) {
     const entries = JSON.parse(input);
     if (!Array.isArray(entries)) {
-        throw new Error("benchmark-action format must be a JSON array of {name, value, unit} objects.");
+        throw new Error("[parse-benchmark-action] Input must be a JSON array of {name, value, unit} objects.");
     }
-    const benchmarks = entries.map((entry) => {
-        const range = parseRange(entry.range);
+    const benchmarks = entries.map((entry, index) => {
+        if (typeof entry !== "object" || entry === null) {
+            throw new Error(`[parse-benchmark-action] Entry at index ${index} must be an object.`);
+        }
+        const e = entry;
+        if (typeof e.name !== "string") {
+            throw new Error(`[parse-benchmark-action] Entry at index ${index} must have a string 'name'.`);
+        }
+        if (typeof e.value !== "number") {
+            throw new Error(`[parse-benchmark-action] Entry '${e.name}' must have a numeric 'value'.`);
+        }
+        if (typeof e.unit !== "string") {
+            throw new Error(`[parse-benchmark-action] Entry '${e.name}' must have a string 'unit'.`);
+        }
+        const range = parseRange(e.range);
         const metric = {
-            value: entry.value,
-            unit: entry.unit,
-            direction: (0, infer_direction_js_1.inferDirection)(entry.unit),
+            value: e.value,
+            unit: e.unit,
+            direction: (0, infer_direction_js_1.inferDirection)(e.unit),
         };
         if (range !== undefined)
             metric.range = range;
         return {
-            name: entry.name,
+            name: e.name,
             metrics: { value: metric },
         };
     });
@@ -27093,47 +27114,49 @@ function parseGoBench(input) {
 /***/ }),
 
 /***/ 9347:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseHyperfine = parseHyperfine;
+const infer_direction_js_1 = __nccwpck_require__(5083);
 function parseHyperfine(input) {
     const parsed = JSON.parse(input);
     if (!parsed.results || !Array.isArray(parsed.results)) {
-        throw new Error("Hyperfine format must have a 'results' array.");
+        throw new Error("[parse-hyperfine] Hyperfine format must have a 'results' array.");
     }
     const benchmarks = parsed.results.map((result) => {
         if (typeof result.command !== "string") {
-            throw new Error("Each Hyperfine result must have a 'command' string.");
+            throw new Error("[parse-hyperfine] Each Hyperfine result must have a 'command' string.");
         }
+        const timeDirection = (0, infer_direction_js_1.inferDirection)("s");
         const metrics = {
             mean: {
                 value: result.mean,
                 unit: "s",
-                direction: "smaller_is_better",
+                direction: timeDirection,
                 range: result.stddev,
             },
             stddev: {
                 value: result.stddev,
                 unit: "s",
-                direction: "smaller_is_better",
+                direction: timeDirection,
             },
             median: {
                 value: result.median,
                 unit: "s",
-                direction: "smaller_is_better",
+                direction: timeDirection,
             },
             min: {
                 value: result.min,
                 unit: "s",
-                direction: "smaller_is_better",
+                direction: timeDirection,
             },
             max: {
                 value: result.max,
                 unit: "s",
-                direction: "smaller_is_better",
+                direction: timeDirection,
             },
         };
         return {
@@ -27160,24 +27183,24 @@ exports.parseNative = parseNative;
 function parseNative(input) {
     const parsed = JSON.parse(input);
     if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
-        throw new Error("Native format must have a 'benchmarks' array at the top level.");
+        throw new Error("[parse-native] Native format must have a 'benchmarks' array at the top level.");
     }
     for (const bench of parsed.benchmarks) {
         if (!bench.name || typeof bench.name !== "string") {
-            throw new Error("Each benchmark must have a 'name' string.");
+            throw new Error("[parse-native] Each benchmark must have a 'name' string.");
         }
         if (!bench.metrics || typeof bench.metrics !== "object") {
-            throw new Error(`Benchmark '${bench.name}' must have a 'metrics' object.`);
+            throw new Error(`[parse-native] Benchmark '${bench.name}' must have a 'metrics' object.`);
         }
         for (const [key, metric] of Object.entries(bench.metrics)) {
             const m = metric;
             if (typeof m.value !== "number") {
-                throw new Error(`Metric '${key}' in benchmark '${bench.name}' must have a numeric 'value'.`);
+                throw new Error(`[parse-native] Metric '${key}' in benchmark '${bench.name}' must have a numeric 'value'.`);
             }
             if (m.direction &&
                 m.direction !== "bigger_is_better" &&
                 m.direction !== "smaller_is_better") {
-                throw new Error(`Metric '${key}' direction must be 'bigger_is_better' or 'smaller_is_better'.`);
+                throw new Error(`[parse-native] Metric '${key}' direction must be 'bigger_is_better' or 'smaller_is_better'.`);
             }
         }
     }
@@ -27242,8 +27265,10 @@ function otlpAttributesToRecord(attributes) {
  */
 function parseOtlpMetrics(input) {
     const parsed = JSON.parse(input);
-    if (!Array.isArray(parsed.resourceMetrics)) {
-        throw new Error("OTLP metrics JSON must contain a top-level resourceMetrics array.");
+    if (typeof parsed !== "object" ||
+        parsed === null ||
+        !Array.isArray(parsed.resourceMetrics)) {
+        throw new Error("[parse-otlp] OTLP metrics JSON must contain a top-level resourceMetrics array.");
     }
     return parsed;
 }
@@ -27530,56 +27555,58 @@ function projectBenchmarkResultFromOtlp(document) {
 /***/ }),
 
 /***/ 3956:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parsePytestBenchmark = parsePytestBenchmark;
+const infer_direction_js_1 = __nccwpck_require__(5083);
 function parsePytestBenchmark(input) {
     const parsed = JSON.parse(input);
     if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
-        throw new Error("pytest-benchmark format must have a 'benchmarks' array.");
+        throw new Error("[parse-pytest-benchmark] pytest-benchmark format must have a 'benchmarks' array.");
     }
     const benchmarks = parsed.benchmarks.map((entry) => {
         if (typeof entry.name !== "string") {
-            throw new Error("Each pytest-benchmark entry must have a 'name' string.");
+            throw new Error("[parse-pytest-benchmark] Each pytest-benchmark entry must have a 'name' string.");
         }
         if (!entry.stats || typeof entry.stats !== "object") {
-            throw new Error(`pytest-benchmark entry '${entry.name}' must have a 'stats' object.`);
+            throw new Error(`[parse-pytest-benchmark] pytest-benchmark entry '${entry.name}' must have a 'stats' object.`);
         }
         const stats = entry.stats;
+        const timeDirection = (0, infer_direction_js_1.inferDirection)("s");
         const metrics = {
             mean: {
                 value: stats.mean,
                 unit: "s",
-                direction: "smaller_is_better",
+                direction: timeDirection,
                 range: stats.stddev,
             },
             median: {
                 value: stats.median,
                 unit: "s",
-                direction: "smaller_is_better",
+                direction: timeDirection,
             },
             min: {
                 value: stats.min,
                 unit: "s",
-                direction: "smaller_is_better",
+                direction: timeDirection,
             },
             max: {
                 value: stats.max,
                 unit: "s",
-                direction: "smaller_is_better",
+                direction: timeDirection,
             },
             stddev: {
                 value: stats.stddev,
                 unit: "s",
-                direction: "smaller_is_better",
+                direction: timeDirection,
             },
             ops: {
                 value: stats.ops,
                 unit: "ops/s",
-                direction: "bigger_is_better",
+                direction: (0, infer_direction_js_1.inferDirection)("ops/s"),
             },
             rounds: {
                 value: stats.rounds,

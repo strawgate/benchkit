@@ -8,24 +8,24 @@ export function parseNative(input: string): BenchmarkResult {
 
   if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
     throw new Error(
-      "Native format must have a 'benchmarks' array at the top level.",
+      "[parse-native] Native format must have a 'benchmarks' array at the top level.",
     );
   }
 
   for (const bench of parsed.benchmarks) {
     if (!bench.name || typeof bench.name !== "string") {
-      throw new Error("Each benchmark must have a 'name' string.");
+      throw new Error("[parse-native] Each benchmark must have a 'name' string.");
     }
     if (!bench.metrics || typeof bench.metrics !== "object") {
       throw new Error(
-        `Benchmark '${bench.name}' must have a 'metrics' object.`,
+        `[parse-native] Benchmark '${bench.name}' must have a 'metrics' object.`,
       );
     }
     for (const [key, metric] of Object.entries(bench.metrics)) {
       const m = metric as Record<string, unknown>;
       if (typeof m.value !== "number") {
         throw new Error(
-          `Metric '${key}' in benchmark '${bench.name}' must have a numeric 'value'.`,
+          `[parse-native] Metric '${key}' in benchmark '${bench.name}' must have a numeric 'value'.`,
         );
       }
       if (
@@ -34,7 +34,7 @@ export function parseNative(input: string): BenchmarkResult {
         m.direction !== "smaller_is_better"
       ) {
         throw new Error(
-          `Metric '${key}' direction must be 'bigger_is_better' or 'smaller_is_better'.`,
+          `[parse-native] Metric '${key}' direction must be 'bigger_is_better' or 'smaller_is_better'.`,
         );
       }
     }

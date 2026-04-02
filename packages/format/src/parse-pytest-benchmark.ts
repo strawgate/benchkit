@@ -1,4 +1,5 @@
 import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import { inferDirection } from "./infer-direction.js";
 
 /**
  * Parse pytest-benchmark JSON output into BenchmarkResult.
@@ -47,51 +48,52 @@ export function parsePytestBenchmark(input: string): BenchmarkResult {
   const parsed = JSON.parse(input) as PytestBenchmarkOutput;
 
   if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
-    throw new Error("pytest-benchmark format must have a 'benchmarks' array.");
+    throw new Error("[parse-pytest-benchmark] pytest-benchmark format must have a 'benchmarks' array.");
   }
 
   const benchmarks: Benchmark[] = parsed.benchmarks.map((entry) => {
     if (typeof entry.name !== "string") {
-      throw new Error("Each pytest-benchmark entry must have a 'name' string.");
+      throw new Error("[parse-pytest-benchmark] Each pytest-benchmark entry must have a 'name' string.");
     }
     if (!entry.stats || typeof entry.stats !== "object") {
       throw new Error(
-        `pytest-benchmark entry '${entry.name}' must have a 'stats' object.`,
+        `[parse-pytest-benchmark] pytest-benchmark entry '${entry.name}' must have a 'stats' object.`,
       );
     }
 
     const stats = entry.stats;
+    const timeDirection = inferDirection("s");
     const metrics: Record<string, Metric> = {
       mean: {
         value: stats.mean,
         unit: "s",
-        direction: "smaller_is_better",
+        direction: timeDirection,
         range: stats.stddev,
       },
       median: {
         value: stats.median,
         unit: "s",
-        direction: "smaller_is_better",
+        direction: timeDirection,
       },
       min: {
         value: stats.min,
         unit: "s",
-        direction: "smaller_is_better",
+        direction: timeDirection,
       },
       max: {
         value: stats.max,
         unit: "s",
-        direction: "smaller_is_better",
+        direction: timeDirection,
       },
       stddev: {
         value: stats.stddev,
         unit: "s",
-        direction: "smaller_is_better",
+        direction: timeDirection,
       },
       ops: {
         value: stats.ops,
         unit: "ops/s",
-        direction: "bigger_is_better",
+        direction: inferDirection("ops/s"),
       },
       rounds: {
         value: stats.rounds,

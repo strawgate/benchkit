@@ -37,4 +37,32 @@ describe("parseBenchmarkAction", () => {
       message: /must be a JSON array/,
     });
   });
+
+  it("throws when an entry is missing 'name'", () => {
+    const input = JSON.stringify([{ value: 42, unit: "ops/sec" }]);
+    assert.throws(() => parseBenchmarkAction(input), {
+      message: /\[parse-benchmark-action\].*name/,
+    });
+  });
+
+  it("throws when an entry has a non-numeric 'value'", () => {
+    const input = JSON.stringify([{ name: "Bench", value: "fast", unit: "ops/sec" }]);
+    assert.throws(() => parseBenchmarkAction(input), {
+      message: /\[parse-benchmark-action\].*numeric.*value/,
+    });
+  });
+
+  it("throws when an entry is missing 'unit'", () => {
+    const input = JSON.stringify([{ name: "Bench", value: 42 }]);
+    assert.throws(() => parseBenchmarkAction(input), {
+      message: /\[parse-benchmark-action\].*unit/,
+    });
+  });
+
+  it("throws when an entry is not an object", () => {
+    const input = JSON.stringify(["not-an-object"]);
+    assert.throws(() => parseBenchmarkAction(input), {
+      message: /\[parse-benchmark-action\].*object/,
+    });
+  });
 });
