@@ -310,8 +310,41 @@ function pushTelemetryToDataBranch(state) {
             "-c", "user.email=benchkit[bot]@users.noreply.github.com",
             "commit", "-m", `telemetry: store run ${state.runId}`,
         ], worktreePath);
-        git(["push", "origin", state.dataBranch], worktreePath, 120_000);
-        core.info(`Telemetry pushed to ${state.dataBranch} for run ${state.runId}`);
+        // Retry push up to 3 times with rebase to handle concurrent pushes
+        let pushed = false;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                git(["push", "origin", state.dataBranch], worktreePath, 120_000);
+                core.info(`Telemetry pushed to ${state.dataBranch} for run ${state.runId}`);
+                pushed = true;
+                break;
+            }
+            catch (err) {
+                if (attempt === 3) {
+                    throw err; // Fail after 3 attempts
+                }
+                core.info(`Push attempt ${attempt} failed, rebasing and retrying...`);
+                try {
+                    // Fetch latest and rebase
+                    git(["fetch", "origin", state.dataBranch, "--depth=1"], workspace);
+                    git(["rebase", `origin/${state.dataBranch}`], worktreePath);
+                    // Re-stage and re-commit after rebase
+                    git(["add", targetPath], worktreePath);
+                    git([
+                        "-c", "user.name=benchkit[bot]",
+                        "-c", "user.email=benchkit[bot]@users.noreply.github.com",
+                        "commit", "--allow-empty", "-m", `telemetry: store run ${state.runId}`,
+                    ], worktreePath);
+                }
+                catch (rebaseErr) {
+                    core.warning(`Rebase failed: ${rebaseErr instanceof Error ? rebaseErr.message : String(rebaseErr)}`);
+                    throw err; // Throw original push error if rebase fails
+                }
+            }
+        }
+        if (!pushed) {
+            throw new Error("Failed to push telemetry after retries");
+        }
     }
     finally {
         // Clean up git auth header

@@ -31,7 +31,7 @@ jobs:
         id: monitor
         uses: strawgate/benchkit/actions/monitor@main
         with:
-          scrape-interval: 1s
+          scrape-interval: 5s
           metric-sets: cpu,memory,load,process
 
       - name: Run benchmarks
@@ -55,7 +55,7 @@ OTLP sidecar to the data branch.
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `collector-version` | no | `0.102.0` | OTel Collector Contrib version to download. |
+| `collector-version` | no | `0.102.0` | OTel Collector Contrib version to download. See [otelcol-contrib releases](https://github.com/open-telemetry/opentelemetry-collector-releases/releases) for available versions. |
 | `scrape-interval` | no | `5s` | Host-metrics scrape interval. |
 | `metric-sets` | no | `cpu,memory,load,process` | Comma-separated host metric scrapers to enable. |
 | `otlp-grpc-port` | no | `4317` | OTLP gRPC receiver port. Set to `0` to disable. |

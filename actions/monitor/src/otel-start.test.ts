@@ -22,6 +22,36 @@ describe("platformArch", () => {
       assert.equal(result.ext, "tar.gz");
     }
   });
+
+  it("throws for unsupported platform", () => {
+    // Mock process.platform with a Symbol to bypass type safety
+    const originalPlatform = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", { value: "freebsd", configurable: true });
+    try {
+      assert.throws(() => platformArch(), /Unsupported platform/);
+    } finally {
+      // Restore original property
+      if (originalPlatform) {
+        Object.defineProperty(process, "platform", originalPlatform);
+      } else {
+        delete (process as unknown as Record<string, unknown>).platform;
+      }
+    }
+  });
+
+  it("throws for unsupported architecture", () => {
+    const originalArch = Object.getOwnPropertyDescriptor(process, "arch");
+    Object.defineProperty(process, "arch", { value: "mips", configurable: true });
+    try {
+      assert.throws(() => platformArch(), /Unsupported architecture/);
+    } finally {
+      if (originalArch) {
+        Object.defineProperty(process, "arch", originalArch);
+      } else {
+        delete (process as unknown as Record<string, unknown>).arch;
+      }
+    }
+  });
 });
 
 // ── downloadUrl ─────────────────────────────────────────────────────
