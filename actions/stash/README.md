@@ -1,0 +1,92 @@
+# Benchkit Stash
+
+Parse benchmark result files and commit them to a persistent data branch so
+that later aggregation and comparison steps have a stable history to work with.
+
+## What it does
+
+- accepts benchmark results in Go, benchmark-action, native, or auto-detected
+  format
+- parses every matched file and merges the benchmarks into a single
+  `BenchmarkResult` document
+- optionally merges monitor context produced by `actions/monitor` into the
+  stored result
+- writes the result to `data/runs/{run-id}.json` on the data branch
+- retries the push with an automatic rebase so concurrent matrix jobs do not
+  race each other
+- optionally writes a parsed benchmark summary to `GITHUB_STEP_SUMMARY`
+
+## Usage
+
+```yaml
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run benchmarks
+        run: go test -bench=. -benchmem -count=3 ./... | tee bench.txt
+
+      - name: Stash benchmark results
+        id: stash
+        uses: strawgate/benchkit/actions/stash@main
+        with:
+          results: bench.txt
+          format: go
+```
+
+## Inputs
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `results` | **yes** | — | Path or glob pattern to benchmark result file(s). |
+| `format` | no | `auto` | Input format: `go`, `benchmark-action`, `native`, or `auto`. |
+| `data-branch` | no | `bench-data` | Branch used for benchmark data storage. |
+| `github-token` | no | `${{ github.token }}` | Token with push access to the repository. |
+| `run-id` | no | `{GITHUB_RUN_ID}-{GITHUB_RUN_ATTEMPT}--{GITHUB_JOB}` | Custom run identifier. Defaults to a value that is collision-proof across concurrent jobs. For matrix jobs, supply a value that includes the matrix key so each variant writes a distinct file. |
+| `monitor` | no | — | Path to `monitor.json` produced by `actions/monitor`. When provided, monitor benchmarks and context are merged into the stored result. |
+| `save-data-file` | no | `true` | When `false`, parse and output the result JSON but do not commit it to the data branch. |
+| `summary` | no | `true` | When `true`, write a parsed benchmark summary to `GITHUB_STEP_SUMMARY`. |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| `run-id` | The run identifier used for this stash. |
+| `file-path` | Path to the stored JSON file on the data branch, or to the temporary output file when `save-data-file` is `false`. |
+
+## Stored output
+
+Each stash call writes one JSON file to the data branch:
+
+```
+data/runs/{run-id}.json
+```
+
+The file contains the parsed `BenchmarkResult` document including benchmark
+names, values, units, and any context attributes (commit SHA, ref, runner OS,
+timestamp). When a monitor path is supplied the monitor benchmarks and resource
+attributes are merged in before writing.
+
+## How it works
+
+1. **Parse**: glob-expand `results`, parse every matched file using the
+   requested (or auto-detected) format, and merge into a single result document
+2. **Merge** *(optional)*: if `monitor` is set, read the monitor output and
+   merge its benchmarks and context into the result
+3. **Push**: checkout (or create) the data branch in a temporary git worktree,
+   write the result file, commit, and push — retrying up to three times with an
+   automatic rebase on conflict
+
+## Relationship to aggregate and monitor
+
+- `actions/stash` stores the parsed benchmark result at
+  `data/runs/{run-id}.json`
+- `actions/monitor` stores raw OTLP telemetry separately at
+  `data/telemetry/{run-id}.otlp.jsonl.gz`
+- `actions/aggregate` reads all run files written by stash and rebuilds the
+  query indexes used by charts and dashboards
