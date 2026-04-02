@@ -9,19 +9,6 @@
       },
       "points": [
         {
-          "timestamp": "2026-04-02T21:09:37.595Z",
-          "value": 2,
-          "commit": "a0608722400e6d7606e14fad33576b8122986913",
-          "run_id": "test-go-23922127932-1"
-        },
-        {
-          "timestamp": "2026-04-02T21:09:37.818Z",
-          "value": 2,
-          "commit": "a0608722400e6d7606e14fad33576b8122986913",
-          "run_id": "test-count-23922127932-1",
-          "range": 0
-        },
-        {
           "timestamp": "2026-04-02T22:50:54.752Z",
           "value": 2,
           "commit": "6a7bc9c6b0a33d385c181f4ef6a2fb4fca164957",
@@ -42,19 +29,6 @@
       },
       "points": [
         {
-          "timestamp": "2026-04-02T21:09:37.595Z",
-          "value": 0,
-          "commit": "a0608722400e6d7606e14fad33576b8122986913",
-          "run_id": "test-go-23922127932-1"
-        },
-        {
-          "timestamp": "2026-04-02T21:09:37.818Z",
-          "value": 0,
-          "commit": "a0608722400e6d7606e14fad33576b8122986913",
-          "run_id": "test-count-23922127932-1",
-          "range": 0
-        },
-        {
           "timestamp": "2026-04-02T22:50:54.752Z",
           "value": 0,
           "commit": "6a7bc9c6b0a33d385c181f4ef6a2fb4fca164957",
@@ -74,12 +48,6 @@
         "procs": "4"
       },
       "points": [
-        {
-          "timestamp": "2026-04-02T21:09:37.595Z",
-          "value": 3,
-          "commit": "a0608722400e6d7606e14fad33576b8122986913",
-          "run_id": "test-go-23922127932-1"
-        },
         {
           "timestamp": "2026-04-02T22:50:55.693Z",
           "value": 3,
