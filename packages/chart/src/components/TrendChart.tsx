@@ -9,7 +9,7 @@ import {
   Tooltip,
   Legend,
   Filler,
-  type ChartData,
+  type ChartDataset,
   type ChartOptions,
 } from "chart.js";
 import "chartjs-adapter-date-fns";
@@ -78,7 +78,7 @@ export function TrendChart({
 }: TrendChartProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<Chart | null>(null);
+  const chartRef = useRef<Chart<"line", { x: string; y: number }[]> | null>(null);
   const entries = useMemo(() => {
     return Object.entries(series.series)
       .map(([name, entry], idx) => {
@@ -110,11 +110,11 @@ export function TrendChart({
 
     const theme = getChartTheme(wrapperRef.current);
     const resolvedLineWidth = lineWidth ?? (compact ? 1.5 : 1.75);
-    const datasets: ChartData<"line">["datasets"] = entries.map((entry) => {
+    const datasets: ChartDataset<"line", { x: string; y: number }[]>[] = entries.map((entry) => {
       const lastIdx = entry.points.length - 1;
       return {
         label: entry.label,
-        data: entry.points.map((point) => ({ x: point.timestamp as unknown as number, y: point.value })),
+        data: entry.points.map((point) => ({ x: point.timestamp, y: point.value })),
         borderColor: entry.color,
         backgroundColor: `${entry.color}22`,
         fill: entries.length === 1,

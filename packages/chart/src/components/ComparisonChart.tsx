@@ -8,7 +8,7 @@ import {
   TimeScale,
   Tooltip,
   Legend,
-  type ChartData,
+  type ChartDataset,
   type ChartOptions,
 } from "chart.js";
 import "chartjs-adapter-date-fns";
@@ -84,7 +84,7 @@ export function ComparisonChart({
 }: ComparisonChartProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<Chart | null>(null);
+  const chartRef = useRef<Chart<"line", { x: string | number; y: number }[]> | null>(null);
 
   /** true when operating in Sample[] (intra-run) mode */
   const isSamplesMode = baseSamples !== undefined || currentSamples !== undefined;
@@ -116,10 +116,10 @@ export function ComparisonChart({
 
     const theme = getChartTheme(wrapperRef.current);
 
-    const datasets: ChartData<"line">["datasets"] = [
+    const datasets: ChartDataset<"line", { x: string | number; y: number }[]>[] = [
       {
         label: baseLabel,
-        data: baseData as { x: number; y: number }[],
+        data: baseData,
         borderColor: BASE_COLOR,
         backgroundColor: `${BASE_COLOR}22`,
         fill: false,
@@ -134,7 +134,7 @@ export function ComparisonChart({
       },
       {
         label: currentLabel,
-        data: currentData as { x: number; y: number }[],
+        data: currentData,
         borderColor: CURRENT_COLOR,
         backgroundColor: `${CURRENT_COLOR}22`,
         fill: false,
