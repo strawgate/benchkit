@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { platformArch, downloadUrl, resolveRunId } from "./otel-start.js";
+import { platformArch, downloadUrl, resolveRunId, validatePort } from "./otel-start.js";
 
 // ── platformArch ────────────────────────────────────────────────────
 
@@ -131,5 +131,51 @@ describe("resolveRunId", () => {
       if (savedId !== undefined) process.env.GITHUB_RUN_ID = savedId;
       else delete process.env.GITHUB_RUN_ID;
     }
+  });
+});
+
+// ── validatePort ───────────────────────────────────────────────────
+
+describe("validatePort", () => {
+  it("accepts valid port numbers", () => {
+    assert.equal(validatePort("otlp-grpc-port", "4317"), 4317);
+    assert.equal(validatePort("otlp-http-port", "4318"), 4318);
+    assert.equal(validatePort("otlp-grpc-port", "1"), 1);
+    assert.equal(validatePort("otlp-grpc-port", "65535"), 65535);
+  });
+
+  it("throws for non-numeric input", () => {
+    assert.throws(
+      () => validatePort("otlp-grpc-port", "abc"),
+      /Invalid port number for otlp-grpc-port: expected a number, got 'abc'/,
+    );
+  });
+
+  it("throws for empty string after fallback resolution", () => {
+    assert.throws(
+      () => validatePort("otlp-http-port", ""),
+      /Invalid port number for otlp-http-port: expected a number, got ''/,
+    );
+  });
+
+  it("throws for port 0", () => {
+    assert.throws(
+      () => validatePort("otlp-grpc-port", "0"),
+      /Invalid port number for otlp-grpc-port: 0 is out of range/,
+    );
+  });
+
+  it("throws for port above 65535", () => {
+    assert.throws(
+      () => validatePort("otlp-grpc-port", "65536"),
+      /Invalid port number for otlp-grpc-port: 65536 is out of range/,
+    );
+  });
+
+  it("throws for negative port", () => {
+    assert.throws(
+      () => validatePort("otlp-http-port", "-1"),
+      /Invalid port number for otlp-http-port: -1 is out of range/,
+    );
   });
 });
