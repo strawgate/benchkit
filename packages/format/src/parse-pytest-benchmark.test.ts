@@ -96,13 +96,13 @@ describe("parsePytestBenchmark", () => {
     assert.equal(result.benchmarks[0].name, "test_sort");
   });
 
-  it("does not confuse pytest-benchmark with native format", () => {
+  it("auto-detects native format when benchmarks lack stats", () => {
     const nativeInput = JSON.stringify({
       benchmarks: [
         { name: "test", metrics: { eps: { value: 100 } } },
       ],
     });
-    const result = parse(nativeInput, "native");
+    const result = parse(nativeInput);
     assert.equal(result.benchmarks[0].name, "test");
   });
 

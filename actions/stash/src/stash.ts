@@ -92,6 +92,38 @@ export function readMonitorOutput(monitorPath: string): BenchmarkResult {
   return parseNative(content);
 }
 
+/**
+ * Build a collision-resistant run identifier.
+ *
+ * Priority:
+ * 1. `customRunId` — use as-is when explicitly provided.
+ * 2. `{githubRunId}-{githubRunAttempt}--{sanitized(githubJob)}` — when a job
+ *    name is available, append it (separated by `--`) so that multiple jobs
+ *    within the same workflow run do not overwrite each other's raw data.
+ * 3. `{githubRunId}-{githubRunAttempt}` — fallback when no job name is set.
+ *
+ * The job segment is lower-cased and any characters outside `[a-z0-9-]` are
+ * replaced with `-`, with consecutive dashes collapsed and leading/trailing
+ * dashes stripped.
+ */
+export function buildRunId(options: {
+  customRunId?: string;
+  githubRunId?: string;
+  githubRunAttempt?: string;
+  githubJob?: string;
+}): string {
+  if (options.customRunId) return options.customRunId;
+  const base = `${options.githubRunId ?? "local"}-${options.githubRunAttempt ?? "1"}`;
+  if (options.githubJob) {
+    const sanitized = options.githubJob
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (sanitized) return `${base}--${sanitized}`;
+  }
+  return base;
+}
+
 export function writeResultFile(result: BenchmarkResult, runId: string, outputPath: string): string {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(result, null, 2) + "\n");

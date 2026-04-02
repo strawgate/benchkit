@@ -41,6 +41,47 @@ describe("parse (auto-detect)", () => {
     assert.equal(result.benchmarks[0].name, "sleep 1");
   });
 
+  it("detects OTLP metrics format", () => {
+    const input = JSON.stringify({
+      resourceMetrics: [
+        {
+          resource: {
+            attributes: [
+              { key: "benchkit.run_id", value: { stringValue: "run-1" } },
+              { key: "benchkit.kind", value: { stringValue: "workflow" } },
+              { key: "benchkit.source_format", value: { stringValue: "otlp" } },
+            ],
+          },
+          scopeMetrics: [
+            {
+              metrics: [
+                {
+                  name: "events_per_sec",
+                  unit: "events/sec",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        attributes: [
+                          { key: "benchkit.scenario", value: { stringValue: "json-ingest" } },
+                          { key: "benchkit.series", value: { stringValue: "mock-http-ingest" } },
+                          { key: "benchkit.metric.direction", value: { stringValue: "bigger_is_better" } },
+                        ],
+                        timeUnixNano: "1711929600000000000",
+                        asDouble: 13240.5,
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const result = parse(input);
+    assert.equal(result.benchmarks[0].name, "json-ingest");
+  });
+
   it("throws on unrecognized input", () => {
     assert.throws(() => parse("totally unknown format"), {
       message: /Could not auto-detect/,
@@ -51,6 +92,47 @@ describe("parse (auto-detect)", () => {
     const input = `BenchmarkBar-4    5000    999 ns/op`;
     const result = parse(input, "go");
     assert.equal(result.benchmarks[0].name, "BenchmarkBar");
+  });
+
+  it("supports explicit otlp format override", () => {
+    const input = JSON.stringify({
+      resourceMetrics: [
+        {
+          resource: {
+            attributes: [
+              { key: "benchkit.run_id", value: { stringValue: "run-1" } },
+              { key: "benchkit.kind", value: { stringValue: "workflow" } },
+              { key: "benchkit.source_format", value: { stringValue: "otlp" } },
+            ],
+          },
+          scopeMetrics: [
+            {
+              metrics: [
+                {
+                  name: "service_rss_mb",
+                  unit: "MB",
+                  gauge: {
+                    dataPoints: [
+                      {
+                        attributes: [
+                          { key: "benchkit.scenario", value: { stringValue: "json-ingest" } },
+                          { key: "benchkit.series", value: { stringValue: "mock-http-ingest" } },
+                          { key: "benchkit.metric.direction", value: { stringValue: "smaller_is_better" } },
+                        ],
+                        timeUnixNano: "1711929600000000000",
+                        asDouble: 543.1,
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const result = parse(input, "otlp");
+    assert.equal(result.benchmarks[0].metrics.service_rss_mb.value, 543.1);
   });
 
   it("throws on empty input", () => {

@@ -2,6 +2,20 @@ export type {
   BenchmarkResult,
   Benchmark,
   Metric,
+  BenchkitRunKind,
+  OtlpAggregationTemporality,
+  OtlpAttribute,
+  OtlpAnyValue,
+  OtlpGaugeDataPoint,
+  OtlpHistogramDataPoint,
+  OtlpGaugeMetric,
+  OtlpSumMetric,
+  OtlpHistogramMetric,
+  OtlpMetric,
+  OtlpScopeMetrics,
+  OtlpResource,
+  OtlpResourceMetrics,
+  OtlpMetricsDocument,
   NativeMetricInit,
   NativeBenchmarkInit,
   NativeResultInit,
@@ -37,6 +51,14 @@ export { parseBenchmarkAction } from "./parse-benchmark-action.js";
 export { parseHyperfine } from "./parse-hyperfine.js";
 /** Parse pytest-benchmark JSON format. */
 export { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
+/** Parse OTLP metrics JSON and project it into benchmark-oriented structures. */
+export {
+  parseOtlpMetrics,
+  otlpAttributesToRecord,
+  getOtlpMetricKind,
+  getOtlpTemporality,
+  projectBenchmarkResultFromOtlp,
+} from "./parse-otlp.js";
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 export { compare } from "./compare.js";
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */

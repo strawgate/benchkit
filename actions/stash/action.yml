@@ -14,7 +14,13 @@ inputs:
     description: 'Token with push access to the repository.'
     default: ${{ github.token }}
   run-id:
-    description: 'Custom run identifier. Defaults to GITHUB_RUN_ID-GITHUB_RUN_ATTEMPT.'
+    description: >-
+      Custom run identifier. When omitted, defaults to
+      `{GITHUB_RUN_ID}-{GITHUB_RUN_ATTEMPT}--{GITHUB_JOB}` (with the job
+      segment sanitized to lowercase alphanumeric and dashes). This makes
+      concurrent jobs in the same workflow run collision-proof by default.
+      For matrix jobs, supply a custom value that includes the matrix key so
+      each variant writes a distinct file.
     required: false
   monitor:
     description: 'Path to monitor.json produced by the monitor action. When provided, monitor benchmarks and context are merged into the stored result.'
