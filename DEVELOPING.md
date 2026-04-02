@@ -16,6 +16,7 @@ This guide is for contributors working on benchkit internals.
 - `actions/aggregate/`: GitHub Action to build index and series
 - `actions/compare/`: GitHub Action to compare results against a baseline
 - `actions/monitor/`: GitHub Action for background system metrics collection
+- `actions/emit-metric/`: GitHub Action for emitting one-off OTLP metrics to the monitor collector
 - `schema/`: JSON schemas for generated data files
 
 ## Install dependencies
@@ -42,6 +43,7 @@ npm run build --workspace=actions/stash
 npm run build --workspace=actions/aggregate
 npm run build --workspace=actions/compare
 npm run build --workspace=actions/monitor
+npm run build --workspace=actions/emit-metric
 ```
 
 ## Test

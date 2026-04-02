@@ -10,6 +10,8 @@ stops and flushes telemetry automatically in the action post step.
 - collects host metrics through the collector's `hostmetrics` receiver
 - enables OTLP gRPC (`4317`) and HTTP (`4318`) receivers by default so your
   benchmark code can emit custom metrics to the same collector
+- works with `actions/emit-metric` for simple one-off workflow metrics without a
+  full OTLP SDK
 - writes a raw OTLP JSONL sidecar (gzipped) to the data branch at
   `data/telemetry/{run-id}.otlp.jsonl.gz`
 - filters process metrics to runner-descendant processes before pushing, so the
@@ -50,6 +52,24 @@ jobs:
 There is no explicit stop step. The action post step runs automatically when the
 job finishes, shuts down the collector, flushes telemetry, and pushes the raw
 OTLP sidecar to the data branch.
+
+## Emitting a one-off custom metric
+
+If your workflow only needs to record a single custom score or count, use the
+emit action against the collector endpoint from the monitor step:
+
+```yaml
+- name: Emit score metric
+  uses: strawgate/benchkit/actions/emit-metric@main
+  with:
+    otlp-http-endpoint: ${{ steps.monitor.outputs.otlp-http-endpoint }}
+    name: test_score
+    value: 74
+    unit: points
+    scenario: search-relevance
+    series: baseline
+    direction: bigger_is_better
+```
 
 ## Inputs
 
