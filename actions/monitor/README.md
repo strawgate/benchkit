@@ -10,8 +10,8 @@ stops and flushes telemetry automatically in the action post step.
 - collects host metrics through the collector's `hostmetrics` receiver
 - enables OTLP gRPC (`4317`) and HTTP (`4318`) receivers by default so your
   benchmark code can emit custom metrics to the same collector
-- writes a raw OTLP JSONL sidecar to the data branch at
-  `data/telemetry/{run-id}.otlp.json`
+- writes a raw OTLP JSONL sidecar (gzipped) to the data branch at
+  `data/telemetry/{run-id}.otlp.jsonl.gz`
 - filters process metrics to runner-descendant processes before pushing, so the
   stored telemetry stays focused on the benchmark job instead of the whole host
 
@@ -56,7 +56,7 @@ OTLP sidecar to the data branch.
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `collector-version` | no | `0.102.0` | OTel Collector Contrib version to download. |
-| `scrape-interval` | no | `1s` | Host-metrics scrape interval. |
+| `scrape-interval` | no | `5s` | Host-metrics scrape interval. |
 | `metric-sets` | no | `cpu,memory,load,process` | Comma-separated host metric scrapers to enable. |
 | `otlp-grpc-port` | no | `4317` | OTLP gRPC receiver port. Set to `0` to disable. |
 | `otlp-http-port` | no | `4318` | OTLP HTTP receiver port. Set to `0` to disable. |
@@ -78,8 +78,9 @@ job. In the post step, benchkit:
 
 1. stops the collector gracefully
 2. filters process resources to runner-descendant processes
-3. copies the telemetry sidecar to `data/telemetry/{run-id}.otlp.json`
-4. commits and pushes that file to the data branch
+3. compresses the telemetry sidecar with gzip
+4. copies the telemetry sidecar to `data/telemetry/{run-id}.otlp.jsonl.gz`
+5. commits and pushes that file to the data branch
 
 Benchkit also stamps resource attributes such as `benchkit.run_id`,
 `benchkit.kind=hybrid`, `benchkit.source_format=otlp`, and, when available,
@@ -108,7 +109,7 @@ fetch today:
 - `actions/stash` still stores the benchmark result itself at
   `data/runs/{run-id}.json`
 - `actions/monitor` stores raw OTLP telemetry separately at
-  `data/telemetry/{run-id}.otlp.json`
+  `data/telemetry/{run-id}.otlp.jsonl.gz` (gzipped NDJSON)
 - aggregate and chart work can then consume those sidecars through OTLP-aware
   pipelines without forcing an eager conversion to `BenchmarkResult` at capture
   time

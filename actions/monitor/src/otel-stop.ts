@@ -10,6 +10,7 @@ import * as core from "@actions/core";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { gzipSync } from "node:zlib";
 import { execFileSync } from "node:child_process";
 import type { OtelState } from "./types.js";
 
@@ -272,11 +273,13 @@ function pushTelemetryToDataBranch(state: OtelState): void {
       git(["rm", "-rf", "."], worktreePath);
     }
 
-    // Write telemetry file
+    // Write telemetry file (gzipped)
     const telemetryDir = path.join(worktreePath, "data", "telemetry");
     fs.mkdirSync(telemetryDir, { recursive: true });
-    const targetPath = path.join(telemetryDir, `${state.runId}.otlp.jsonl`);
-    fs.copyFileSync(state.outputPath, targetPath);
+    const targetPath = path.join(telemetryDir, `${state.runId}.otlp.jsonl.gz`);
+    const raw = fs.readFileSync(state.outputPath);
+    const compressed = gzipSync(raw);
+    fs.writeFileSync(targetPath, compressed);
 
     // Commit and push
     git(["add", targetPath], worktreePath);
@@ -363,6 +366,17 @@ export async function stopOtelCollector(): Promise<void> {
   } catch (err) {
     core.warning(`Failed to push telemetry: ${err instanceof Error ? err.message : String(err)}`);
   }
+
+  // Write job summary
+  const summary = core.summary.addHeading("OTel Monitor Summary");
+  if (fs.existsSync(state.outputPath)) {
+    const raw = fs.readFileSync(state.outputPath);
+    const compressed = gzipSync(raw);
+    summary.addRaw(`✅ Telemetry collected and pushed\n`);
+    summary.addRaw(`Original: ${(raw.length / 1024).toFixed(1)} KB\n`);
+    summary.addRaw(`Compressed: ${(compressed.length / 1024).toFixed(1)} KB\n`);
+  }
+  await summary.write();
 
   // Clean up temp files
   safeUnlink(statePath);

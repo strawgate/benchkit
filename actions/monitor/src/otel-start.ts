@@ -92,7 +92,7 @@ export function resolveRunId(): string {
 
 export async function startOtelCollector(): Promise<void> {
   const version = core.getInput("collector-version") || "0.102.0";
-  const scrapeInterval = core.getInput("scrape-interval") || "1s";
+  const scrapeInterval = core.getInput("scrape-interval") || "5s";
   const metricSetsRaw = (core.getInput("metric-sets") || "cpu,memory,load,process")
     .split(",");
   const otlpGrpcPort = parseInt(core.getInput("otlp-grpc-port") || "4317", 10);

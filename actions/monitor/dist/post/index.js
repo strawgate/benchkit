@@ -57,6 +57,7 @@ const core = __importStar(__nccwpck_require__(7184));
 const fs = __importStar(__nccwpck_require__(3024));
 const os = __importStar(__nccwpck_require__(8161));
 const path = __importStar(__nccwpck_require__(6760));
+const node_zlib_1 = __nccwpck_require__(8522);
 const node_child_process_1 = __nccwpck_require__(1421);
 function isProcessRunning(pid) {
     if (pid <= 0)
@@ -280,11 +281,13 @@ function pushTelemetryToDataBranch(state) {
             git(["checkout", "--orphan", state.dataBranch], worktreePath);
             git(["rm", "-rf", "."], worktreePath);
         }
-        // Write telemetry file
+        // Write telemetry file (gzipped)
         const telemetryDir = path.join(worktreePath, "data", "telemetry");
         fs.mkdirSync(telemetryDir, { recursive: true });
-        const targetPath = path.join(telemetryDir, `${state.runId}.otlp.jsonl`);
-        fs.copyFileSync(state.outputPath, targetPath);
+        const targetPath = path.join(telemetryDir, `${state.runId}.otlp.jsonl.gz`);
+        const raw = fs.readFileSync(state.outputPath);
+        const compressed = (0, node_zlib_1.gzipSync)(raw);
+        fs.writeFileSync(targetPath, compressed);
         // Commit and push
         git(["add", targetPath], worktreePath);
         // Check if there are changes to commit
@@ -362,6 +365,16 @@ async function stopOtelCollector() {
     catch (err) {
         core.warning(`Failed to push telemetry: ${err instanceof Error ? err.message : String(err)}`);
     }
+    // Write job summary
+    const summary = core.summary.addHeading("OTel Monitor Summary");
+    if (fs.existsSync(state.outputPath)) {
+        const raw = fs.readFileSync(state.outputPath);
+        const compressed = (0, node_zlib_1.gzipSync)(raw);
+        summary.addRaw(`✅ Telemetry collected and pushed\n`);
+        summary.addRaw(`Original: ${(raw.length / 1024).toFixed(1)} KB\n`);
+        summary.addRaw(`Compressed: ${(compressed.length / 1024).toFixed(1)} KB\n`);
+    }
+    await summary.write();
     // Clean up temp files
     safeUnlink(statePath);
     safeUnlink(state.configPath);
@@ -26238,6 +26251,14 @@ module.exports = require("node:stream");
 
 "use strict";
 module.exports = require("node:util");
+
+/***/ }),
+
+/***/ 8522:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:zlib");
 
 /***/ }),
 
