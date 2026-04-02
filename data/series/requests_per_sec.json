@@ -6,12 +6,6 @@
     "http-throughput": {
       "points": [
         {
-          "timestamp": "2026-04-02T01:26:27.305Z",
-          "value": 15230,
-          "commit": "e2ee3a76781e85235425bb2638f266f45e703667",
-          "run_id": "test-native-23879132667-1"
-        },
-        {
           "timestamp": "2026-04-02T01:48:17.254Z",
           "value": 15230,
           "commit": "d62fa9bff713d3f28e2cf706a0fc3ad30685ec00",
