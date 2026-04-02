@@ -1,6 +1,41 @@
 {
   "runs": [
     {
+      "id": "test-native-23925862326-1",
+      "timestamp": "2026-04-02T22:58:20.184Z",
+      "commit": "909b04fc16d9b48dd34e967717e5bc8d006462c9",
+      "ref": "refs/heads/main",
+      "benchmarks": 1,
+      "metrics": [
+        "p99_latency_ms",
+        "requests_per_sec"
+      ]
+    },
+    {
+      "id": "test-go-23925862326-1",
+      "timestamp": "2026-04-02T22:58:19.919Z",
+      "commit": "909b04fc16d9b48dd34e967717e5bc8d006462c9",
+      "ref": "refs/heads/main",
+      "benchmarks": 3,
+      "metrics": [
+        "allocs_per_op",
+        "bytes_per_op",
+        "ns_per_op"
+      ]
+    },
+    {
+      "id": "test-count-23925862326-1",
+      "timestamp": "2026-04-02T22:58:19.838Z",
+      "commit": "909b04fc16d9b48dd34e967717e5bc8d006462c9",
+      "ref": "refs/heads/main",
+      "benchmarks": 2,
+      "metrics": [
+        "allocs_per_op",
+        "bytes_per_op",
+        "ns_per_op"
+      ]
+    },
+    {
       "id": "test-go-23925646410-1",
       "timestamp": "2026-04-02T22:50:55.693Z",
       "commit": "6a7bc9c6b0a33d385c181f4ef6a2fb4fca164957",
@@ -28,6 +63,8 @@
   "metrics": [
     "allocs_per_op",
     "bytes_per_op",
-    "ns_per_op"
+    "ns_per_op",
+    "p99_latency_ms",
+    "requests_per_sec"
   ]
 }
