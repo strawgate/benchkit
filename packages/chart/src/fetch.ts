@@ -1,4 +1,5 @@
-import type { IndexFile, SeriesFile, BenchmarkResult, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, RunDetailView } from "@benchkit/format";
+import type { IndexFile, SeriesFile, BenchmarkResult, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, RunDetailView, ComparisonResult, ThresholdConfig } from "@benchkit/format";
+import { compare, detailViewToBenchmarkResult } from "@benchkit/format";
 
 export interface DataSource {
   owner?: string;
@@ -56,4 +57,25 @@ export function fetchMetricSummary(ds: DataSource, signal?: AbortSignal): Promis
 
 export function fetchRunDetail(ds: DataSource, runId: string, signal?: AbortSignal): Promise<RunDetailView> {
   return fetchJson<RunDetailView>(ds, `data/views/runs/${runId}/detail.json`, signal);
+}
+
+/**
+ * Fetch two run detail views, convert to BenchmarkResult, and compare.
+ * Returns the comparison result plus both detail views for downstream use.
+ */
+export async function compareRuns(
+  ds: DataSource,
+  currentRunId: string,
+  baselineRunId: string,
+  threshold?: ThresholdConfig,
+  signal?: AbortSignal,
+): Promise<{ comparison: ComparisonResult; currentDetail: RunDetailView; baselineDetail: RunDetailView }> {
+  const [currentDetail, baselineDetail] = await Promise.all([
+    fetchRunDetail(ds, currentRunId, signal),
+    fetchRunDetail(ds, baselineRunId, signal),
+  ]);
+  const currentResult = detailViewToBenchmarkResult(currentDetail);
+  const baselineResult = detailViewToBenchmarkResult(baselineDetail);
+  const comparison = compare(currentResult, [baselineResult], threshold);
+  return { comparison, currentDetail, baselineDetail };
 }

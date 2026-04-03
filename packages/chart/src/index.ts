@@ -11,12 +11,13 @@ export { VerdictBanner, type VerdictBannerProps } from "./components/VerdictBann
 export { ComparisonSummaryTable, type ComparisonSummaryTableProps, sortEntries, statusIcon, directionLabel } from "./components/ComparisonSummaryTable.js";
 export { RunSelector, type RunSelectorProps, formatTimestamp, shortCommit } from "./components/RunSelector.js";
 export { Dashboard, type DashboardProps } from "./Dashboard.js";
+export { RunDashboard, type RunDashboardProps } from "./RunDashboard.js";
 
 // Shared formatting utilities
 export { formatValue, formatFixedValue, formatRef, formatPct } from "./format-utils.js";
 
 // Data fetching
-export { fetchIndex, fetchSeries, fetchRun, fetchPrIndex, fetchRefIndex, fetchMetricSummary, fetchRunDetail, type DataSource } from "./fetch.js";
+export { fetchIndex, fetchSeries, fetchRun, fetchPrIndex, fetchRefIndex, fetchMetricSummary, fetchRunDetail, compareRuns, type DataSource } from "./fetch.js";
 
 // Ranking utilities
 export { rankSeries, getWinner, type RankedEntry } from "./leaderboard.js";
