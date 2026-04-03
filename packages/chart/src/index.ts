@@ -6,6 +6,7 @@ export { ComparisonBar, type ComparisonBarProps } from "./components/ComparisonB
 export { RunTable, type RunTableProps } from "./components/RunTable.js";
 export { MonitorSection, type MonitorSectionProps } from "./components/MonitorSection.js";
 export { TagFilter, type TagFilterProps, extractTags, filterSeriesFile } from "./components/TagFilter.js";
+export { DateRangeFilter, type DateRangeFilterProps, type DateRangePreset, type DateRange, presetToDateRange, filterSeriesFileByDateRange } from "./components/DateRangeFilter.js";
 export { Leaderboard, type LeaderboardProps } from "./components/Leaderboard.js";
 export { VerdictBanner, type VerdictBannerProps } from "./components/VerdictBanner.js";
 export { ComparisonSummaryTable, type ComparisonSummaryTableProps, sortEntries, statusIcon, directionLabel } from "./components/ComparisonSummaryTable.js";

@@ -1,6 +1,7 @@
 import type { SeriesFile } from "@benchkit/format";
 import type { DashboardLabels } from "../dashboard-labels.js";
 import { TagFilter, filterSeriesFile } from "./TagFilter.js";
+import { DateRangeFilter, type DateRangePreset } from "./DateRangeFilter.js";
 
 export interface DashboardToolbarProps {
   /** All user (non-monitor) metric names */
@@ -10,10 +11,12 @@ export interface DashboardToolbarProps {
   /** Full user-metric series map (unfiltered) */
   userSeriesMap: Map<string, SeriesFile>;
   activeFilters: Record<string, string>;
+  dateRange: DateRangePreset;
   formatMetric: (metric: string) => string;
   onMetricClick: (metric: string) => void;
   onOverview: () => void;
   onFilterChange: (filters: Record<string, string>) => void;
+  onDateRangeChange: (preset: DateRangePreset) => void;
   labels: DashboardLabels;
 }
 
@@ -22,10 +25,12 @@ export function DashboardToolbar({
   selectedMetric,
   userSeriesMap,
   activeFilters,
+  dateRange,
   formatMetric,
   onMetricClick,
   onOverview,
   onFilterChange,
+  onDateRangeChange,
   labels,
 }: DashboardToolbarProps) {
   const activeFilterCount = Object.keys(activeFilters).length;
@@ -62,6 +67,7 @@ export function DashboardToolbar({
           <span class="bk-badge bk-badge--muted">
             {selectedSeries ? `${focusedSeriesCount} visible series` : `${visibleSeriesCount}/${totalUserSeriesCount} visible series`}
           </span>
+          <DateRangeFilter value={dateRange} onChange={onDateRangeChange} />
         </div>
       </div>
       <div class="bk-toolbar__row">
