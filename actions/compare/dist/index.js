@@ -64758,40 +64758,48 @@ const parser_utils_js_1 = __nccwpck_require__(7524);
  * The -P suffix is extracted as a "procs" tag.
  */
 function parseGoBench(input) {
-    const benchmarks = [];
-    const re = /^(?<name>Benchmark\w[\w/()$%^&*=|,[\]{}"#]*?)(?:-(?<procs>\d+))?\s+(?<iters>\d+)\s+(?<rest>.+)$/;
-    for (const line of input.split(/\r?\n/)) {
-        const m = line.match(re);
-        if (!m?.groups)
-            continue;
-        const { name, procs, iters: _iters, rest } = m.groups;
-        const tags = {};
-        if (procs)
-            tags.procs = procs;
-        const pieces = rest.trim().split(/\s+/);
-        const metrics = {};
-        // Pieces come in (value, unit) pairs
-        for (let i = 0; i + 1 < pieces.length; i += 2) {
-            const value = parseFloat(pieces[i]);
-            const unit = pieces[i + 1];
-            if (isNaN(value))
-                continue;
-            const metricName = (0, parser_utils_js_1.unitToMetricName)(unit);
-            metrics[metricName] = {
-                value,
-                unit,
-                direction: (0, infer_direction_js_1.inferDirection)(unit),
-            };
-        }
-        if (Object.keys(metrics).length > 0) {
-            benchmarks.push({
-                name,
-                tags: Object.keys(tags).length > 0 ? tags : undefined,
-                metrics,
-            });
-        }
+    if (typeof input !== "string" || input.trim() === "") {
+        throw new Error("[parse-go] Input must be a non-empty string.");
     }
-    return { benchmarks };
+    try {
+        const benchmarks = [];
+        const re = /^(?<name>Benchmark\w[\w/()$%^&*=|,[\]{}"#]*?)(?:-(?<procs>\d+))?\s+(?<iters>\d+)\s+(?<rest>.+)$/;
+        for (const line of input.split(/\r?\n/)) {
+            const m = line.match(re);
+            if (!m?.groups)
+                continue;
+            const { name, procs, iters: _iters, rest } = m.groups;
+            const tags = {};
+            if (procs)
+                tags.procs = procs;
+            const pieces = rest.trim().split(/\s+/);
+            const metrics = {};
+            // Pieces come in (value, unit) pairs
+            for (let i = 0; i + 1 < pieces.length; i += 2) {
+                const value = parseFloat(pieces[i]);
+                const unit = pieces[i + 1];
+                if (isNaN(value))
+                    continue;
+                const metricName = (0, parser_utils_js_1.unitToMetricName)(unit);
+                metrics[metricName] = {
+                    value,
+                    unit,
+                    direction: (0, infer_direction_js_1.inferDirection)(unit),
+                };
+            }
+            if (Object.keys(metrics).length > 0) {
+                benchmarks.push({
+                    name,
+                    tags: Object.keys(tags).length > 0 ? tags : undefined,
+                    metrics,
+                });
+            }
+        }
+        return { benchmarks };
+    }
+    catch (err) {
+        throw new Error(`[parse-go] Failed to parse Go benchmark output: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
 }
 //# sourceMappingURL=parse-go.js.map
 
@@ -65323,31 +65331,46 @@ const parser_utils_js_1 = __nccwpck_require__(7524);
  *   test sort::bench_sort   ... bench:         320 ns/iter (+/- 42)
  */
 function parseRustBench(input) {
-    const benchmarks = [];
-    const re = /^test\s+(?<name>\S+)\s+\.\.\.\s+bench:\s+(?<value>[\d,]+)\s+(?<unit>\S+)(?:\s+\(\+\/-\s+(?<range>[\d,]+)\))?/;
-    for (const line of input.split(/\r?\n/)) {
-        const trimmedLine = line.trim();
-        const m = trimmedLine.match(re);
-        if (!m?.groups)
-            continue;
-        const { name, value, unit, range } = m.groups;
-        const metrics = {};
-        const numericValue = parseFloat(value.replace(/,/g, ""));
-        const metric = {
-            value: numericValue,
-            unit,
-            direction: "smaller_is_better",
-        };
-        if (range) {
-            metric.range = parseFloat(range.replace(/,/g, ""));
-        }
-        metrics[(0, parser_utils_js_1.unitToMetricName)(unit)] = metric;
-        benchmarks.push({
-            name,
-            metrics,
-        });
+    if (typeof input !== "string" || input.trim() === "") {
+        throw new Error("[parse-rust] Input must be a non-empty string.");
     }
-    return { benchmarks };
+    try {
+        const benchmarks = [];
+        const re = /^test\s+(?<name>\S+)\s+\.\.\.\s+bench:\s+(?<value>[\d,]+)\s+(?<unit>\S+)(?:\s+\(\+\/-\s+(?<range>[\d,]+)\))?/;
+        for (const line of input.split(/\r?\n/)) {
+            const trimmedLine = line.trim();
+            const m = trimmedLine.match(re);
+            if (!m?.groups)
+                continue;
+            const { name, value, unit, range } = m.groups;
+            const metrics = {};
+            const numericValue = parseFloat(value.replace(/,/g, ""));
+            if (isNaN(numericValue)) {
+                throw new Error(`Invalid numeric value '${value}' for benchmark '${name}'.`);
+            }
+            const metric = {
+                value: numericValue,
+                unit,
+                direction: "smaller_is_better",
+            };
+            if (range) {
+                const numericRange = parseFloat(range.replace(/,/g, ""));
+                if (isNaN(numericRange)) {
+                    throw new Error(`Invalid numeric range '${range}' for benchmark '${name}'.`);
+                }
+                metric.range = numericRange;
+            }
+            metrics[(0, parser_utils_js_1.unitToMetricName)(unit)] = metric;
+            benchmarks.push({
+                name,
+                metrics,
+            });
+        }
+        return { benchmarks };
+    }
+    catch (err) {
+        throw new Error(`[parse-rust] Failed to parse Rust benchmark output: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
 }
 //# sourceMappingURL=parse-rust.js.map
 

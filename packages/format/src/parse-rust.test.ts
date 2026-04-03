@@ -55,4 +55,16 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 2 measured; 0 filtered out; fini
     const result = parseRustBench(input);
     assert.equal(result.benchmarks.length, 2);
   });
+
+  it("throws on empty string input", () => {
+    assert.throws(() => parseRustBench(""), {
+      message: /\[parse-rust\] Input must be a non-empty string/,
+    });
+  });
+
+  it("throws on whitespace-only input", () => {
+    assert.throws(() => parseRustBench("   \n\t  \n  "), {
+      message: /\[parse-rust\] Input must be a non-empty string/,
+    });
+  });
 });
