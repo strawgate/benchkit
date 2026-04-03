@@ -26,6 +26,8 @@ export { fetchIndex, fetchSeries, fetchRun, fetchPrIndex, fetchRefIndex, fetchMe
 
 // Ranking utilities
 export { rankSeries, getWinner, type RankedEntry } from "./leaderboard.js";
+// Hooks
+export { useChartLifecycle, type ChartLifecycleResult } from "./hooks/useChartLifecycle.js";
 // Utilities
 export { detectRegressions, regressionTooltip, type RegressionResult } from "./utils.js";
 export { defaultMetricLabel, defaultMonitorMetricLabel } from "./labels.js";

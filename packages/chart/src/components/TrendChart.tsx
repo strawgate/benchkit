@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "preact/hooks";
+import { useMemo } from "preact/hooks";
 import { formatValue } from "../format-utils.js";
 import { REGRESSION_COLOR, REGRESSION_BORDER_COLOR } from "../colors.js";
 import {
@@ -24,7 +24,7 @@ import {
 import "chartjs-adapter-date-fns";
 import type { SeriesFile, SeriesEntry } from "@benchkit/format";
 import { COLORS } from "../colors.js";
-import { getChartTheme } from "../theme.js";
+import { useChartLifecycle } from "../hooks/useChartLifecycle.js";
 import type { RegressionResult } from "../utils.js";
 
 Chart.register(
@@ -74,9 +74,6 @@ export function TrendChart({
   class: className,
   regressions,
 }: TrendChartProps) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<Chart<"line", { x: string; y: number }[]> | null>(null);
   const entries = useMemo(() => {
     return Object.entries(series.series)
       .map(([name, entry], idx) => {
@@ -97,93 +94,74 @@ export function TrendChart({
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
   }, [series, maxPoints, seriesNameFormatter, regressions]);
 
-  useEffect(() => {
-    if (!canvasRef.current || !wrapperRef.current) return;
+  const { canvasRef, wrapperRef } = useChartLifecycle<"line">(
+    (theme) => {
+      if (entries.length === 0) return null;
 
-    if (entries.length === 0) {
-      chartRef.current?.destroy();
-      chartRef.current = null;
-      return;
-    }
+      const resolvedLineWidth = lineWidth ?? (compact ? 1.5 : 1.75);
+      const datasets = entries.map((entry) => {
+        const lastIdx = entry.points.length - 1;
+        return {
+          label: entry.label,
+          data: entry.points.map((point) => ({ x: point.timestamp, y: point.value })),
+          borderColor: entry.color,
+          backgroundColor: `${entry.color}22`,
+          fill: entries.length === 1,
+          tension: 0,
+          borderWidth: resolvedLineWidth,
+          clip: 8,
+          spanGaps: true,
+          pointRadius: entry.points.map((_, index) => (entry.isRegressed && index === lastIdx ? (compact ? 4 : 5) : (compact ? 1.75 : 2.5))),
+          pointHoverRadius: compact ? 4 : 6,
+          pointBackgroundColor: entry.points.map((_, index) => (
+            entry.isRegressed && index === lastIdx ? REGRESSION_COLOR : entry.color
+          )),
+          pointBorderColor: entry.points.map((_, index) => (
+            entry.isRegressed && index === lastIdx ? REGRESSION_BORDER_COLOR : entry.color
+          )),
+        };
+      });
 
-    const theme = getChartTheme(wrapperRef.current);
-    const resolvedLineWidth = lineWidth ?? (compact ? 1.5 : 1.75);
-    const datasets: ChartDataset<"line", { x: string; y: number }[]>[] = entries.map((entry) => {
-      const lastIdx = entry.points.length - 1;
-      return {
-        label: entry.label,
-        data: entry.points.map((point) => ({ x: point.timestamp, y: point.value })),
-        borderColor: entry.color,
-        backgroundColor: `${entry.color}22`,
-        fill: entries.length === 1,
-        tension: 0,
-        borderWidth: resolvedLineWidth,
-        clip: 8,
-        spanGaps: true,
-        pointRadius: entry.points.map((_, index) => (entry.isRegressed && index === lastIdx ? (compact ? 4 : 5) : (compact ? 1.75 : 2.5))),
-        pointHoverRadius: compact ? 4 : 6,
-        pointBackgroundColor: entry.points.map((_, index) => (
-          entry.isRegressed && index === lastIdx ? REGRESSION_COLOR : entry.color
-        )),
-        pointBorderColor: entry.points.map((_, index) => (
-          entry.isRegressed && index === lastIdx ? REGRESSION_BORDER_COLOR : entry.color
-        )),
-      };
-    });
-
-    const options: ChartOptions<"line"> = {
-      ...baseLineOptions(),
-      layout: { padding: layoutPadding(compact) },
-      interaction: { mode: "nearest", intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          ...sharedTooltipStyle(theme),
-          callbacks: {
-            title: (items) => {
-              const ts = items[0]?.label;
-              return ts ? new Date(ts).toLocaleString() : "";
-            },
-            afterLabel: (item) => {
-              const seriesEntry = entries[item.datasetIndex];
-              if (!seriesEntry) return "";
-              const pt = seriesEntry.points[item.dataIndex];
-              const parts: string[] = [];
-              if (pt?.commit) parts.push(`commit: ${pt.commit.slice(0, 8)}`);
-              if (pt?.range != null) parts.push(`± ${pt.range}`);
-              return parts.join("\n");
+      const options: ChartOptions<"line"> = {
+        ...baseLineOptions(),
+        layout: { padding: layoutPadding(compact) },
+        interaction: { mode: "nearest", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...sharedTooltipStyle(theme),
+            callbacks: {
+              title: (items) => {
+                const ts = items[0]?.label;
+                return ts ? new Date(ts).toLocaleString() : "";
+              },
+              afterLabel: (item) => {
+                const seriesEntry = entries[item.datasetIndex];
+                if (!seriesEntry) return "";
+                const pt = seriesEntry.points[item.dataIndex];
+                const parts: string[] = [];
+                if (pt?.commit) parts.push(`commit: ${pt.commit.slice(0, 8)}`);
+                if (pt?.range != null) parts.push(`± ${pt.range}`);
+                return parts.join("\n");
+              },
             },
           },
         },
-      },
-      scales: {
-        x: timeXAxis(theme, { maxTicksLimit: compact ? 4 : 7 }),
-        y: yAxisConfig(theme, {
-          showTitle: !compact,
-          title: series.unit ?? series.metric,
-          maxTicksLimit: compact ? 4 : 6,
-          tickCallback: (value) => formatValue(Number(value), compact),
-        }),
-      },
-    };
+        scales: {
+          x: timeXAxis(theme, { maxTicksLimit: compact ? 4 : 7 }),
+          y: yAxisConfig(theme, {
+            showTitle: !compact,
+            title: series.unit ?? series.metric,
+            maxTicksLimit: compact ? 4 : 6,
+            tickCallback: (value) => formatValue(Number(value), compact),
+          }),
+        },
+      };
 
-    if (chartRef.current) {
-      chartRef.current.data = { datasets };
-      chartRef.current.options = options;
-      chartRef.current.update();
-    } else {
-      chartRef.current = new Chart(canvasRef.current, {
-        type: "line",
-        data: { datasets },
-        options,
-      });
-    }
-
-    return () => {
-      chartRef.current?.destroy();
-      chartRef.current = null;
-    };
-  }, [compact, entries, lineWidth, series.metric, series.unit]);
+      return { type: "line" as const, data: { datasets: datasets as unknown as ChartDataset<"line">[] }, options };
+    },
+    [compact, entries, lineWidth, series.metric, series.unit],
+  );
 
   return (
     <div ref={wrapperRef} class={["bk-chart-panel", className].filter(Boolean).join(" ")}>
