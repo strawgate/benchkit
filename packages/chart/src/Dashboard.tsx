@@ -9,7 +9,7 @@ import { MetricDetailView } from "./components/MetricDetailView.js";
 import { RunTable } from "./components/RunTable.js";
 import { MonitorSection } from "./components/MonitorSection.js";
 import { filterSeriesFile } from "./components/TagFilter.js";
-import { detectRegressions, type RegressionResult } from "./utils.js";
+import { presetToDateRange, filterSeriesFileByDateRange, type DateRangePreset } from "./components/DateRangeFilter.js";import { detectRegressions, type RegressionResult } from "./utils.js";
 import { defaultMetricLabel, isMonitorMetric } from "./labels.js";
 
 export interface DashboardProps {
@@ -53,6 +53,7 @@ export function Dashboard({
   const [seriesErrors, setSeriesErrors] = useState<Map<string, string>>(new Map());
   const [view, setView] = useState<View>("overview");
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [dateRange, setDateRange] = useState<DateRangePreset>("all");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -97,14 +98,25 @@ export function Dashboard({
 
   const handleOverview = useCallback(() => setView("overview"), []);
 
+  // Apply date range filter to all series data.
+  const dateFilteredSeriesMap = useMemo(() => {
+    const range = presetToDateRange(dateRange);
+    if (!range.start && !range.end) return seriesMap;
+    const filtered = new Map<string, SeriesFile>();
+    for (const [metric, sf] of seriesMap.entries()) {
+      filtered.set(metric, filterSeriesFileByDateRange(sf, range));
+    }
+    return filtered;
+  }, [seriesMap, dateRange]);
+
   const regressionMap = useMemo<Map<string, RegressionResult[]>>(() => {
     const map = new Map<string, RegressionResult[]>();
-    for (const [metric, sf] of seriesMap.entries()) {
+    for (const [metric, sf] of dateFilteredSeriesMap.entries()) {
       const results = detectRegressions(sf, regressionThreshold, regressionWindow);
       if (results.length > 0) map.set(metric, results);
     }
     return map;
-  }, [seriesMap, regressionThreshold, regressionWindow]);
+  }, [dateFilteredSeriesMap, regressionThreshold, regressionWindow]);
 
   const rootClassName = ["bk-dashboard", className].filter(Boolean).join(" ");
   const formatMetric = metricLabelFormatter ?? defaultMetricLabel;
@@ -142,12 +154,12 @@ export function Dashboard({
     );
   }
 
-  const userMetrics = new Map([...seriesMap.entries()].filter(([m]) => !isMonitorMetric(m)));
-  const monitorSeriesMap = new Map([...seriesMap.entries()].filter(([m]) => isMonitorMetric(m)));
+  const userMetrics = new Map([...dateFilteredSeriesMap.entries()].filter(([m]) => !isMonitorMetric(m)));
+  const monitorSeriesMap = new Map([...dateFilteredSeriesMap.entries()].filter(([m]) => isMonitorMetric(m)));
   const userMetricNames = (index.metrics ?? []).filter((m) => !isMonitorMetric(m));
 
   const selectedMetric = typeof view === "object" ? view.metric : null;
-  const selectedSeries = selectedMetric ? seriesMap.get(selectedMetric) : null;
+  const selectedSeries = selectedMetric ? dateFilteredSeriesMap.get(selectedMetric) : null;
   const selectedMetricError = selectedMetric ? (seriesErrors.get(selectedMetric) ?? null) : null;
 
   const visibleSeriesCount = [...userMetrics.values()].reduce(
@@ -172,10 +184,12 @@ export function Dashboard({
           selectedMetric={selectedMetric}
           userSeriesMap={userMetrics}
           activeFilters={activeFilters}
+          dateRange={dateRange}
           formatMetric={formatMetric}
           onMetricClick={handleMetricClick}
           onOverview={handleOverview}
           onFilterChange={setActiveFilters}
+          onDateRangeChange={setDateRange}
           labels={labels}
         />
 
@@ -198,7 +212,7 @@ export function Dashboard({
         ) : (
           <OverviewGrid
             metricNames={userMetricNames}
-            seriesMap={seriesMap}
+            seriesMap={dateFilteredSeriesMap}
             seriesErrors={seriesErrors}
             activeFilters={activeFilters}
             regressionMap={regressionMap}
