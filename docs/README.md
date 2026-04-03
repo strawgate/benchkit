@@ -35,7 +35,7 @@ This directory is the main documentation hub for benchkit.
 
 These are useful, but they are not the main user path:
 
-- [`internal/agent-handoff.md`](internal/agent-handoff.md) — current internal handoff and project-state notes
+- [`internal/agent-handoff.md`](internal/agent-handoff.md) — current next-agent execution handoff
 - [`history/architecture-review.md`](history/architecture-review.md) — historical architecture review
 - [`history/plans.md`](history/plans.md) — historical planning notes
 - [`research/copilot-playwright-audit.md`](research/copilot-playwright-audit.md) — point-in-time demo-site audit
