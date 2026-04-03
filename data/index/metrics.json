@@ -16,17 +16,5 @@
     "latestSeriesCount": 3,
     "latestRunId": "test-count-23928688531-1",
     "latestTimestamp": "2026-04-03T00:44:54.592Z"
-  },
-  {
-    "metric": "p99_latency_ms",
-    "latestSeriesCount": 1,
-    "latestRunId": "test-native-23928688531-1",
-    "latestTimestamp": "2026-04-03T00:44:54.023Z"
-  },
-  {
-    "metric": "requests_per_sec",
-    "latestSeriesCount": 1,
-    "latestRunId": "test-native-23928688531-1",
-    "latestTimestamp": "2026-04-03T00:44:54.023Z"
   }
 ]
