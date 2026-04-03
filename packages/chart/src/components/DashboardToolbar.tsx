@@ -1,4 +1,5 @@
 import type { SeriesFile } from "@benchkit/format";
+import type { DashboardLabels } from "../dashboard-labels.js";
 import { TagFilter, filterSeriesFile } from "./TagFilter.js";
 
 export interface DashboardToolbarProps {
@@ -13,6 +14,7 @@ export interface DashboardToolbarProps {
   onMetricClick: (metric: string) => void;
   onOverview: () => void;
   onFilterChange: (filters: Record<string, string>) => void;
+  labels: DashboardLabels;
 }
 
 export function DashboardToolbar({
@@ -24,6 +26,7 @@ export function DashboardToolbar({
   onMetricClick,
   onOverview,
   onFilterChange,
+  labels,
 }: DashboardToolbarProps) {
   const activeFilterCount = Object.keys(activeFilters).length;
   const totalUserSeriesCount = [...userSeriesMap.values()].reduce(
@@ -44,9 +47,9 @@ export function DashboardToolbar({
     <section class="bk-toolbar">
       <div class="bk-toolbar__row">
         <div class="bk-toolbar__group">
-          <span class="bk-toolbar__label">View</span>
+          <span class="bk-toolbar__label">{labels.viewLabel}</span>
           <button class="bk-link-button" type="button" onClick={onOverview}>
-            Overview
+            {labels.overviewButton}
           </button>
           {selectedSeries && (
             <span class="bk-badge bk-badge--muted">
@@ -63,7 +66,7 @@ export function DashboardToolbar({
       </div>
       <div class="bk-toolbar__row">
         <div class="bk-toolbar__group">
-          <span class="bk-toolbar__label">Metrics</span>
+          <span class="bk-toolbar__label">{labels.metricsLabel}</span>
           {metricNames.map((metric) => (
             <button
               key={metric}

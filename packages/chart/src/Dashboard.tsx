@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import type { IndexFile, SeriesFile, SeriesEntry, RunEntry } from "@benchkit/format";
 import { fetchIndex, fetchSeries, type DataSource } from "./fetch.js";
+import { type DashboardLabels, resolveLabels } from "./dashboard-labels.js";
 import { HeroSection } from "./components/HeroSection.js";
 import { DashboardToolbar } from "./components/DashboardToolbar.js";
 import { OverviewGrid } from "./components/OverviewGrid.js";
@@ -28,6 +29,8 @@ export interface DashboardProps {
   regressionThreshold?: number;
   /** Number of preceding data points to average for regression detection (default: 5) */
   regressionWindow?: number;
+  /** Override any user-facing label/text string in the dashboard */
+  labels?: Partial<DashboardLabels>;
 }
 
 type View = "overview" | { metric: string };
@@ -42,7 +45,9 @@ export function Dashboard({
   commitHref,
   regressionThreshold = 10,
   regressionWindow = 5,
+  labels: labelOverrides,
 }: DashboardProps) {
+  const labels = resolveLabels(labelOverrides);
   const [index, setIndex] = useState<IndexFile | null>(null);
   const [seriesMap, setSeriesMap] = useState<Map<string, SeriesFile>>(new Map());
   const [seriesErrors, setSeriesErrors] = useState<Map<string, string>>(new Map());
@@ -108,8 +113,8 @@ export function Dashboard({
     return (
       <div class={rootClassName}>
         <div class="bk-loading">
-          <h2 class="bk-loading__title">Loading benchmark dashboard</h2>
-          <p class="bk-loading__body">Fetching benchmark index and metric series for the latest runs.</p>
+          <h2 class="bk-loading__title">{labels.loadingTitle}</h2>
+          <p class="bk-loading__body">{labels.loadingBody}</p>
         </div>
       </div>
     );
@@ -119,7 +124,7 @@ export function Dashboard({
     return (
       <div class={rootClassName}>
         <div class="bk-state">
-          <h2 class="bk-state__title">Could not load benchmark data</h2>
+          <h2 class="bk-state__title">{labels.errorTitle}</h2>
           <p class="bk-state__body">{error}</p>
         </div>
       </div>
@@ -130,8 +135,8 @@ export function Dashboard({
     return (
       <div class={rootClassName}>
         <div class="bk-state">
-          <h2 class="bk-state__title">No benchmark data found</h2>
-          <p class="bk-state__body">This dashboard needs an aggregated `data/index.json` and metric series files.</p>
+          <h2 class="bk-state__title">{labels.emptyTitle}</h2>
+          <p class="bk-state__body">{labels.emptyBody}</p>
         </div>
       </div>
     );
@@ -159,6 +164,7 @@ export function Dashboard({
           visibleSeriesCount={visibleSeriesCount}
           monitorMetricCount={monitorSeriesMap.size}
           latestRun={index.runs[0]}
+          labels={labels}
         />
 
         <DashboardToolbar
@@ -170,6 +176,7 @@ export function Dashboard({
           onMetricClick={handleMetricClick}
           onOverview={handleOverview}
           onFilterChange={setActiveFilters}
+          labels={labels}
         />
 
         {selectedMetricError ? (
@@ -186,6 +193,7 @@ export function Dashboard({
             formatMetric={formatMetric}
             seriesNameFormatter={seriesNameFormatter}
             onBack={handleOverview}
+            labels={labels}
           />
         ) : (
           <OverviewGrid
@@ -198,6 +206,7 @@ export function Dashboard({
             formatMetric={formatMetric}
             seriesNameFormatter={seriesNameFormatter}
             onMetricClick={handleMetricClick}
+            labels={labels}
           />
         )}
 
@@ -209,17 +218,18 @@ export function Dashboard({
             metricLabelFormatter={formatMetric}
             seriesNameFormatter={seriesNameFormatter}
             onMetricClick={handleMetricClick}
+            labels={labels}
           />
         )}
 
         <section class="bk-section">
           <div class="bk-section__header">
             <div>
-              <h3 class="bk-section__title">Recent runs</h3>
-              <p class="bk-section__description">Commit context and captured metric coverage for the latest benchmark executions.</p>
+              <h3 class="bk-section__title">{labels.recentRunsTitle}</h3>
+              <p class="bk-section__description">{labels.recentRunsDescription}</p>
             </div>
           </div>
-          <RunTable index={index} maxRows={maxRuns} commitHref={commitHref} />
+          <RunTable index={index} maxRows={maxRuns} commitHref={commitHref} labels={labels} />
         </section>
       </div>
     </div>

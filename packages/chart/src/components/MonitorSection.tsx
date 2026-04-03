@@ -1,4 +1,5 @@
 import type { SeriesFile, SeriesEntry, IndexFile, MonitorContext } from "@benchkit/format";
+import type { DashboardLabels } from "../dashboard-labels.js";
 import { TrendChart } from "./TrendChart.js";
 import { defaultMonitorMetricLabel } from "../labels.js";
 
@@ -17,6 +18,7 @@ export interface MonitorSectionProps {
   onMetricClick?: (metric: string) => void;
   /** Currently selected metric (for highlighting) */
   selectedMetric?: string | null;
+  labels?: DashboardLabels;
 }
 
 function RunnerContextCard({ ctx }: { ctx: MonitorContext }) {
@@ -49,6 +51,7 @@ export function MonitorSection({
   seriesNameFormatter,
   onMetricClick,
   selectedMetric,
+  labels,
 }: MonitorSectionProps) {
   if (monitorSeriesMap.size === 0) return null;
 
@@ -65,9 +68,9 @@ export function MonitorSection({
     <section class="bk-section">
       <div class="bk-section__header">
         <div>
-          <h3 class="bk-section__title">Runner metrics</h3>
+          <h3 class="bk-section__title">{labels?.monitorTitle ?? "Runner metrics"}</h3>
           <p class="bk-section__description">
-            Host and process telemetry from the Benchkit monitor action, kept visually secondary to the benchmark results.
+            {labels?.monitorDescription ?? "Host and process telemetry from the Benchkit monitor action, kept visually secondary to the benchmark results."}
           </p>
         </div>
       </div>

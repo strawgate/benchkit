@@ -13,6 +13,9 @@ export { RunSelector, type RunSelectorProps, formatTimestamp, shortCommit } from
 export { Dashboard, type DashboardProps } from "./Dashboard.js";
 export { RunDashboard, type RunDashboardProps } from "./RunDashboard.js";
 
+// Label customization
+export { type DashboardLabels, defaultDashboardLabels, resolveLabels } from "./dashboard-labels.js";
+
 // Shared formatting utilities
 export { formatValue, formatFixedValue, formatRef, formatPct } from "./format-utils.js";
 

@@ -1,4 +1,5 @@
 import type { IndexFile, RunEntry } from "@benchkit/format";
+import type { DashboardLabels } from "../dashboard-labels.js";
 import { formatRef } from "../format-utils.js";
 
 export interface RunTableProps {
@@ -8,9 +9,10 @@ export interface RunTableProps {
   /** Link commits to GitHub or other VCS */
   commitHref?: (commit: string, run: RunEntry) => string | undefined;
   class?: string;
+  labels?: DashboardLabels;
 }
 
-export function RunTable({ index, maxRows, onSelectRun, commitHref, class: className }: RunTableProps) {
+export function RunTable({ index, maxRows, onSelectRun, commitHref, class: className, labels }: RunTableProps) {
   const runs = maxRows ? index.runs.slice(0, maxRows) : index.runs;
 
   return (
@@ -19,12 +21,12 @@ export function RunTable({ index, maxRows, onSelectRun, commitHref, class: class
         <table class="bk-table">
           <thead>
             <tr>
-              <th>Run</th>
-              <th>Time</th>
-              <th>Commit</th>
-              <th>Ref</th>
-              <th class="bk-table__numeric">Benchmarks</th>
-              <th>Metrics</th>
+              <th>{labels?.runColumn ?? "Run"}</th>
+              <th>{labels?.timeColumn ?? "Time"}</th>
+              <th>{labels?.commitColumn ?? "Commit"}</th>
+              <th>{labels?.refColumn ?? "Ref"}</th>
+              <th class="bk-table__numeric">{labels?.benchmarksColumn ?? "Benchmarks"}</th>
+              <th>{labels?.metricsColumn ?? "Metrics"}</th>
             </tr>
           </thead>
           <tbody>
