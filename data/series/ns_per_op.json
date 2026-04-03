@@ -9,13 +9,6 @@
       },
       "points": [
         {
-          "timestamp": "2026-04-03T01:50:19.657Z",
-          "value": 310,
-          "commit": "b1635c249e0367a5801271fdec296a2b9276447c",
-          "run_id": "test-count-23930222069-1",
-          "range": 20
-        },
-        {
           "timestamp": "2026-04-03T01:57:24.077Z",
           "value": 320,
           "commit": "47642bbad2f38db9c260e95cec7be145e70e5481",
@@ -35,13 +28,6 @@
         "procs": "4"
       },
       "points": [
-        {
-          "timestamp": "2026-04-03T01:50:19.657Z",
-          "value": 110,
-          "commit": "b1635c249e0367a5801271fdec296a2b9276447c",
-          "run_id": "test-count-23930222069-1",
-          "range": 20
-        },
         {
           "timestamp": "2026-04-03T01:57:24.077Z",
           "value": 120,
