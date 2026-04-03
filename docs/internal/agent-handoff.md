@@ -23,24 +23,19 @@ Then read the package, action, or workflow you are about to change.
 If you work on dashboard accessibility, also read
 [`../research/copilot-playwright-audit.md`](../research/copilot-playwright-audit.md).
 
-## Current state
+## Current execution queue
 
-- The repository-level docs cleanup is already in place on this branch line:
-  root `README.md` is now user-facing and detailed references live under
-  `docs/`.
-- There are no open PRs in `strawgate/benchkit` right now.
-- The current cleanup execution queue is already filed as real issues:
+- Active cleanup/documentation sequence:
   - `#159` define current-truth docs and deprecation policy
   - `#160` clarify the role of `packages/dashboard`
   - `#161` add the migration-readiness and example-coverage matrix
   - `#162` fix public dashboard accessibility and semantics
   - `#163` align chart docs with the shipped component surfaces
-- Older format/package issues that are still valid Copilot-sized work:
+- Follow-on format work:
   - `#153` fix unsafe `JSON.stringify` equality in run-detail conversion
   - `#152` wrap parser `JSON.parse` failures with contextual errors
   - `#137` reduce OTLP projection duplication
-- Historical handoff issue `#71` should be treated as context only, not as the
-  current work queue.
+- Historical handoff issue `#71` is no longer the active queue.
 
 ## Recommended next-agent sequence
 

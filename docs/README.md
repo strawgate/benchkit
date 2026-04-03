@@ -2,6 +2,22 @@
 
 This directory is the main documentation hub for benchkit.
 
+## Documentation ownership and current truth
+
+Use the active docs with clear ownership:
+
+- [`vision-and-roadmap.md`](vision-and-roadmap.md) owns product direction,
+  shipped/open roadmap status, and the active backlog framing.
+- [`internal/agent-handoff.md`](internal/agent-handoff.md) is for short-lived
+  next-agent execution guidance only.
+- `docs/history/*` is archived historical material, not the current source of
+  truth.
+- `docs/research/*` captures point-in-time audits or investigations unless the
+  guidance is promoted into an active doc.
+
+If an active doc is replaced, move the old material into `history/` or
+`research/` instead of leaving two active docs to compete.
+
 ## Start here
 
 - [`getting-started.md`](getting-started.md) — end-to-end setup for stash, aggregate, compare, monitor, and charts
@@ -12,7 +28,7 @@ This directory is the main documentation hub for benchkit.
 
 - [`workflow-architecture.md`](workflow-architecture.md) — recommended producer/aggregate workflow split
 - [`migration-beats-bench.md`](migration-beats-bench.md) — migration guide from `beats-bench`
-- [`vision-and-roadmap.md`](vision-and-roadmap.md) — product direction and roadmap framing
+- [`vision-and-roadmap.md`](vision-and-roadmap.md) — source of truth for product direction and roadmap status
 
 ## Data and architecture references
 
@@ -35,7 +51,7 @@ This directory is the main documentation hub for benchkit.
 
 These are useful, but they are not the main user path:
 
-- [`internal/agent-handoff.md`](internal/agent-handoff.md) — current next-agent execution handoff
+- [`internal/agent-handoff.md`](internal/agent-handoff.md) — current next-agent execution handoff, not the roadmap/status owner
 - [`history/architecture-review.md`](history/architecture-review.md) — historical architecture review
 - [`history/plans.md`](history/plans.md) — historical planning notes
 - [`research/copilot-playwright-audit.md`](research/copilot-playwright-audit.md) — point-in-time demo-site audit
