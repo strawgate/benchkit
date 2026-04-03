@@ -12,6 +12,7 @@ export { ComparisonSummaryTable, type ComparisonSummaryTableProps, sortEntries, 
 export { RunSelector, type RunSelectorProps, formatTimestamp, shortCommit } from "./components/RunSelector.js";
 export { Dashboard, type DashboardProps } from "./Dashboard.js";
 export { RunDashboard, type RunDashboardProps } from "./RunDashboard.js";
+export { RunDetail, type RunDetailProps, type MetricSnapshotCardProps, MetricSnapshotCard } from "./RunDetail.js";
 
 // Label customization
 export { type DashboardLabels, defaultDashboardLabels, resolveLabels } from "./dashboard-labels.js";
