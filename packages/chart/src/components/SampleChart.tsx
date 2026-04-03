@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "preact/hooks";
+import { useMemo } from "preact/hooks";
 import { formatValue } from "../format-utils.js";
 import {
   sharedTooltipStyle,
@@ -20,7 +20,7 @@ import {
 } from "chart.js";
 import type { Sample } from "@benchkit/format";
 import { COLORS } from "../colors.js";
-import { getChartTheme } from "../theme.js";
+import { useChartLifecycle } from "../hooks/useChartLifecycle.js";
 import { extractSampleMetrics } from "../sample-utils.js";
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, Legend);
@@ -56,10 +56,6 @@ export function SampleChart({
   showLegend = true,
   class: className,
 }: SampleChartProps) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<Chart | null>(null);
-
   const resolvedMetrics = useMemo(() => {
     if (metrics && metrics.length > 0) return metrics;
     return extractSampleMetrics(samples);
@@ -87,63 +83,43 @@ export function SampleChart({
     });
   }, [resolvedMetrics, samples, metricLabelFormatter, compact, lineWidth]);
 
-  useEffect(() => {
-    if (!canvasRef.current || !wrapperRef.current) return;
+  const { canvasRef, wrapperRef } = useChartLifecycle<"line">(
+    (theme) => {
+      if (datasets.length === 0 || samples.length === 0) return null;
 
-    if (datasets.length === 0 || samples.length === 0) {
-      chartRef.current?.destroy();
-      chartRef.current = null;
-      return;
-    }
-
-    const theme = getChartTheme(wrapperRef.current);
-
-    const options: ChartOptions<"line"> = {
-      ...baseLineOptions(),
-      layout: { padding: layoutPadding(compact) },
-      interaction: { mode: "nearest", intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          ...sharedTooltipStyle(theme),
-          callbacks: {
-            title: (items) => `t = ${items[0]?.label ?? ""}s`,
+      const options: ChartOptions<"line"> = {
+        ...baseLineOptions(),
+        layout: { padding: layoutPadding(compact) },
+        interaction: { mode: "nearest", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...sharedTooltipStyle(theme),
+            callbacks: {
+              title: (items) => `t = ${items[0]?.label ?? ""}s`,
+            },
           },
         },
-      },
-      scales: {
-        x: linearXAxis(theme, {
-          title: "Elapsed time (s)",
-          showTitle: !compact,
-          maxTicksLimit: compact ? 4 : 7,
-          tickCallback: (value) => `${value}s`,
-        }),
-        y: yAxisConfig(theme, {
-          showTitle: !compact && resolvedMetrics.length === 1,
-          title: resolvedMetrics[0] ?? "",
-          maxTicksLimit: compact ? 4 : 6,
-          tickCallback: (value) => formatValue(Number(value), compact),
-        }),
-      },
-    };
+        scales: {
+          x: linearXAxis(theme, {
+            title: "Elapsed time (s)",
+            showTitle: !compact,
+            maxTicksLimit: compact ? 4 : 7,
+            tickCallback: (value) => `${value}s`,
+          }),
+          y: yAxisConfig(theme, {
+            showTitle: !compact && resolvedMetrics.length === 1,
+            title: resolvedMetrics[0] ?? "",
+            maxTicksLimit: compact ? 4 : 6,
+            tickCallback: (value) => formatValue(Number(value), compact),
+          }),
+        },
+      };
 
-    if (chartRef.current) {
-      chartRef.current.data = { datasets };
-      chartRef.current.options = options;
-      chartRef.current.update();
-    } else {
-      chartRef.current = new Chart(canvasRef.current, {
-        type: "line",
-        data: { datasets },
-        options,
-      });
-    }
-
-    return () => {
-      chartRef.current?.destroy();
-      chartRef.current = null;
-    };
-  }, [compact, datasets, samples.length, resolvedMetrics]);
+      return { type: "line" as const, data: { datasets }, options };
+    },
+    [compact, datasets, samples.length, resolvedMetrics],
+  );
 
   const isEmpty = samples.length === 0 || resolvedMetrics.length === 0;
 

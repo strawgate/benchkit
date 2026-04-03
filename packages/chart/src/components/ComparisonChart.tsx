@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "preact/hooks";
+import { useMemo } from "preact/hooks";
 import { formatValue } from "../format-utils.js";
 import { BASE_COLOR, CURRENT_COLOR } from "../colors.js";
 import {
@@ -23,7 +23,7 @@ import {
 } from "chart.js";
 import "chartjs-adapter-date-fns";
 import type { Sample, DataPoint } from "@benchkit/format";
-import { getChartTheme } from "../theme.js";
+import { useChartLifecycle } from "../hooks/useChartLifecycle.js";
 import {
   samplesToDataPoints,
   dataPointsToComparisonData,
@@ -85,10 +85,6 @@ export function ComparisonChart({
   subtitle,
   class: className,
 }: ComparisonChartProps) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<Chart<"line", { x: string | number; y: number }[]> | null>(null);
-
   /** true when operating in Sample[] (intra-run) mode */
   const isSamplesMode = baseSamples !== undefined || currentSamples !== undefined;
 
@@ -108,114 +104,94 @@ export function ComparisonChart({
 
   const isEmpty = baseData.length === 0 && currentData.length === 0;
 
-  useEffect(() => {
-    if (!canvasRef.current || !wrapperRef.current) return;
+  const { canvasRef, wrapperRef } = useChartLifecycle<"line">(
+    (theme) => {
+      if (isEmpty) return null;
 
-    if (isEmpty) {
-      chartRef.current?.destroy();
-      chartRef.current = null;
-      return;
-    }
+      const datasets: ChartDataset<"line", { x: string | number; y: number }[]>[] = [
+        {
+          label: baseLabel,
+          data: baseData,
+          borderColor: BASE_COLOR,
+          backgroundColor: `${BASE_COLOR}22`,
+          fill: false,
+          tension: 0,
+          borderWidth: 1.75,
+          clip: 8,
+          spanGaps: true,
+          pointRadius: 2.5,
+          pointHoverRadius: 6,
+          pointBackgroundColor: BASE_COLOR,
+          pointBorderColor: BASE_COLOR,
+        },
+        {
+          label: currentLabel,
+          data: currentData,
+          borderColor: CURRENT_COLOR,
+          backgroundColor: `${CURRENT_COLOR}22`,
+          fill: false,
+          tension: 0,
+          borderWidth: 1.75,
+          clip: 8,
+          spanGaps: true,
+          pointRadius: 2.5,
+          pointHoverRadius: 6,
+          pointBackgroundColor: CURRENT_COLOR,
+          pointBorderColor: CURRENT_COLOR,
+        },
+      ].filter((ds) => ds.data.length > 0);
 
-    const theme = getChartTheme(wrapperRef.current);
+      const xScale: ChartOptions<"line">["scales"] = isSamplesMode
+        ? { x: linearXAxis(theme, { title: "Time (s)", showTitle: true }) }
+        : { x: timeXAxis(theme) };
 
-    const datasets: ChartDataset<"line", { x: string | number; y: number }[]>[] = [
-      {
-        label: baseLabel,
-        data: baseData,
-        borderColor: BASE_COLOR,
-        backgroundColor: `${BASE_COLOR}22`,
-        fill: false,
-        tension: 0,
-        borderWidth: 1.75,
-        clip: 8,
-        spanGaps: true,
-        pointRadius: 2.5,
-        pointHoverRadius: 6,
-        pointBackgroundColor: BASE_COLOR,
-        pointBorderColor: BASE_COLOR,
-      },
-      {
-        label: currentLabel,
-        data: currentData,
-        borderColor: CURRENT_COLOR,
-        backgroundColor: `${CURRENT_COLOR}22`,
-        fill: false,
-        tension: 0,
-        borderWidth: 1.75,
-        clip: 8,
-        spanGaps: true,
-        pointRadius: 2.5,
-        pointHoverRadius: 6,
-        pointBackgroundColor: CURRENT_COLOR,
-        pointBorderColor: CURRENT_COLOR,
-      },
-    ].filter((ds) => ds.data.length > 0);
-
-    const xScale: ChartOptions<"line">["scales"] = isSamplesMode
-      ? { x: linearXAxis(theme, { title: "Time (s)", showTitle: true }) }
-      : { x: timeXAxis(theme) };
-
-    const options: ChartOptions<"line"> = {
-      ...baseLineOptions(),
-      layout: { padding: layoutPadding() },
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          ...sharedTooltipStyle(theme),
-          callbacks: {
-            title: (items) => {
-              const raw = items[0]?.label;
-              if (!raw) return "";
-              if (isSamplesMode) return `t = ${Number(raw).toFixed(2)} s`;
-              return new Date(raw).toLocaleString();
-            },
-            label: (item) => {
-              const v = item.parsed.y;
-              if (v == null) return "";
-              const u = unit ?? "";
-              return ` ${item.dataset.label}: ${formatValue(v)}${u ? ` ${u}` : ""}`;
+      const options: ChartOptions<"line"> = {
+        ...baseLineOptions(),
+        layout: { padding: layoutPadding() },
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...sharedTooltipStyle(theme),
+            callbacks: {
+              title: (items) => {
+                const raw = items[0]?.label;
+                if (!raw) return "";
+                if (isSamplesMode) return `t = ${Number(raw).toFixed(2)} s`;
+                return new Date(raw).toLocaleString();
+              },
+              label: (item) => {
+                const v = item.parsed.y;
+                if (v == null) return "";
+                const u = unit ?? "";
+                return ` ${item.dataset.label}: ${formatValue(v)}${u ? ` ${u}` : ""}`;
+              },
             },
           },
         },
-      },
-      scales: {
-        ...xScale,
-        y: yAxisConfig(theme, {
-          showTitle: true,
-          title: unit ?? metric,
-          tickCallback: (value) => formatValue(Number(value)),
-        }),
-      },
-    };
+        scales: {
+          ...xScale,
+          y: yAxisConfig(theme, {
+            showTitle: true,
+            title: unit ?? metric,
+            tickCallback: (value) => formatValue(Number(value)),
+          }),
+        },
+      };
 
-    if (chartRef.current) {
-      chartRef.current.data = { datasets };
-      chartRef.current.options = options;
-      chartRef.current.update();
-    } else {
-      chartRef.current = new Chart(canvasRef.current, {
-        type: "line",
-        data: { datasets },
-        options,
-      });
-    }
-
-    return () => {
-      chartRef.current?.destroy();
-      chartRef.current = null;
-    };
-  }, [
-    isEmpty,
-    isSamplesMode,
-    baseData,
-    currentData,
-    baseLabel,
-    currentLabel,
-    metric,
-    unit,
-  ]);
+      return { type: "line" as const, data: { datasets: datasets as ChartDataset<"line">[] }, options };
+    },
+    [
+      isEmpty,
+      isSamplesMode,
+      baseData,
+      currentData,
+      baseLabel,
+      currentLabel,
+      metric,
+      unit,
+    ],
+  );
 
   const visibleLabels = [
     ...(baseData.length > 0 ? [{ label: baseLabel, color: BASE_COLOR }] : []),
