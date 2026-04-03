@@ -1,15 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from "preact/hooks";
 import type { IndexFile, SeriesFile, SeriesEntry, RunEntry } from "@benchkit/format";
 import { fetchIndex, fetchSeries, type DataSource } from "./fetch.js";
-import { formatRef } from "./format-utils.js";
-import { TrendChart } from "./components/TrendChart.js";
-import { ComparisonBar } from "./components/ComparisonBar.js";
+import { HeroSection } from "./components/HeroSection.js";
+import { DashboardToolbar } from "./components/DashboardToolbar.js";
+import { OverviewGrid } from "./components/OverviewGrid.js";
+import { MetricDetailView } from "./components/MetricDetailView.js";
 import { RunTable } from "./components/RunTable.js";
 import { MonitorSection } from "./components/MonitorSection.js";
-import { TagFilter, filterSeriesFile } from "./components/TagFilter.js";
-import { Leaderboard } from "./components/Leaderboard.js";
-import { getWinner } from "./leaderboard.js";
-import { detectRegressions, regressionTooltip, type RegressionResult } from "./utils.js";
+import { filterSeriesFile } from "./components/TagFilter.js";
+import { detectRegressions, type RegressionResult } from "./utils.js";
 import { defaultMetricLabel, isMonitorMetric } from "./labels.js";
 
 export interface DashboardProps {
@@ -91,7 +90,8 @@ export function Dashboard({
     setView((v) => (typeof v === "object" && v.metric === metric ? "overview" : { metric }));
   }, []);
 
-  // Compute regressions for every loaded metric.
+  const handleOverview = useCallback(() => setView("overview"), []);
+
   const regressionMap = useMemo<Map<string, RegressionResult[]>>(() => {
     const map = new Map<string, RegressionResult[]>();
     for (const [metric, sf] of seriesMap.entries()) {
@@ -137,237 +137,68 @@ export function Dashboard({
     );
   }
 
-  // Partition metrics into user benchmarks and _monitor/ system metrics
-  const userMetrics = [...seriesMap.entries()].filter(([m]) => !isMonitorMetric(m));
-  const monitorMetrics = [...seriesMap.entries()].filter(([m]) => isMonitorMetric(m));
-  const monitorSeriesMap = new Map(monitorMetrics);
-
+  const userMetrics = new Map([...seriesMap.entries()].filter(([m]) => !isMonitorMetric(m)));
+  const monitorSeriesMap = new Map([...seriesMap.entries()].filter(([m]) => isMonitorMetric(m)));
   const userMetricNames = (index.metrics ?? []).filter((m) => !isMonitorMetric(m));
 
-  const selectedSeries = typeof view === "object" ? seriesMap.get(view.metric) : null;
-  const filteredSelectedSeries = selectedSeries ? filterSeriesFile(selectedSeries, activeFilters) : null;
-  const selectedMetricError = typeof view === "object" ? (seriesErrors.get(view.metric) ?? null) : null;
-  const selectedRegressions = typeof view === "object" ? (regressionMap.get(view.metric) ?? []) : [];
-  const activeFilterCount = Object.keys(activeFilters).length;
-  const totalUserSeriesCount = userMetrics.reduce((sum, [, sf]) => sum + Object.keys(sf.series).length, 0);
-  const visibleSeriesCount = userMetrics.reduce(
-    (sum, [, sf]) => sum + Object.keys(filterSeriesFile(sf, activeFilters).series).length,
+  const selectedMetric = typeof view === "object" ? view.metric : null;
+  const selectedSeries = selectedMetric ? seriesMap.get(selectedMetric) : null;
+  const selectedMetricError = selectedMetric ? (seriesErrors.get(selectedMetric) ?? null) : null;
+
+  const visibleSeriesCount = [...userMetrics.values()].reduce(
+    (sum, sf) => sum + Object.keys(filterSeriesFile(sf, activeFilters).series).length,
     0,
   );
-  const latestRun = index.runs[0];
-  const focusedSeriesCount = filteredSelectedSeries ? Object.keys(filteredSelectedSeries.series).length : 0;
-  const monitorMetricCount = monitorMetrics.length;
 
   return (
     <div class={rootClassName}>
       <div class="bk-shell">
-        <section class="bk-hero bk-hero--compact">
-          <div class="bk-hero__header bk-hero__header--compact">
-            <div>
-              <p class="bk-hero__eyebrow">Benchkit dashboard</p>
-              <h2 class="bk-hero__title bk-hero__title--compact">Performance overview</h2>
-            </div>
-            <div class="bk-kpis bk-kpis--compact">
-              <div class="bk-kpi">
-                <span class="bk-kpi__label">Metrics</span>
-                <span class="bk-kpi__value">{userMetricNames.length}</span>
-              </div>
-              <div class="bk-kpi">
-                <span class="bk-kpi__label">Runs</span>
-                <span class="bk-kpi__value">{index.runs.length}</span>
-              </div>
-              <div class="bk-kpi">
-                <span class="bk-kpi__label">Series</span>
-                <span class="bk-kpi__value">{visibleSeriesCount}</span>
-              </div>
-              <div class="bk-kpi">
-                <span class="bk-kpi__label">Monitor</span>
-                <span class="bk-kpi__value">{monitorMetricCount}</span>
-              </div>
-            </div>
-          </div>
-          {latestRun && (
-            <p class="bk-hero__body">
-              Latest run: <strong>{latestRun.id}</strong>
-              {latestRun.ref ? ` on ${formatRef(latestRun.ref)}` : ""}
-              {latestRun.commit ? ` at ${latestRun.commit.slice(0, 8)}` : ""}.
-            </p>
-          )}
-        </section>
+        <HeroSection
+          userMetricCount={userMetricNames.length}
+          runCount={index.runs.length}
+          visibleSeriesCount={visibleSeriesCount}
+          monitorMetricCount={monitorSeriesMap.size}
+          latestRun={index.runs[0]}
+        />
 
-        <section class="bk-toolbar">
-          <div class="bk-toolbar__row">
-            <div class="bk-toolbar__group">
-              <span class="bk-toolbar__label">View</span>
-              <button class="bk-link-button" type="button" onClick={() => setView("overview")}>
-                Overview
-              </button>
-              {selectedSeries && (
-                <span class="bk-badge bk-badge--muted">
-                  Focused metric: {formatMetric(selectedSeries.metric)}
-                </span>
-              )}
-            </div>
-            <div class="bk-toolbar__group">
-              {activeFilterCount > 0 && <span class="bk-badge bk-badge--muted">{activeFilterCount} active filters</span>}
-              <span class="bk-badge bk-badge--muted">
-                {selectedSeries ? `${focusedSeriesCount} visible series` : `${visibleSeriesCount}/${totalUserSeriesCount} visible series`}
-              </span>
-            </div>
-          </div>
-          <div class="bk-toolbar__row">
-            <div class="bk-toolbar__group">
-              <span class="bk-toolbar__label">Metrics</span>
-              {userMetricNames.map((metric) => (
-                <button
-                  key={metric}
-                  type="button"
-                  class="bk-tab"
-                  aria-pressed={typeof view === "object" && view.metric === metric}
-                  onClick={() => handleMetricClick(metric)}
-                >
-                  {formatMetric(metric)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <TagFilter seriesMap={new Map(userMetrics)} activeFilters={activeFilters} onFilterChange={setActiveFilters} />
-        </section>
+        <DashboardToolbar
+          metricNames={userMetricNames}
+          selectedMetric={selectedMetric}
+          userSeriesMap={userMetrics}
+          activeFilters={activeFilters}
+          formatMetric={formatMetric}
+          onMetricClick={handleMetricClick}
+          onOverview={handleOverview}
+          onFilterChange={setActiveFilters}
+        />
 
         {selectedMetricError ? (
           <div class="bk-state">
-            <h2 class="bk-state__title">Could not load {typeof view === "object" ? formatMetric(view.metric) : "metric"}</h2>
+            <h2 class="bk-state__title">Could not load {selectedMetric ? formatMetric(selectedMetric) : "metric"}</h2>
             <p class="bk-state__body">{selectedMetricError}</p>
           </div>
         ) : selectedSeries ? (
-          <section class="bk-section">
-            <div class="bk-section__header">
-              <div>
-                <h3 class="bk-section__title">{formatMetric(selectedSeries.metric)}</h3>
-              </div>
-              <button class="bk-link-button" type="button" onClick={() => setView("overview")}>
-                Back to overview
-              </button>
-            </div>
-
-            <div class="bk-card">
-              <TrendChart
-                series={filteredSelectedSeries!}
-                title={formatMetric(selectedSeries.metric)}
-                summary="Time trend across the currently visible series."
-                height={360}
-                maxPoints={maxPoints}
-                seriesNameFormatter={seriesNameFormatter}
-                regressions={selectedRegressions}
-              />
-            </div>
-
-            <div class="bk-overview-grid">
-              <div class="bk-card">
-                <ComparisonBar
-                  series={filteredSelectedSeries!}
-                  title={`Latest ${formatMetric(selectedSeries.metric)}`}
-                  height={300}
-                  seriesNameFormatter={seriesNameFormatter}
-                  showValuesList={false}
-                />
-              </div>
-
-              {filteredSelectedSeries && Object.keys(filteredSelectedSeries.series).length > 1 && (
-                <div class="bk-card">
-                  <div class="bk-section__header">
-                    <div>
-                      <h4 class="bk-section__title">Leaderboard</h4>
-                      <p class="bk-section__description">Fastest or best-performing series at the latest run.</p>
-                    </div>
-                  </div>
-                  <Leaderboard series={filteredSelectedSeries} seriesNameFormatter={seriesNameFormatter} />
-                </div>
-              )}
-            </div>
-          </section>
+          <MetricDetailView
+            seriesFile={selectedSeries}
+            activeFilters={activeFilters}
+            regressions={regressionMap.get(selectedMetric!) ?? []}
+            maxPoints={maxPoints}
+            formatMetric={formatMetric}
+            seriesNameFormatter={seriesNameFormatter}
+            onBack={handleOverview}
+          />
         ) : (
-          <section class="bk-section">
-            <div class="bk-section__header">
-              <div>
-                <h3 class="bk-section__title">Primary metrics</h3>
-              </div>
-            </div>
-            <div class="bk-overview-grid">
-              {userMetricNames.map((metric) => {
-                const metricErr = seriesErrors.get(metric);
-                if (metricErr) {
-                  return (
-                    <div key={metric} class="bk-card">
-                      <div class="bk-card__top">
-                        <div>
-                          <h4 class="bk-card__title">{formatMetric(metric)}</h4>
-                          <p class="bk-card__hint">This metric could not be loaded.</p>
-                        </div>
-                        <span class="bk-badge bk-badge--danger">Load error</span>
-                      </div>
-                      <p class="bk-muted">{metricErr}</p>
-                    </div>
-                  );
-                }
-
-                const sf = seriesMap.get(metric);
-                if (!sf) return null;
-
-                const filteredSeries = filterSeriesFile(sf, activeFilters);
-                const visibleEntries = Object.keys(filteredSeries.series);
-                const isCompetitive = visibleEntries.length > 1;
-                const winnerName = isCompetitive ? getWinner(filteredSeries) : undefined;
-                const winnerLabel = winnerName
-                  ? (seriesNameFormatter ? seriesNameFormatter(winnerName, filteredSeries.series[winnerName]) : winnerName)
-                  : undefined;
-                const regressions = regressionMap.get(metric) ?? [];
-                const hasRegression = regressions.length > 0;
-                const tooltipText = hasRegression
-                  ? regressions.map((r) => regressionTooltip(metric, r, formatMetric)).join("\n")
-                  : undefined;
-
-                return (
-                  <div
-                    key={metric}
-                    role="button"
-                    tabIndex={0}
-                    class="bk-card bk-card--interactive"
-                    onClick={() => handleMetricClick(metric)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleMetricClick(metric);
-                      }
-                    }}
-                    title={tooltipText}
-                    aria-label={`View ${formatMetric(metric)} metric`}
-                  >
-                    <div class="bk-card__top">
-                      <div>
-                        <h4 class="bk-card__title">{formatMetric(metric)}</h4>
-                      </div>
-                      <span class="bk-badge bk-badge--muted">{visibleEntries.length} series</span>
-                    </div>
-                    <div class="bk-badge-row">
-                      {winnerLabel && <span class="bk-badge bk-badge--success">Winner: {winnerLabel}</span>}
-                      {hasRegression && <span class="bk-badge bk-badge--danger">Regression detected</span>}
-                    </div>
-                    <TrendChart
-                      series={filteredSeries}
-                      height={152}
-                      maxPoints={maxPoints}
-                      seriesNameFormatter={seriesNameFormatter}
-                      compact={true}
-                      showLegend={false}
-                      showSeriesCount={false}
-                      regressions={regressions}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <OverviewGrid
+            metricNames={userMetricNames}
+            seriesMap={seriesMap}
+            seriesErrors={seriesErrors}
+            activeFilters={activeFilters}
+            regressionMap={regressionMap}
+            maxPoints={maxPoints}
+            formatMetric={formatMetric}
+            seriesNameFormatter={seriesNameFormatter}
+            onMetricClick={handleMetricClick}
+          />
         )}
 
         {!selectedSeries && (
