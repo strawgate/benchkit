@@ -7,17 +7,28 @@ This guide is for contributors working on benchkit internals.
 - Node.js 24+
 - npm
 
+## Documentation map
+
+Use the docs that match the audience you are working for:
+
+- [`README.md`](README.md) — user-facing product overview
+- [`docs/README.md`](docs/README.md) — documentation hub
+- [`RELEASING.md`](RELEASING.md) — release process
+- [`CODE_STYLE.md`](CODE_STYLE.md) — reviewer preferences not enforced by lint
+- [`AGENTS.md`](AGENTS.md) — routing and rules for AI agents
+
 ## Repository layout
 
-- `packages/format/`: benchmark types and parsers
-- `packages/chart/`: Preact dashboard components
+- `packages/format/`: benchmark types, parsers, OTLP helpers, compare helpers
+- `packages/chart/`: Preact dashboard components, chart primitives, fetch helpers
 - `packages/dashboard/`: self-benchmark dashboard deployed to GitHub Pages
 - `actions/stash/`: GitHub Action to parse and store run data
-- `actions/aggregate/`: GitHub Action to build index and series
+- `actions/aggregate/`: GitHub Action to build indexes and views
 - `actions/compare/`: GitHub Action to compare results against a baseline
-- `actions/monitor/`: GitHub Action for background system metrics collection
-- `actions/emit-metric/`: GitHub Action for emitting one-off OTLP metrics to the monitor collector
+- `actions/monitor/`: GitHub Action for collector-backed telemetry capture
+- `actions/emit-metric/`: GitHub Action for emitting one-off OTLP metrics
 - `schema/`: JSON schemas for generated data files
+- `docs/`: user, architecture, historical, internal, and research docs
 
 ## Install dependencies
 
@@ -74,6 +85,7 @@ This runs ESLint (flat config in `eslint.config.mjs`) and `tsc --noEmit` across 
 Action bundles in `actions/*/dist/` are committed artifacts.
 
 Before opening a PR for action changes:
+
 1. Rebuild the modified action workspace.
 2. Confirm `dist/` changes are included.
 3. Run local tests and repo CI checks.
@@ -82,8 +94,9 @@ Before opening a PR for action changes:
 
 1. Decide the target surface first: format package, chart package, or action.
 2. Add or update tests in the same workspace.
-3. Keep public API changes documented in package README files.
-4. If data contract changes, update `schema/` and associated docs.
+3. Keep public API changes documented in the package or action README you changed.
+4. If data contracts change, update `schema/` and the relevant docs in the same PR.
+5. If a user-facing workflow changes, update [`docs/getting-started.md`](docs/getting-started.md) or the appropriate reference doc.
 
 ## Contribution checklist
 
