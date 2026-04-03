@@ -72,6 +72,18 @@ describe("parseGoBench", () => {
     assert.equal(result.benchmarks.length, 0);
   });
 
+  it("throws on empty string input", () => {
+    assert.throws(() => parseGoBench(""), {
+      message: /\[parse-go\] Input must be a non-empty string/,
+    });
+  });
+
+  it("throws on whitespace-only input", () => {
+    assert.throws(() => parseGoBench("   \n\t  \n  "), {
+      message: /\[parse-go\] Input must be a non-empty string/,
+    });
+  });
+
   it("parses sub-benchmark names with slashes", () => {
     const input = `BenchmarkSort/asc-8    10000    100 ns/op`;
     const result = parseGoBench(input);
