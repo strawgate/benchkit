@@ -1,4 +1,5 @@
 import type { SeriesFile, SeriesEntry } from "@benchkit/format";
+import type { DashboardLabels } from "../dashboard-labels.js";
 import { TrendChart } from "./TrendChart.js";
 import { ComparisonBar } from "./ComparisonBar.js";
 import { Leaderboard } from "./Leaderboard.js";
@@ -13,6 +14,7 @@ export interface MetricDetailViewProps {
   formatMetric: (metric: string) => string;
   seriesNameFormatter?: (name: string, entry: SeriesEntry) => string;
   onBack: () => void;
+  labels: DashboardLabels;
 }
 
 export function MetricDetailView({
@@ -23,6 +25,7 @@ export function MetricDetailView({
   formatMetric,
   seriesNameFormatter,
   onBack,
+  labels,
 }: MetricDetailViewProps) {
   const filteredSeries = filterSeriesFile(seriesFile, activeFilters);
   const label = formatMetric(seriesFile.metric);
@@ -34,7 +37,7 @@ export function MetricDetailView({
           <h3 class="bk-section__title">{label}</h3>
         </div>
         <button class="bk-link-button" type="button" onClick={onBack}>
-          Back to overview
+          {labels.backButton}
         </button>
       </div>
 
@@ -42,7 +45,7 @@ export function MetricDetailView({
         <TrendChart
           series={filteredSeries}
           title={label}
-          summary="Time trend across the currently visible series."
+          summary={labels.trendSummary}
           height={360}
           maxPoints={maxPoints}
           seriesNameFormatter={seriesNameFormatter}
@@ -65,8 +68,8 @@ export function MetricDetailView({
           <div class="bk-card">
             <div class="bk-section__header">
               <div>
-                <h4 class="bk-section__title">Leaderboard</h4>
-                <p class="bk-section__description">Fastest or best-performing series at the latest run.</p>
+                <h4 class="bk-section__title">{labels.leaderboardTitle}</h4>
+                <p class="bk-section__description">{labels.leaderboardDescription}</p>
               </div>
             </div>
             <Leaderboard series={filteredSeries} seriesNameFormatter={seriesNameFormatter} />

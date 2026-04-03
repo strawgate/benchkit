@@ -1,4 +1,5 @@
 import type { SeriesFile, SeriesEntry } from "@benchkit/format";
+import type { DashboardLabels } from "../dashboard-labels.js";
 import { TrendChart } from "./TrendChart.js";
 import { filterSeriesFile } from "./TagFilter.js";
 import { getWinner } from "../leaderboard.js";
@@ -13,6 +14,7 @@ export interface MetricCardProps {
   formatMetric: (metric: string) => string;
   seriesNameFormatter?: (name: string, entry: SeriesEntry) => string;
   onClick: (metric: string) => void;
+  labels: DashboardLabels;
 }
 
 export function MetricCard({
@@ -24,6 +26,7 @@ export function MetricCard({
   formatMetric,
   seriesNameFormatter,
   onClick,
+  labels,
 }: MetricCardProps) {
   const filteredSeries = filterSeriesFile(seriesFile, activeFilters);
   const visibleEntries = Object.keys(filteredSeries.series);
@@ -59,8 +62,8 @@ export function MetricCard({
         <span class="bk-badge bk-badge--muted">{visibleEntries.length} series</span>
       </div>
       <div class="bk-badge-row">
-        {winnerLabel && <span class="bk-badge bk-badge--success">Winner: {winnerLabel}</span>}
-        {hasRegression && <span class="bk-badge bk-badge--danger">Regression detected</span>}
+        {winnerLabel && <span class="bk-badge bk-badge--success">{labels.winnerPrefix} {winnerLabel}</span>}
+        {hasRegression && <span class="bk-badge bk-badge--danger">{labels.regressionBadge}</span>}
       </div>
       <TrendChart
         series={filteredSeries}
