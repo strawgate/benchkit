@@ -77,4 +77,10 @@ describe("parseHyperfine", () => {
       message: /\[parse-hyperfine\].*results/,
     });
   });
+
+  it("throws on malformed JSON", () => {
+    assert.throws(() => parseHyperfine("not-json"), {
+      message: /Failed to parse hyperfine input/,
+    });
+  });
 });

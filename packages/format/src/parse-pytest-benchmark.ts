@@ -45,7 +45,12 @@ interface PytestBenchmarkOutput {
 }
 
 export function parsePytestBenchmark(input: string): BenchmarkResult {
-  const parsed = JSON.parse(input) as PytestBenchmarkOutput;
+  let parsed: PytestBenchmarkOutput;
+  try {
+    parsed = JSON.parse(input) as PytestBenchmarkOutput;
+  } catch (err) {
+    throw new Error(`Failed to parse pytest-benchmark input: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+  }
 
   if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
     throw new Error("[parse-pytest-benchmark] pytest-benchmark format must have a 'benchmarks' array.");

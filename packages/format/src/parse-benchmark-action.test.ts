@@ -65,4 +65,10 @@ describe("parseBenchmarkAction", () => {
       message: /\[parse-benchmark-action\].*object/,
     });
   });
+
+  it("throws on malformed JSON", () => {
+    assert.throws(() => parseBenchmarkAction("not-json"), {
+      message: /Failed to parse benchmark-action input/,
+    });
+  });
 });

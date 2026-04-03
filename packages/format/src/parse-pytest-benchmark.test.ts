@@ -121,4 +121,10 @@ describe("parsePytestBenchmark", () => {
       { message: /stats/ },
     );
   });
+
+  it("throws on malformed JSON", () => {
+    assert.throws(() => parsePytestBenchmark("not-json"), {
+      message: /Failed to parse pytest-benchmark input/,
+    });
+  });
 });

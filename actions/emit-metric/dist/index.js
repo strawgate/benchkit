@@ -27011,7 +27011,13 @@ const infer_direction_js_1 = __nccwpck_require__(5083);
  * Direction is inferred from the unit string.
  */
 function parseBenchmarkAction(input) {
-    const entries = JSON.parse(input);
+    let entries;
+    try {
+        entries = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`Failed to parse benchmark-action input: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!Array.isArray(entries)) {
         throw new Error("[parse-benchmark-action] Input must be a JSON array of {name, value, unit} objects.");
     }
@@ -27122,7 +27128,14 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseHyperfine = parseHyperfine;
 const infer_direction_js_1 = __nccwpck_require__(5083);
 function parseHyperfine(input) {
-    const parsed = JSON.parse(input);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let parsed;
+    try {
+        parsed = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`Failed to parse hyperfine input: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!parsed.results || !Array.isArray(parsed.results)) {
         throw new Error("[parse-hyperfine] Hyperfine format must have a 'results' array.");
     }
@@ -27181,7 +27194,14 @@ exports.parseNative = parseNative;
  * Parse the benchkit native JSON format. Validates structure and returns as-is.
  */
 function parseNative(input) {
-    const parsed = JSON.parse(input);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let parsed;
+    try {
+        parsed = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`Failed to parse native input: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
         throw new Error("[parse-native] Native format must have a 'benchmarks' array at the top level.");
     }
@@ -27563,7 +27583,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parsePytestBenchmark = parsePytestBenchmark;
 const infer_direction_js_1 = __nccwpck_require__(5083);
 function parsePytestBenchmark(input) {
-    const parsed = JSON.parse(input);
+    let parsed;
+    try {
+        parsed = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`Failed to parse pytest-benchmark input: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
         throw new Error("[parse-pytest-benchmark] pytest-benchmark format must have a 'benchmarks' array.");
     }
