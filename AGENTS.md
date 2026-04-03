@@ -4,14 +4,17 @@ Read files in this order before making code changes:
 1. `README.md`
 2. `DEVELOPING.md`
 3. `CODE_STYLE.md`
+4. `docs/README.md`
 
 Then read files for the area you will edit:
-- Format package: `packages/format/src/**`
+- Format package: `packages/format/README.md` and `packages/format/src/**`
 - Chart package: `packages/chart/README.md` and `packages/chart/src/**`
-- Stash action: `actions/stash/src/main.ts` and `actions/stash/action.yml`
-- Aggregate action: `actions/aggregate/src/main.ts` and `actions/aggregate/action.yml`
-- Monitor action: `actions/monitor/src/**` and `actions/monitor/action.yml`
-- Data contract: `schema/*.json`
+- Stash action: `actions/stash/README.md`, `actions/stash/src/main.ts`, and `actions/stash/action.yml`
+- Aggregate action: `actions/aggregate/README.md`, `actions/aggregate/src/main.ts`, and `actions/aggregate/action.yml`
+- Compare action: `actions/compare/README.md`, `actions/compare/src/main.ts`, and `actions/compare/action.yml`
+- Monitor action: `actions/monitor/README.md`, `actions/monitor/src/**`, and `actions/monitor/action.yml`
+- Emit metric action: `actions/emit-metric/README.md`, `actions/emit-metric/src/**`, and `actions/emit-metric/action.yml`
+- Data contract: `schema/*.json` and `schema/README.md`
 - CI behavior: `.github/workflows/*.yml`
 
 ## Non-negotiable rules
@@ -29,7 +32,9 @@ Then read files for the area you will edit:
 - Test: `npm run test`
 - Lint (ESLint + type checks): `npm run lint`
 
-## Copilot and Claude pointers
+## Onboarding and references
 
+- Docs hub: `docs/README.md`
+- Current internal handoff: `docs/internal/agent-handoff.md`
 - `CLAUDE.md` is a symlink to this file.
 - `.github/copilot-instructions.md` points to this file.

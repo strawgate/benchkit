@@ -10,13 +10,13 @@ should be treated as historical context rather than the current source of truth.
 
 When picking up work, read these files in this order:
 
-1. `AGENTS.md`
-2. `README.md`
-3. `DEVELOPING.md`
-4. `CODE_STYLE.md`
-5. `docs/vision-and-roadmap.md`
-6. `docs/otlp-aggregation-architecture.md`
-7. `docs/otlp-semantic-conventions.md`
+1. [`../../AGENTS.md`](../../AGENTS.md)
+2. [`../../README.md`](../../README.md)
+3. [`../../DEVELOPING.md`](../../DEVELOPING.md)
+4. [`../../CODE_STYLE.md`](../../CODE_STYLE.md)
+5. [`../vision-and-roadmap.md`](../vision-and-roadmap.md)
+6. [`../otlp-aggregation-architecture.md`](../otlp-aggregation-architecture.md)
+7. [`../otlp-semantic-conventions.md`](../otlp-semantic-conventions.md)
 
 Then read the package or action you are about to edit.
 
@@ -109,23 +109,9 @@ Shipped:
 
 - `compare()`
 - `formatComparisonMarkdown()`
-- parsers for:
-  - native
-  - Go bench
-  - Rust bench
-  - Hyperfine
-  - benchmark-action
-  - pytest-benchmark
-- native builder helpers:
-  - `defineMetric()`
-  - `defineBenchmark()`
-  - `buildNativeResult()`
-  - `stringifyNativeResult()`
-- initial OTLP support:
-  - OTLP parse / traversal helpers
-  - metric kind detection
-  - temporality detection
-  - one compatibility projection into benchmark-style results
+- parsers for native, Go bench, Rust bench, Hyperfine, benchmark-action, pytest-benchmark
+- native builder helpers: `defineMetric()`, `defineBenchmark()`, `buildNativeResult()`, `stringifyNativeResult()`
+- initial OTLP support: parse / traversal helpers, metric kind detection, temporality detection, and one compatibility projection into benchmark-style results
 
 ### Stash action
 
@@ -139,7 +125,6 @@ Shipped:
 
 Shipped:
 
-- `actions/compare`
 - baseline loading from `bench-data`
 - markdown summary output
 - PR comment update behavior
@@ -149,72 +134,28 @@ Shipped:
 
 Shipped:
 
-- classic outputs:
-  - `data/index.json`
-  - `data/series/*.json`
-- additional navigation/detail artifacts:
-  - `data/index/refs.json`
-  - `data/index/prs.json`
-  - `data/index/metrics.json`
-  - `data/views/runs/{run-id}/detail.json`
+- `data/index.json`
+- `data/series/*.json`
+- `data/index/refs.json`
+- `data/index/prs.json`
+- `data/index/metrics.json`
+- `data/views/runs/{run-id}/detail.json`
 - branch-driven aggregate workflow guidance and collision-proof raw run naming
 
 ### Monitor action
 
-The current monitor work in this repository is the OTel Collector-based model
-tracked by PR `#101`. It is a single-step action with automatic post cleanup
-and raw OTLP sidecar storage under `data/telemetry/`.
+The current monitor work in this repository is the OTel Collector-based model. It is a single-step action with automatic post cleanup and raw OTLP sidecar storage under `data/telemetry/`.
 
 ## Current roadmap / milestones
 
-### `v0.1.0: First Release`
+- `v0.4.0`: `#61`, `#82`, `#83`, `#54`
+- `v0.5.0`: `#79`, `#80`, `#81`, `#7`
+- `v0.6.0`: `#89`, `#90`, `#93`
 
-Open follow-up:
+Already landed from the OTLP milestone:
 
-- `#63` CI simplification
-
-Already landed:
-
-- `#38` release automation
-
-### `v0.4.0: Run & Competitive Dashboards`
-
-Main dashboard-surface milestone:
-
-- `#61` RunDashboard
-- `#82` RunDetail
-- `#83` CompetitiveDashboard
-- supporting refactor: `#54`
-
-### `v0.5.0: Workflow Benchmark Ergonomics`
-
-Ergonomics / starter-kit milestone:
-
-- `#79`
-- `#80`
-- `#81`
-- `#7`
-
-### `v0.6.0: OTLP Aggregation Architecture`
-
-Current architecture milestone:
-
-- `#89` semantic conventions
-- `#90` OTLP parser / traversal + adapter projections
-- `#93` dataset-local frontend transform layer
-
-Already landed from this milestone:
-
-- `#91` aggregate view artifacts (first emitted set)
+- `#91` aggregate view artifacts
 - `#92` bench-data push aggregation flow / stash naming guidance
-
-## Current open PRs
-
-At the time of this handoff, the only open repository PR is:
-
-- `#101` — collector-backed monitor implementation and raw OTLP telemetry storage
-
-Treat older PR queue notes from stale docs or issue bodies as historical only.
 
 ## What prototypes already exist
 
@@ -226,9 +167,6 @@ In `actions/aggregate/src/views.ts` and related tests:
 - PR index builder
 - metric index builder
 - run detail artifact builder
-
-These are no longer just conceptual prototypes; the aggregate action writes a
-first emitted set of these artifacts on `main`.
 
 ### Frontend transform prototype
 
@@ -252,52 +190,3 @@ final public product surface.
 4. Do not overfit the product to only Go microbenchmarks.
 5. Do not assume old Copilot PR references are still active without checking GitHub.
 6. Do not forget that action `dist/` bundles are committed artifacts.
-
-## Practical next steps
-
-The most coherent execution order from here is:
-
-1. keep `#89` as the semantic-contract source of truth
-2. continue `#90` with typed OTLP traversal and narrowly scoped,
-   adapter-specific projections
-3. keep `#93` aligned with the emitted aggregate artifact shapes
-4. ship workflow benchmark ergonomics (`#79`, `#80`, `#81`, `#7`)
-5. then let `#61`, `#82`, `#83`, and `#54` stabilize against the now-clear
-   data contracts
-6. only update monitor docs after `#101` lands or is replaced
-
-## Commands and checks
-
-Common useful commands:
-
-```bash
-npm ci
-npm run build
-npm run test
-npm run lint
-```
-
-Targeted commands that have been useful recently:
-
-```bash
-npm run build --workspace=packages/format
-npm run test --workspace=packages/format
-npm run test --workspace=actions/stash
-npm run test --workspace=actions/compare
-npm run test --workspace=actions/aggregate
-npm run test --workspace=packages/chart
-```
-
-## Recommended first questions for a new agent
-
-Before changing code, answer:
-
-1. Am I changing the semantic contract or just consuming it?
-2. Is this work raw-format work, aggregate-artifact work, or view/UI work?
-3. Does this require updated issue/PR guidance to keep collaborators aligned?
-4. Am I accidentally introducing a universal telemetry abstraction we said we
-   do not want?
-5. Could this work be delayed until after `#90` if it depends on the OTLP
-   contract?
-
-If those answers are clear, the rest of the work tends to go well.
