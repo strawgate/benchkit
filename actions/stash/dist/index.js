@@ -59744,13 +59744,20 @@ function directionArrow(entry) {
 function statusLabel(entry) {
     return `${entry.status} ${directionArrow(entry)}`;
 }
+function formatCurrentRef(ref) {
+    const prMatch = /^refs\/pull\/(\d+)\/merge$/.exec(ref);
+    if (prMatch) {
+        return `PR #${prMatch[1]}`;
+    }
+    return ref;
+}
 function formatHeader(options) {
     const lines = [];
     lines.push(`## ${options.title ?? "Benchmark Comparison"}`);
     if (options.currentCommit || options.currentRef) {
         const parts = [
             options.currentCommit ? `commit \`${options.currentCommit.slice(0, 8)}\`` : "",
-            options.currentRef ? `ref \`${options.currentRef}\`` : "",
+            options.currentRef ? `ref \`${formatCurrentRef(options.currentRef)}\`` : "",
         ].filter(Boolean);
         lines.push(`Comparing results for ${parts.join(" on ")}.`);
     }
