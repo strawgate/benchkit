@@ -56,7 +56,7 @@ describe("formatComparisonMarkdown", () => {
     assert.equal(
       markdown,
       `## PR benchmark comparison
-Comparing results for commit \`abcdef12\` on ref \`refs/pull/42/merge\`.
+Comparing results for commit \`abcdef12\` on ref \`PR #42\`.
 
 ### Regressions
 

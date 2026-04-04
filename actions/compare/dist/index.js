@@ -63853,13 +63853,23 @@ function directionArrow(entry) {
 function statusLabel(entry) {
     return `${entry.status} ${directionArrow(entry)}`;
 }
+function formatRef(ref) {
+    const prMatch = /^refs\/pull\/(\d+)\/merge$/.exec(ref);
+    if (prMatch)
+        return `PR #${prMatch[1]}`;
+    if (ref.startsWith("refs/heads/"))
+        return ref.replace("refs/heads/", "");
+    if (ref.startsWith("refs/tags/"))
+        return `tag ${ref.replace("refs/tags/", "")}`;
+    return ref;
+}
 function formatHeader(options) {
     const lines = [];
     lines.push(`## ${options.title ?? "Benchmark Comparison"}`);
     if (options.currentCommit || options.currentRef) {
         const parts = [
             options.currentCommit ? `commit \`${options.currentCommit.slice(0, 8)}\`` : "",
-            options.currentRef ? `ref \`${options.currentRef}\`` : "",
+            options.currentRef ? `ref \`${formatRef(options.currentRef)}\`` : "",
         ].filter(Boolean);
         lines.push(`Comparing results for ${parts.join(" on ")}.`);
     }
