@@ -65,7 +65,7 @@ export function otlpAttributesToRecord(attributes: OtlpAttribute[] | undefined):
  * @param input - Raw OTLP metrics JSON string.
  * @returns The parsed `OtlpMetricsDocument`.
  */
-export function parseOtlpMetrics(input: string): OtlpMetricsDocument {
+export function parseOtlp(input: string): OtlpMetricsDocument {
   const parsed: unknown = JSON.parse(input);
   if (
     typeof parsed !== "object" ||

@@ -11,10 +11,10 @@ npm install @benchkit/format
 ## Quick start
 
 ```ts
-import { parse } from "@benchkit/format";
+import { parseBenchmarks } from "@benchkit/format";
 
 // Auto-detect the format and parse
-const result = parse(input);
+const result = parseBenchmarks(input);
 
 for (const bench of result.benchmarks) {
   for (const [name, metric] of Object.entries(bench.metrics)) {
@@ -72,7 +72,7 @@ Shorthands:
 
 ## Parser entry points
 
-### `parse(input, format?)`
+### `parseBenchmarks(input, format?)`
 
 Main entry point. Accepts a string and an optional format hint. When `format` is
 omitted or `"auto"`, the parser inspects the input and picks the right strategy:
@@ -87,19 +87,19 @@ omitted or `"auto"`, the parser inspects the input and picks the right strategy:
 | Plain text lines | Lines matching `/^Benchmark\w.*\s+\d+\s+[\d.]+\s+\w+\/\w+/` | `go` |
 | Plain text lines | Lines matching `/^test\s+\S+\s+\.\.\.\s+bench:/` | `rust` |
 
-If auto-detection fails, `parse` throws with a message listing the supported formats.
+If auto-detection fails, `parseBenchmarks` throws with a message listing the supported formats.
 
 ```ts
-import { parse } from "@benchkit/format";
+import { parseBenchmarks } from "@benchkit/format";
 
 // Explicit format
-const result = parse(goOutput, "go");
+const result = parseBenchmarks(goOutput, "go");
 
 // Auto-detect (default)
-const result = parse(unknownInput);
+const result = parseBenchmarks(unknownInput);
 ```
 
-### `parseOtlpMetrics(input)` and `projectBenchmarkResultFromOtlp(document)`
+### `parseOtlp(input)` and `projectBenchmarkResultFromOtlp(document)`
 
 Parses OTLP metrics JSON and provides helpers for:
 
@@ -109,16 +109,16 @@ Parses OTLP metrics JSON and provides helpers for:
 - projecting one OTLP run into a benchmark-oriented `BenchmarkResult`
 
 This projection is intended as a compatibility adapter for downstream
-benchkit-specific consumers such as compare, aggregation, and summaries. It is
+benchkit-specific consumers such as compareRuns, aggregation, and summaries. It is
 not a universal benchkit telemetry intermediate.
 
 ```ts
 import {
-  parseOtlpMetrics,
+  parseOtlp,
   projectBenchmarkResultFromOtlp,
 } from "@benchkit/format";
 
-const document = parseOtlpMetrics(otlpJson);
+const document = parseOtlp(otlpJson);
 const result = projectBenchmarkResultFromOtlp(document);
 ```
 
@@ -426,6 +426,19 @@ The heuristic scans the lowercased unit string for substrings:
 ## Types
 
 All types mirror the JSON schemas in [`schema/`](../../schema/README.md).
+
+### `compareRuns(current, baseline[], config?)`
+
+Compare a current benchmark run against one or more baseline runs.
+
+```ts
+import { compareRuns } from "@benchkit/format";
+
+const result = compareRuns(current, [baseline]);
+if (result.hasRegression) {
+  console.log("Regressions detected!");
+}
+```
 
 ### `BenchmarkResult`
 

@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
-  compare,
+  compareRuns as compare,
   formatComparisonMarkdown,
-  parse,
+  parseBenchmarks as parse,
   parseNative,
   type BenchmarkResult,
   type Format,

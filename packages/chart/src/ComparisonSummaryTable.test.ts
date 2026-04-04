@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { sortEntries } from "./components/ComparisonSummaryTable.js";
+import { sortBySeverity as sortEntries } from "./components/ComparisonSummaryTable.js";
 import { formatPct, formatFixedValue } from "./format-utils.js";
 
 describe("ComparisonSummaryTable helpers", () => {
