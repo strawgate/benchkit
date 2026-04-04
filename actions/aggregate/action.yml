@@ -3,13 +3,16 @@ description: 'Rebuild index.json and series files from benchmark runs on the dat
 inputs:
   data-branch:
     description: 'Branch used for benchmark data storage.'
+    required: false
     # Keep in sync with DEFAULT_DATA_BRANCH in @benchkit/format
     default: 'bench-data'
   github-token:
     description: 'Token with push access to the data branch.'
+    required: false
     default: ${{ github.token }}
   max-runs:
     description: 'Maximum number of runs to keep. 0 means unlimited.'
+    required: false
     default: '0'
 outputs:
   run-count:
