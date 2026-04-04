@@ -210,15 +210,21 @@ function readRuns(runsDir) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getFetchFailureMessage = getFetchFailureMessage;
-function getFetchFailureMessage(dataBranch, stderr) {
+exports.classifyFetchFailure = classifyFetchFailure;
+function classifyFetchFailure(dataBranch, stderr) {
     if (stderr.includes("refusing to fetch into branch")
         && stderr.includes("checked out")) {
-        return (`Cannot aggregate: '${dataBranch}' is already checked out at the current working directory. `
-            + `Remove the 'ref: ${dataBranch}' input from your actions/checkout step — `
-            + "the aggregate action fetches the data branch into its own worktree.");
+        return {
+            kind: "checked-out",
+            message: `Cannot aggregate: '${dataBranch}' is already checked out at the current working directory. `
+                + `Remove the 'ref: ${dataBranch}' input from your actions/checkout step — `
+                + "the aggregate action fetches the data branch into its own worktree.",
+        };
     }
-    return undefined;
+    if (stderr.includes("couldn't find remote ref")) {
+        return { kind: "branch-missing" };
+    }
+    return { kind: "other" };
 }
 //# sourceMappingURL=git-fetch.js.map
 
@@ -287,14 +293,17 @@ async function run() {
         listeners: { stderr: (data) => { fetchStderr += data.toString(); } },
     });
     if (fetchCode !== 0) {
-        const fetchFailureMessage = (0, git_fetch_js_1.getFetchFailureMessage)(dataBranch, fetchStderr);
-        if (fetchFailureMessage) {
-            throw new Error(fetchFailureMessage);
+        const fetchFailure = (0, git_fetch_js_1.classifyFetchFailure)(dataBranch, fetchStderr);
+        if (fetchFailure.kind === "checked-out") {
+            throw new Error(fetchFailure.message);
         }
-        core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
-        core.setOutput("run-count", "0");
-        core.setOutput("metrics", "");
-        return;
+        if (fetchFailure.kind === "branch-missing") {
+            core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
+            core.setOutput("run-count", "0");
+            core.setOutput("metrics", "");
+            return;
+        }
+        throw new Error(`Failed to fetch '${dataBranch}' from origin: ${fetchStderr.trim() || `git fetch exited with code ${fetchCode}`}`);
     }
     await exec.exec("git", ["worktree", "add", worktree, dataBranch]);
     // Read run files

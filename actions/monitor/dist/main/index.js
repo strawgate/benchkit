@@ -413,7 +413,10 @@ async function startOtelCollector() {
     // The collector takes ~500ms-1s to bind on a cold start, so emit-metric
     // calls in the immediately following step would otherwise hit ECONNREFUSED.
     if (otlpHttpPort > 0) {
-        await waitForOtlpHttpReady(otlpHttpPort, 15_000);
+        const ready = await waitForOtlpHttpReady(otlpHttpPort, 15_000);
+        if (!ready) {
+            throw new Error(`OTel Collector did not become ready on port ${otlpHttpPort}; refusing to publish an unreachable OTLP HTTP endpoint.`);
+        }
     }
     // Write state for the post step
     const state = {

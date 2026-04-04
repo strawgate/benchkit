@@ -17,7 +17,7 @@ import {
   buildRunDetail,
   buildMetricSummaryViews,
 } from "./views.js";
-import { getFetchFailureMessage } from "./git-fetch.js";
+import { classifyFetchFailure } from "./git-fetch.js";
 
 async function run(): Promise<void> {
   const dataBranch = core.getInput("data-branch") || "bench-data";
@@ -40,14 +40,19 @@ async function run(): Promise<void> {
     },
   );
   if (fetchCode !== 0) {
-    const fetchFailureMessage = getFetchFailureMessage(dataBranch, fetchStderr);
-    if (fetchFailureMessage) {
-      throw new Error(fetchFailureMessage);
+    const fetchFailure = classifyFetchFailure(dataBranch, fetchStderr);
+    if (fetchFailure.kind === "checked-out") {
+      throw new Error(fetchFailure.message);
     }
-    core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
-    core.setOutput("run-count", "0");
-    core.setOutput("metrics", "");
-    return;
+    if (fetchFailure.kind === "branch-missing") {
+      core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
+      core.setOutput("run-count", "0");
+      core.setOutput("metrics", "");
+      return;
+    }
+    throw new Error(
+      `Failed to fetch '${dataBranch}' from origin: ${fetchStderr.trim() || `git fetch exited with code ${fetchCode}`}`,
+    );
   }
   await exec.exec("git", ["worktree", "add", worktree, dataBranch]);
 

@@ -199,6 +199,13 @@ describe("waitForOtlpHttpReady", () => {
   });
 
   it("returns false when the endpoint never becomes ready", async () => {
-    assert.equal(await waitForOtlpHttpReady(9, 50, 10), false);
+    const server = http.createServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const port = address.port;
+    await new Promise<void>((resolve, reject) => server.close((err) => err ? reject(err) : resolve()));
+
+    assert.equal(await waitForOtlpHttpReady(port, 50, 10), false);
   });
 });
