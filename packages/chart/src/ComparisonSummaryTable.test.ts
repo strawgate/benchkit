@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { sortEntries } from "./components/ComparisonSummaryTable.js";
+import { sortBySeverity } from "./components/ComparisonSummaryTable.js";
 import { formatPct, formatFixedValue } from "./format-utils.js";
 
 describe("ComparisonSummaryTable helpers", () => {
@@ -32,7 +32,7 @@ describe("ComparisonSummaryTable helpers", () => {
     });
   });
 
-  describe("sortEntries", () => {
+  describe("sortBySeverity", () => {
     it("sorts regressions first, then improvements, then stable", () => {
       const entries = [
         { benchmark: "A", metric: "m", direction: "smaller_is_better" as const, baseline: 0, current: 0, status: "stable" as const, percentChange: 1 },
@@ -40,7 +40,7 @@ describe("ComparisonSummaryTable helpers", () => {
         { benchmark: "C", metric: "m", direction: "smaller_is_better" as const, baseline: 0, current: 0, status: "regressed" as const, percentChange: 15 },
         { benchmark: "D", metric: "m", direction: "smaller_is_better" as const, baseline: 0, current: 0, status: "regressed" as const, percentChange: 5 },
       ];
-      const sorted = sortEntries(entries);
+      const sorted = sortBySeverity(entries);
       assert.deepEqual(
         sorted.map((e) => e.status),
         ["regressed", "regressed", "improved", "stable"],
@@ -53,7 +53,7 @@ describe("ComparisonSummaryTable helpers", () => {
         { benchmark: "B", metric: "m", direction: "smaller_is_better" as const, baseline: 0, current: 0, status: "regressed" as const, percentChange: 22.1 },
         { benchmark: "C", metric: "m", direction: "smaller_is_better" as const, baseline: 0, current: 0, status: "regressed" as const, percentChange: 8.7 },
       ];
-      const sorted = sortEntries(entries);
+      const sorted = sortBySeverity(entries);
       assert.deepEqual(
         sorted.map((e) => e.percentChange),
         [22.1, 8.7, 5.2],
@@ -61,7 +61,7 @@ describe("ComparisonSummaryTable helpers", () => {
     });
 
     it("returns empty array for empty input", () => {
-      assert.deepEqual(sortEntries([]), []);
+      assert.deepEqual(sortBySeverity([]), []);
     });
   });
 });
