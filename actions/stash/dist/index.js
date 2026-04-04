@@ -52,8 +52,24 @@ async function run() {
     const format = (core.getInput("format") || "auto");
     const dataBranch = core.getInput("data-branch") || "bench-data";
     const token = core.getInput("github-token", { required: true });
-    const monitorPath = core.getInput("monitor") || "";
-    const saveDataFile = core.getBooleanInput("save-data-file");
+    const monitorResultsInput = core.getInput("monitor-results");
+    const monitorInput = core.getInput("monitor");
+    if (monitorInput && !monitorResultsInput) {
+        core.warning("'monitor' is deprecated, use 'monitor-results' instead");
+    }
+    const monitorPath = monitorResultsInput || monitorInput || "";
+    const commitResultsInputRaw = core.getInput("commit-results");
+    const saveDataFileInputRaw = core.getInput("save-data-file");
+    let saveDataFile = true;
+    let commitInputName = "commit-results";
+    if (commitResultsInputRaw !== "") {
+        saveDataFile = core.getBooleanInput("commit-results");
+    }
+    else if (saveDataFileInputRaw !== "") {
+        core.warning("'save-data-file' is deprecated, use 'commit-results' instead");
+        saveDataFile = core.getBooleanInput("save-data-file");
+        commitInputName = "save-data-file";
+    }
     const writeSummary = core.getBooleanInput("summary");
     const runId = (0, stash_js_1.buildRunId)({
         customRunId: core.getInput("run-id") || undefined,
@@ -112,7 +128,7 @@ async function run() {
         filePathOutput = `data/runs/${runId}.json`;
     }
     else {
-        core.info("save-data-file=false; skipping data branch commit");
+        core.info(`${commitInputName}=false; skipping data branch commit`);
     }
     core.setOutput("run-id", runId);
     core.setOutput("file-path", filePathOutput);
@@ -61085,7 +61101,7 @@ function projectHistogramMetric(groups, metric, points, _resourceAttributes) {
  * 3. **Time-series building** — per-group datapoints are sorted by timestamp
  *    and attached as `samples` when more than one datapoint exists.
  *
- * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlpMetrics`).
+ * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlp`).
  * @returns A `BenchmarkResult` containing all projected benchmarks and context.
  */
 function projectBenchmarkResultFromOtlp(document) {
