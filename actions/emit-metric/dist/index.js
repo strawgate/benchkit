@@ -193,6 +193,9 @@ function buildPointAttributes(options) {
         if (RESERVED_POINT_ATTRIBUTES.has(key)) {
             throw new Error(`Attribute '${key}' is reserved. Use the dedicated action inputs instead.`);
         }
+        if (key.startsWith("benchkit.")) {
+            throw new Error(`Custom attributes must not use the 'benchkit.' prefix. Got '${key}'.`);
+        }
     }
     const attributes = [
         buildAttribute("benchkit.scenario", options.scenario),
@@ -27510,7 +27513,7 @@ function projectHistogramMetric(groups, metric, points, _resourceAttributes) {
  * 3. **Time-series building** — per-group datapoints are sorted by timestamp
  *    and attached as `samples` when more than one datapoint exists.
  *
- * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlpMetrics`).
+ * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlp`).
  * @returns A `BenchmarkResult` containing all projected benchmarks and context.
  */
 function projectBenchmarkResultFromOtlp(document) {
