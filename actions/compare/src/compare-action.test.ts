@@ -120,7 +120,7 @@ describe("runComparison", () => {
       });
       assert.equal(hasRegression, true);
       assert.match(markdown, /### Regressions/);
-      assert.match(markdown, /refs\/pull\/12\/merge/);
+      assert.match(markdown, /PR #12/);
     } finally {
       fs.rmSync(runsDir, { recursive: true });
       fs.rmSync(currentDir, { recursive: true });
