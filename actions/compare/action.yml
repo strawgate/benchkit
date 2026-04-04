@@ -9,6 +9,7 @@ inputs:
     default: 'auto'
   data-branch:
     description: 'Branch used for benchmark data storage.'
+    # Keep in sync with DEFAULT_DATA_BRANCH in @benchkit/format
     default: 'bench-data'
   baseline-runs:
     description: 'Number of most recent baseline runs to average. Default: 5.'

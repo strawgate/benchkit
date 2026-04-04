@@ -14,6 +14,7 @@ import {
   writeResultFile,
 } from "./stash.js";
 import type { Format } from "@benchkit/format";
+import { DEFAULT_DATA_BRANCH } from "@benchkit/format";
 import {
   computeRetryDelayMs,
   DEFAULT_PUSH_RETRY_COUNT,
@@ -23,7 +24,7 @@ import {
 async function run(): Promise<void> {
   const resultsPattern = core.getInput("results", { required: true });
   const format = (core.getInput("format") || "auto") as Format;
-  const dataBranch = core.getInput("data-branch") || "bench-data";
+  const dataBranch = core.getInput("data-branch") || DEFAULT_DATA_BRANCH;
   const token = core.getInput("github-token", { required: true });
 
   const monitorResultsInput = core.getInput("monitor-results");

@@ -8,6 +8,7 @@
 import * as core from "@actions/core";
 import * as tc from "@actions/tool-cache";
 import * as fs from "node:fs";
+import { DEFAULT_DATA_BRANCH } from "@benchkit/format";
 import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
@@ -136,7 +137,7 @@ export async function startOtelCollector(): Promise<void> {
   const metricSetsRaw = metricSetsInput === "" ? [] : (metricSetsInput || "cpu,memory,load,process").split(",");
   const otlpGrpcPort = validatePort("otlp-grpc-port", core.getInput("otlp-grpc-port") || "4317");
   const otlpHttpPort = validatePort("otlp-http-port", core.getInput("otlp-http-port") || "4318");
-  const dataBranch = core.getInput("data-branch") || "bench-data";
+  const dataBranch = core.getInput("data-branch") || DEFAULT_DATA_BRANCH;
   const runId = resolveRunId();
 
   const metricSets = validateMetricSets(metricSetsRaw);
