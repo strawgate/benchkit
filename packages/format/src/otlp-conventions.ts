@@ -132,6 +132,13 @@ export const VALID_SOURCE_FORMATS = [
 export type SourceFormat = (typeof VALID_SOURCE_FORMATS)[number];
 
 // ---------------------------------------------------------------------------
+// Defaults
+// ---------------------------------------------------------------------------
+
+/** Default Git branch name used for storing benchmark data. */
+export const DEFAULT_DATA_BRANCH = "bench-data";
+
+// ---------------------------------------------------------------------------
 // Metric naming conventions
 // ---------------------------------------------------------------------------
 

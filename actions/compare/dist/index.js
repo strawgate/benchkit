@@ -134,10 +134,11 @@ const github = __importStar(__nccwpck_require__(5683));
 const os = __importStar(__nccwpck_require__(8161));
 const path = __importStar(__nccwpck_require__(6760));
 const compare_action_js_1 = __nccwpck_require__(55);
+const format_1 = __nccwpck_require__(7575);
 async function run() {
     const resultsPattern = core.getInput("results", { required: true });
     const format = (core.getInput("format") || "auto");
-    const dataBranch = core.getInput("data-branch") || "bench-data";
+    const dataBranch = core.getInput("data-branch") || format_1.DEFAULT_DATA_BRANCH;
     const baselineRuns = parseInt(core.getInput("baseline-runs") || "5", 10);
     const threshold = parseFloat(core.getInput("threshold") || "5");
     const failOnRegression = core.getBooleanInput("fail-on-regression");
@@ -63961,8 +63962,8 @@ function formatComparisonMarkdown(result, options = {}) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validateMetricRole = exports.validateDirection = exports.validateRunKind = exports.validateRequiredDatapointAttributes = exports.validateRequiredResourceAttributes = exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = exports.parseOtlpMetrics = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlp = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.unitToMetricName = exports.inferDirection = exports.parse = exports.parseBenchmarks = void 0;
-exports.detailViewToBenchmarkResult = exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.compareRuns = exports.getMetricUnits = exports.getMetricTemporality = exports.extractResourceContext = exports.extractComparisonMetrics = exports.extractScenarioMetrics = exports.extractRunMetrics = exports.isMonitorMetric = exports.isValidSourceFormat = exports.isValidMetricRole = exports.isValidDirection = exports.isValidRunKind = exports.validateSourceFormat = void 0;
+exports.validateDirection = exports.validateRunKind = exports.validateRequiredDatapointAttributes = exports.validateRequiredResourceAttributes = exports.DEFAULT_DATA_BRANCH = exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = exports.parseOtlpMetrics = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlp = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.unitToMetricName = exports.inferDirection = exports.parse = exports.parseBenchmarks = void 0;
+exports.detailViewToBenchmarkResult = exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.compareRuns = exports.getMetricUnits = exports.getMetricTemporality = exports.extractResourceContext = exports.extractComparisonMetrics = exports.extractScenarioMetrics = exports.extractRunMetrics = exports.isMonitorMetric = exports.isValidSourceFormat = exports.isValidMetricRole = exports.isValidDirection = exports.isValidRunKind = exports.validateSourceFormat = exports.validateMetricRole = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parseBenchmarks", ({ enumerable: true, get: function () { return parse_js_1.parseBenchmarks; } }));
@@ -64034,6 +64035,7 @@ Object.defineProperty(exports, "VALID_DIRECTIONS", ({ enumerable: true, get: fun
 Object.defineProperty(exports, "VALID_METRIC_ROLES", ({ enumerable: true, get: function () { return otlp_conventions_js_1.VALID_METRIC_ROLES; } }));
 Object.defineProperty(exports, "VALID_SOURCE_FORMATS", ({ enumerable: true, get: function () { return otlp_conventions_js_1.VALID_SOURCE_FORMATS; } }));
 Object.defineProperty(exports, "MONITOR_METRIC_PREFIX", ({ enumerable: true, get: function () { return otlp_conventions_js_1.MONITOR_METRIC_PREFIX; } }));
+Object.defineProperty(exports, "DEFAULT_DATA_BRANCH", ({ enumerable: true, get: function () { return otlp_conventions_js_1.DEFAULT_DATA_BRANCH; } }));
 /** Runtime validators for the benchkit OTLP semantic contract. */
 var otlp_validation_js_1 = __nccwpck_require__(8442);
 Object.defineProperty(exports, "validateRequiredResourceAttributes", ({ enumerable: true, get: function () { return otlp_validation_js_1.validateRequiredResourceAttributes; } }));
@@ -64221,7 +64223,7 @@ function stringifyNativeResult(resultOrInit, indent = 2) {
  * rather than hard-coding attribute strings.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = void 0;
+exports.MONITOR_METRIC_PREFIX = exports.DEFAULT_DATA_BRANCH = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = void 0;
 // ---------------------------------------------------------------------------
 // Resource attributes (run-level metadata on every ResourceMetrics)
 // ---------------------------------------------------------------------------
@@ -64310,6 +64312,11 @@ exports.VALID_SOURCE_FORMATS = [
     "pytest-benchmark",
     "benchmark-action",
 ];
+// ---------------------------------------------------------------------------
+// Defaults
+// ---------------------------------------------------------------------------
+/** Default Git branch name used for storing benchmark data. */
+exports.DEFAULT_DATA_BRANCH = "bench-data";
 // ---------------------------------------------------------------------------
 // Metric naming conventions
 // ---------------------------------------------------------------------------
@@ -64711,7 +64718,13 @@ const infer_direction_js_1 = __nccwpck_require__(5083);
  * Direction is inferred from the unit string.
  */
 function parseBenchmarkAction(input) {
-    const entries = JSON.parse(input);
+    let entries;
+    try {
+        entries = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`[parse-benchmark-action] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!Array.isArray(entries)) {
         throw new Error("[parse-benchmark-action] Input must be a JSON array of {name, value, unit} objects.");
     }
@@ -64830,7 +64843,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseHyperfine = parseHyperfine;
 const infer_direction_js_1 = __nccwpck_require__(5083);
 function parseHyperfine(input) {
-    const parsed = JSON.parse(input);
+    let parsed;
+    try {
+        parsed = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`[parse-hyperfine] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!parsed.results || !Array.isArray(parsed.results)) {
         throw new Error("[parse-hyperfine] Hyperfine format must have a 'results' array.");
     }
@@ -64889,7 +64908,13 @@ exports.parseNative = parseNative;
  * Parse the benchkit native JSON format. Validates structure and returns as-is.
  */
 function parseNative(input) {
-    const parsed = JSON.parse(input);
+    let parsed;
+    try {
+        parsed = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`[parse-native] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
         throw new Error("[parse-native] Native format must have a 'benchmarks' array at the top level.");
     }
@@ -65194,7 +65219,7 @@ function projectHistogramMetric(groups, metric, points, _resourceAttributes) {
  * 3. **Time-series building** — per-group datapoints are sorted by timestamp
  *    and attached as `samples` when more than one datapoint exists.
  *
- * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlpMetrics`).
+ * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlp`).
  * @returns A `BenchmarkResult` containing all projected benchmarks and context.
  */
 function projectBenchmarkResultFromOtlp(document) {
@@ -65271,7 +65296,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parsePytestBenchmark = parsePytestBenchmark;
 const infer_direction_js_1 = __nccwpck_require__(5083);
 function parsePytestBenchmark(input) {
-    const parsed = JSON.parse(input);
+    let parsed;
+    try {
+        parsed = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`[parse-pytest-benchmark] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
         throw new Error("[parse-pytest-benchmark] pytest-benchmark format must have a 'benchmarks' array.");
     }
@@ -65534,6 +65565,16 @@ function unitToMetricName(unit) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.detailViewToBenchmarkResult = detailViewToBenchmarkResult;
+function tagsEqual(a, b) {
+    if (a === b)
+        return true;
+    if (!a || !b)
+        return false;
+    const keysA = Object.keys(a);
+    if (keysA.length !== Object.keys(b).length)
+        return false;
+    return keysA.every((k) => a[k] === b[k]);
+}
 /**
  * Convert a `RunDetailView` back into a `BenchmarkResult`.
  *
@@ -65546,7 +65587,7 @@ function detailViewToBenchmarkResult(detail) {
         for (const snapshotMetric of snapshot.values) {
             // Find or create the benchmark entry for this series name
             let bench = benchmarks.find((b) => b.name === snapshotMetric.name &&
-                JSON.stringify(b.tags) === JSON.stringify(snapshotMetric.tags));
+                tagsEqual(b.tags, snapshotMetric.tags));
             if (!bench) {
                 bench = {
                     name: snapshotMetric.name,

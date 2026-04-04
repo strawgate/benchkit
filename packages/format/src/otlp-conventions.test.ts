@@ -15,6 +15,7 @@ import {
   ATTR_SERVICE_NAME,
   ATTR_IMPL,
   MONITOR_METRIC_PREFIX,
+  DEFAULT_DATA_BRANCH,
   RESERVED_DATAPOINT_ATTRIBUTES,
   VALID_RUN_KINDS,
   VALID_DIRECTIONS,
@@ -83,6 +84,10 @@ describe("OTLP conventions constants", () => {
 
   it("defines the monitor metric prefix", () => {
     assert.equal(MONITOR_METRIC_PREFIX, "_monitor.");
+  });
+
+  it("defines the default data branch name", () => {
+    assert.equal(DEFAULT_DATA_BRANCH, "bench-data");
   });
 
   it("marks scenario, series, direction, role as reserved datapoint attributes", () => {

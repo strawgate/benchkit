@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
 import { rawUrl, type DataSource } from "./fetch.js";
+import { DEFAULT_DATA_BRANCH } from "@benchkit/format";
 
 describe("fetch", () => {
   it("constructs correct raw URLs", () => {
@@ -17,7 +18,7 @@ describe("fetch", () => {
     const url = rawUrl(ds, "data/index.json");
     assert.equal(
       url,
-      "https://raw.githubusercontent.com/foo/bar/bench-data/data/index.json",
+      `https://raw.githubusercontent.com/foo/bar/${DEFAULT_DATA_BRANCH}/data/index.json`,
     );
   });
 

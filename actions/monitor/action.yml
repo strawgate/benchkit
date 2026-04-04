@@ -19,6 +19,7 @@ inputs:
     default: '4318'
   data-branch:
     description: 'Branch to push telemetry data.'
+    # Keep in sync with DEFAULT_DATA_BRANCH in @benchkit/format
     default: 'bench-data'
   run-id:
     description: 'Run identifier. Defaults to $GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.'

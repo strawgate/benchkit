@@ -102,6 +102,7 @@ export {
   VALID_METRIC_ROLES,
   VALID_SOURCE_FORMATS,
   MONITOR_METRIC_PREFIX,
+  DEFAULT_DATA_BRANCH,
 } from "./otlp-conventions.js";
 export type { RunKind, Direction, MetricRole, SourceFormat } from "./otlp-conventions.js";
 /** Runtime validators for the benchkit OTLP semantic contract. */
