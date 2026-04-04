@@ -1,16 +1,16 @@
 import { inferDirection } from "./infer-direction.js";
 import { parseNative } from "./parse-native.js";
 import type {
-  Benchmark,
+  BenchmarkEntry,
   BenchmarkResult,
-  Context,
-  Metric,
+  RunContext,
+  MetricValue,
   NativeBenchmarkInit,
   NativeMetricInit,
   NativeResultInit,
 } from "./types.js";
 
-function cloneContext(context: Context | undefined): Context | undefined {
+function cloneContext(context: RunContext | undefined): RunContext | undefined {
   if (!context) return undefined;
   return {
     ...context,
@@ -19,16 +19,16 @@ function cloneContext(context: Context | undefined): Context | undefined {
 }
 
 /**
- * Create a `Metric` object from a numeric value and optional metadata.
+ * Create a `MetricValue` object from a numeric value and optional metadata.
  *
  * If `direction` is not provided it is inferred from `unit` via `inferDirection`.
  * If neither `direction` nor `unit` is provided, `direction` is left undefined.
  *
  * @param value - The numeric measurement value.
  * @param options - Optional unit, direction, and range overrides.
- * @returns A fully-formed `Metric` object.
+ * @returns A fully-formed `MetricValue` object.
  */
-export function defineMetric(value: number, options: Omit<NativeMetricInit, "value"> = {}): Metric {
+export function defineMetric(value: number, options: Omit<NativeMetricInit, "value"> = {}): MetricValue {
   const direction = options.direction ?? (options.unit ? inferDirection(options.unit) : undefined);
   return {
     value,
@@ -39,16 +39,16 @@ export function defineMetric(value: number, options: Omit<NativeMetricInit, "val
 }
 
 /**
- * Create a `Benchmark` object from an init descriptor.
+ * Create a `BenchmarkEntry` object from an init descriptor.
  *
  * Numeric shorthand values in `init.metrics` are automatically converted to
- * `Metric` objects via `defineMetric`. Rich metric objects are also passed
+ * `MetricValue` objects via `defineMetric`. Rich metric objects are also passed
  * through `defineMetric` so that direction is inferred when not explicit.
  *
  * @param init - Benchmark name, optional tags, metrics map, and optional samples.
- * @returns A fully-formed `Benchmark` object.
+ * @returns A fully-formed `BenchmarkEntry` object.
  */
-export function defineBenchmark(init: NativeBenchmarkInit): Benchmark {
+export function defineBenchmark(init: NativeBenchmarkInit): BenchmarkEntry {
   const metrics = Object.fromEntries(
     Object.entries(init.metrics).map(([name, metric]) => {
       if (typeof metric === "number") {

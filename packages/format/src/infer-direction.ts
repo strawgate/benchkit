@@ -1,6 +1,6 @@
-import type { Metric } from "./types.js";
+import type { MetricValue } from "./types.js";
 
-type Direction = Metric["direction"];
+type Direction = MetricValue["direction"];
 
 /**
  * Infer whether a unit is "bigger_is_better" or "smaller_is_better".

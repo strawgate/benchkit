@@ -1,4 +1,4 @@
-import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import type { BenchmarkResult, BenchmarkEntry, MetricValue } from "./types.js";
 import { unitToMetricName } from "./parser-utils.js";
 
 /**
@@ -13,7 +13,7 @@ export function parseRustBench(input: string): BenchmarkResult {
   }
 
   try {
-    const benchmarks: Benchmark[] = [];
+    const benchmarks: BenchmarkEntry[] = [];
 
     const re =
       /^test\s+(?<name>\S+)\s+\.\.\.\s+bench:\s+(?<value>[\d,]+)\s+(?<unit>\S+)(?:\s+\(\+\/-\s+(?<range>[\d,]+)\))?/;
@@ -25,13 +25,13 @@ export function parseRustBench(input: string): BenchmarkResult {
 
       const { name, value, unit, range } = m.groups;
 
-      const metrics: Record<string, Metric> = {};
+      const metrics: Record<string, MetricValue> = {};
       const numericValue = parseFloat(value.replace(/,/g, ""));
       if (isNaN(numericValue)) {
         throw new Error(`Invalid numeric value '${value}' for benchmark '${name}'.`);
       }
 
-      const metric: Metric = {
+      const metric: MetricValue = {
         value: numericValue,
         unit,
         direction: "smaller_is_better",

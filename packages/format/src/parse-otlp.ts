@@ -16,10 +16,10 @@ import {
 } from "./otlp-conventions.js";
 import { isValidDirection } from "./otlp-validation.js";
 import type {
-  Benchmark,
+  BenchmarkEntry,
   BenchmarkResult,
-  Context,
-  Metric,
+  RunContext,
+  MetricValue,
   OtlpAggregationTemporality,
   OtlpAnyValue,
   OtlpAttribute,
@@ -27,7 +27,7 @@ import type {
   OtlpHistogramDataPoint,
   OtlpMetric,
   OtlpMetricsDocument,
-  Sample,
+  TimeSeriesSample,
 } from "./types.js";
 
 function anyValueToString(value: OtlpAnyValue | undefined): string {
@@ -66,7 +66,7 @@ export function otlpAttributesToRecord(attributes: OtlpAttribute[] | undefined):
  * @param input - Raw OTLP metrics JSON string.
  * @returns The parsed `OtlpMetricsDocument`.
  */
-export function parseOtlpMetrics(input: string): OtlpMetricsDocument {
+export function parseOtlp(input: string): OtlpMetricsDocument {
   let parsed: unknown;
   try {
     parsed = JSON.parse(input);
@@ -145,7 +145,7 @@ function buildBenchmarkKey(name: string, series: string): string {
 }
 
 function pushSample(
-  samplesByMillis: Map<number, Sample>,
+  samplesByMillis: Map<number, TimeSeriesSample>,
   millis: number,
   baselineMillis: number,
   metricName: string,
@@ -160,8 +160,8 @@ function pushSample(
 }
 
 type MutableBenchmarkGroup = {
-  benchmark: Benchmark;
-  samplesByMillis: Map<number, Sample>;
+  benchmark: BenchmarkEntry;
+  samplesByMillis: Map<number, TimeSeriesSample>;
   sampleBaselineMillis?: number;
   metricTimestamps: Map<string, number>;
 };
@@ -196,7 +196,7 @@ function ensureGroup(
 function upsertMetric(
   group: MutableBenchmarkGroup,
   metricName: string,
-  metric: Metric,
+  metric: MetricValue,
   pointTimestampMillis: number | undefined,
 ): void {
   const previousTimestamp = group.metricTimestamps.get(metricName);
@@ -215,7 +215,7 @@ function requiredResourceAttr(attributes: Record<string, string>, key: string, m
   return value;
 }
 
-function resolveDirection(metricName: string, unit: string | undefined, pointAttributes: Record<string, string>): Metric["direction"] {
+function resolveDirection(metricName: string, unit: string | undefined, pointAttributes: Record<string, string>): MetricValue["direction"] {
   const explicit = pointAttributes[ATTR_METRIC_DIRECTION];
   if (explicit) {
     if (!isValidDirection(explicit)) {
@@ -264,7 +264,7 @@ function projectGaugeLikeMetric(
     const timestampIso = nanosToIso(point.timeUnixNano);
     const metricValue = datapointNumberValue(point);
     const direction = resolveDirection(metric.name, metric.unit, pointAttributes);
-    const metricRecord: Metric = {
+    const metricRecord: MetricValue = {
       value: metricValue,
       unit: metric.unit,
       direction,
@@ -375,7 +375,7 @@ export function projectBenchmarkResultFromOtlp(document: OtlpMetricsDocument): B
   // Phase 1: Initialize groups and context
   const groups = new Map<string, MutableBenchmarkGroup>();
   let latestTimestamp: string | undefined;
-  let contextTemplate: Context | undefined;
+  let contextTemplate: RunContext | undefined;
 
   // Phase 2: Traverse resourceMetrics → scopeMetrics → metrics → datapoints
   for (const resourceMetric of document.resourceMetrics) {

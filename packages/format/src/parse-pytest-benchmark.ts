@@ -1,4 +1,4 @@
-import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import type { BenchmarkResult, BenchmarkEntry, MetricValue } from "./types.js";
 import { inferDirection } from "./infer-direction.js";
 
 /**
@@ -51,7 +51,7 @@ export function parsePytestBenchmark(input: string): BenchmarkResult {
     throw new Error("[parse-pytest-benchmark] pytest-benchmark format must have a 'benchmarks' array.");
   }
 
-  const benchmarks: Benchmark[] = parsed.benchmarks.map((entry) => {
+  const benchmarks: BenchmarkEntry[] = parsed.benchmarks.map((entry) => {
     if (typeof entry.name !== "string") {
       throw new Error("[parse-pytest-benchmark] Each pytest-benchmark entry must have a 'name' string.");
     }
@@ -63,7 +63,7 @@ export function parsePytestBenchmark(input: string): BenchmarkResult {
 
     const stats = entry.stats;
     const timeDirection = inferDirection("s");
-    const metrics: Record<string, Metric> = {
+    const metrics: Record<string, MetricValue> = {
       mean: {
         value: stats.mean,
         unit: "s",

@@ -5,7 +5,7 @@ import type {
   IndexFile,
   RunEntry,
   SeriesFile,
-  DataPoint,
+  SeriesDataPoint,
 } from "@benchkit/format";
 
 /** A parsed benchmark run with its identifier. */
@@ -157,7 +157,7 @@ export function buildSeries(runs: ParsedRun[]): Map<string, SeriesFile> {
 
         const avg = agg.sum / agg.count;
         const range = agg.count > 1 ? agg.max - agg.min : undefined;
-        const point: DataPoint = {
+        const point: SeriesDataPoint = {
           timestamp:
             r.result.context?.timestamp ?? new Date().toISOString(),
           value: Math.round(avg * 100) / 100,

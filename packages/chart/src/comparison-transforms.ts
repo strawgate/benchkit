@@ -1,4 +1,4 @@
-import type { Sample, DataPoint } from "@benchkit/format";
+import type { TimeSeriesSample, SeriesDataPoint } from "@benchkit/format";
 
 /**
  * Converts an array of intra-run samples to `{x, y}` chart points for a
@@ -7,7 +7,7 @@ import type { Sample, DataPoint } from "@benchkit/format";
  * Samples that do not contain the requested metric are skipped.
  */
 export function samplesToDataPoints(
-  samples: Sample[],
+  samples: TimeSeriesSample[],
   metric: string,
 ): { x: number; y: number }[] {
   return samples
@@ -21,7 +21,7 @@ export function samplesToDataPoints(
  * time scale.
  */
 export function dataPointsToComparisonData(
-  points: DataPoint[],
+  points: SeriesDataPoint[],
 ): { x: string; y: number }[] {
   return points.map((p) => ({ x: p.timestamp, y: p.value }));
 }

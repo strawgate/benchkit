@@ -1,5 +1,5 @@
 import type {
-  Benchmark,
+  BenchmarkEntry,
   MetricSummaryEntry,
   PrIndexEntry,
   RefIndexEntry,
@@ -21,7 +21,7 @@ export type {
   MetricSummaryEntry,
 };
 
-function benchmarkSeriesKey(benchmark: Benchmark): string {
+function benchmarkSeriesKey(benchmark: BenchmarkEntry): string {
   const tags = benchmark.tags
     ? Object.entries(benchmark.tags)
       .sort(([left], [right]) => left.localeCompare(right))

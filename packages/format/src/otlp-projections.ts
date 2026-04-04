@@ -23,7 +23,7 @@ import {
 } from "./parse-otlp.js";
 import type {
   BenchmarkResult,
-  Context,
+  RunContext,
   OtlpAggregationTemporality,
   OtlpMetric,
   OtlpMetricsDocument,
@@ -88,12 +88,12 @@ export function extractComparisonMetrics(
 
 /**
  * De-duplicate resource attributes across all ResourceMetrics into a
- * single Context object. Useful for building run metadata views.
+ * single RunContext object. Useful for building run metadata views.
  */
 export function extractResourceContext(
   resourceMetrics: OtlpResourceMetrics[],
-): Context {
-  const context: Context = {};
+): RunContext {
+  const context: RunContext = {};
 
   for (const rm of resourceMetrics) {
     const attrs = otlpAttributesToRecord(rm.resource?.attributes);

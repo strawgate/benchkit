@@ -1,4 +1,4 @@
-import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import type { BenchmarkResult, BenchmarkEntry, MetricValue } from "./types.js";
 import { inferDirection } from "./infer-direction.js";
 
 /**
@@ -43,14 +43,14 @@ export function parseHyperfine(input: string): BenchmarkResult {
     throw new Error("[parse-hyperfine] Hyperfine format must have a 'results' array.");
   }
 
-  const benchmarks: Benchmark[] = (doc.results as HyperfineResult[]).map(
+  const benchmarks: BenchmarkEntry[] = (doc.results as HyperfineResult[]).map(
     (result) => {
       if (typeof result.command !== "string") {
         throw new Error("[parse-hyperfine] Each Hyperfine result must have a 'command' string.");
       }
 
       const timeDirection = inferDirection("s");
-      const metrics: Record<string, Metric> = {
+      const metrics: Record<string, MetricValue> = {
         mean: {
           value: result.mean,
           unit: "s",

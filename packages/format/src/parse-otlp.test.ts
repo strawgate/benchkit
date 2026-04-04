@@ -4,7 +4,7 @@ import {
   getOtlpMetricKind,
   getOtlpTemporality,
   otlpAttributesToRecord,
-  parseOtlpMetrics,
+  parseOtlp,
   projectBenchmarkResultFromOtlp,
 } from "./parse-otlp.js";
 
@@ -106,13 +106,13 @@ function makeDocument() {
 
 describe("parseOtlpMetrics", () => {
   it("parses a valid OTLP metrics document", () => {
-    const parsed = parseOtlpMetrics(JSON.stringify(makeDocument()));
+    const parsed = parseOtlp(JSON.stringify(makeDocument()));
     assert.equal(parsed.resourceMetrics.length, 1);
     assert.equal(parsed.resourceMetrics[0].scopeMetrics?.[0].metrics?.length, 3);
   });
 
   it("throws when resourceMetrics is missing", () => {
-    assert.throws(() => parseOtlpMetrics("{}"), /resourceMetrics/);
+    assert.throws(() => parseOtlp("{}"), /resourceMetrics/);
   });
 });
 
@@ -127,7 +127,7 @@ describe("OTLP traversal helpers", () => {
   });
 
   it("reports metric kind and temporality", () => {
-    const document = parseOtlpMetrics(JSON.stringify(makeDocument()));
+    const document = parseOtlp(JSON.stringify(makeDocument()));
     const metrics = document.resourceMetrics[0].scopeMetrics?.[0].metrics ?? [];
     assert.equal(getOtlpMetricKind(metrics[0]), "gauge");
     assert.equal(getOtlpMetricKind(metrics[1]), "sum");
@@ -139,7 +139,7 @@ describe("OTLP traversal helpers", () => {
 
 describe("projectBenchmarkResultFromOtlp", () => {
   it("projects OTLP metrics into benchmark-style results", () => {
-    const result = projectBenchmarkResultFromOtlp(parseOtlpMetrics(JSON.stringify(makeDocument())));
+    const result = projectBenchmarkResultFromOtlp(parseOtlp(JSON.stringify(makeDocument())));
     assert.equal(result.context?.commit, "abcdef123456");
     assert.equal(result.context?.ref, "refs/heads/main");
     assert.equal(result.benchmarks.length, 2);
@@ -171,7 +171,7 @@ describe("projectBenchmarkResultFromOtlp", () => {
     );
 
     assert.throws(
-      () => projectBenchmarkResultFromOtlp(parseOtlpMetrics(JSON.stringify(document))),
+      () => projectBenchmarkResultFromOtlp(parseOtlp(JSON.stringify(document))),
       /benchkit.series/,
     );
   });

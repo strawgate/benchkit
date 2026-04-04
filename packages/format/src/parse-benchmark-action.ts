@@ -1,4 +1,4 @@
-import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import type { BenchmarkResult, BenchmarkEntry, MetricValue } from "./types.js";
 import { inferDirection } from "./infer-direction.js";
 
 /**
@@ -24,7 +24,7 @@ export function parseBenchmarkAction(input: string): BenchmarkResult {
     );
   }
 
-  const benchmarks: Benchmark[] = entries.map((entry: unknown, index: number) => {
+  const benchmarks: BenchmarkEntry[] = entries.map((entry: unknown, index: number) => {
     if (typeof entry !== "object" || entry === null) {
       throw new Error(
         `[parse-benchmark-action] Entry at index ${index} must be an object.`,
@@ -47,7 +47,7 @@ export function parseBenchmarkAction(input: string): BenchmarkResult {
       );
     }
     const range = parseRange(e.range as string | undefined);
-    const metric: Metric = {
+    const metric: MetricValue = {
       value: e.value,
       unit: e.unit,
       direction: inferDirection(e.unit),

@@ -1,7 +1,7 @@
 export type {
   BenchmarkResult,
-  Benchmark,
-  Metric,
+  BenchmarkEntry,
+  MetricValue,
   BenchkitRunKind,
   OtlpAggregationTemporality,
   OtlpAttribute,
@@ -19,12 +19,12 @@ export type {
   NativeMetricInit,
   NativeBenchmarkInit,
   NativeResultInit,
-  Sample,
-  Context,
+  TimeSeriesSample,
+  RunContext,
   MonitorContext,
   SeriesFile,
   SeriesEntry,
-  DataPoint,
+  SeriesDataPoint,
   IndexFile,
   RunEntry,
   ComparisonResult,
@@ -38,10 +38,18 @@ export type {
   RunDetailMetricSnapshot,
   RunDetailView,
   MetricSummaryEntry,
+  // Deprecated aliases
+  Benchmark,
+  Metric,
+  Sample,
+  Context,
+  DataPoint,
 } from "./types.js";
 
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
-export { parse } from "./parse.js";
+export { parseBenchmarks } from "./parse.js";
+/** @deprecated Use parseBenchmarks instead. */
+export { parseBenchmarks as parse } from "./parse.js";
 export type { Format } from "./parse.js";
 /** Infer the `direction` ("smaller_is_better" / "bigger_is_better") from a metric unit string. */
 export { inferDirection } from "./infer-direction.js";
@@ -61,12 +69,14 @@ export { parseHyperfine } from "./parse-hyperfine.js";
 export { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
 /** Parse OTLP metrics JSON and project it into benchmark-oriented structures. */
 export {
-  parseOtlpMetrics,
+  parseOtlp,
   otlpAttributesToRecord,
   getOtlpMetricKind,
   getOtlpTemporality,
   projectBenchmarkResultFromOtlp,
 } from "./parse-otlp.js";
+/** @deprecated Use parseOtlp instead. */
+export { parseOtlp as parseOtlpMetrics } from "./parse-otlp.js";
 /** OTLP semantic convention constants — attribute names, valid values, reserved keys. */
 export {
   ATTR_RUN_ID,
@@ -125,10 +135,12 @@ export {
   getMetricUnits,
 } from "./otlp-projections.js";
 /** Compare a current benchmark run against baseline runs to detect regressions. */
-export { compare } from "./compare.js";
+export { compareRuns } from "./compare.js";
+/** @deprecated Use compareRuns instead. */
+export { compareRuns as compare } from "./compare.js";
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */
 export { formatComparisonMarkdown } from "./format-comparison-markdown.js";
 /** Helpers for building and serializing native benchmark results. */
 export { defineMetric, defineBenchmark, buildNativeResult, stringifyNativeResult } from "./native-builder.js";
-/** Convert a RunDetailView back into a BenchmarkResult for use with compare(). */
+/** Convert a RunDetailView back into a BenchmarkResult for use with compareRuns(). */
 export { detailViewToBenchmarkResult } from "./run-detail-converter.js";

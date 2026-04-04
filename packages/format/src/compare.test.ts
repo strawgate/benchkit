@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { compare } from "./compare.js";
+import { compareRuns } from "./compare.js";
 import type { BenchmarkResult } from "./types.js";
 
 function makeResult(benchmarks: BenchmarkResult["benchmarks"]): BenchmarkResult {
@@ -12,7 +12,7 @@ describe("compare", () => {
     const current = makeResult([
       { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } },
     ]);
-    const result = compare(current, []);
+    const result = compareRuns(current, []);
     assert.deepEqual(result.entries, []);
     assert.equal(result.hasRegression, false);
   });
@@ -27,7 +27,7 @@ describe("compare", () => {
       { name: "BenchA", metrics: { ns_per_op: { value: 120, unit: "ns/op", direction: "smaller_is_better" } } },
     ]);
 
-    const result = compare(current, baseline);
+    const result = compareRuns(current, baseline);
     assert.equal(result.entries.length, 1);
     assert.equal(result.entries[0].status, "regressed");
     assert.equal(result.entries[0].percentChange, 20);
@@ -44,7 +44,7 @@ describe("compare", () => {
       { name: "BenchA", metrics: { ns_per_op: { value: 80, unit: "ns/op", direction: "smaller_is_better" } } },
     ]);
 
-    const result = compare(current, baseline);
+    const result = compareRuns(current, baseline);
     assert.equal(result.entries[0].status, "improved");
     assert.equal(result.entries[0].percentChange, -20);
     assert.equal(result.hasRegression, false);
@@ -60,7 +60,7 @@ describe("compare", () => {
       { name: "BenchA", metrics: { ops_per_sec: { value: 800, unit: "ops/s", direction: "bigger_is_better" } } },
     ]);
 
-    const result = compare(current, baseline);
+    const result = compareRuns(current, baseline);
     assert.equal(result.entries[0].status, "regressed");
     assert.equal(result.entries[0].percentChange, -20);
     assert.equal(result.hasRegression, true);
@@ -76,7 +76,7 @@ describe("compare", () => {
       { name: "BenchA", metrics: { ops_per_sec: { value: 1200, unit: "ops/s", direction: "bigger_is_better" } } },
     ]);
 
-    const result = compare(current, baseline);
+    const result = compareRuns(current, baseline);
     assert.equal(result.entries[0].status, "improved");
     assert.equal(result.entries[0].percentChange, 20);
     assert.equal(result.hasRegression, false);
@@ -92,7 +92,7 @@ describe("compare", () => {
       { name: "BenchA", metrics: { ns_per_op: { value: 103, unit: "ns/op", direction: "smaller_is_better" } } },
     ]);
 
-    const result = compare(current, baseline, { test: "percentage", threshold: 5 });
+    const result = compareRuns(current, baseline, { test: "percentage", threshold: 5 });
     assert.equal(result.entries[0].status, "stable");
     assert.equal(result.entries[0].percentChange, 3);
     assert.equal(result.hasRegression, false);
@@ -109,7 +109,7 @@ describe("compare", () => {
       { name: "BenchNew", metrics: { ns_per_op: { value: 200, unit: "ns/op" } } },
     ]);
 
-    const result = compare(current, baseline);
+    const result = compareRuns(current, baseline);
     assert.equal(result.entries.length, 1);
     assert.equal(result.entries[0].benchmark, "BenchA");
   });
@@ -128,7 +128,7 @@ describe("compare", () => {
     ]);
 
     // baseline avg = 100, current = 100, change = 0%
-    const result = compare(current, baseline);
+    const result = compareRuns(current, baseline);
     assert.equal(result.entries[0].baseline, 100);
     assert.equal(result.entries[0].percentChange, 0);
     assert.equal(result.entries[0].status, "stable");
@@ -144,7 +144,7 @@ describe("compare", () => {
       { name: "BenchA", metrics: { throughput: { value: 800, unit: "ops/s" } } },
     ]);
 
-    const result = compare(current, baseline);
+    const result = compareRuns(current, baseline);
     // ops/s → bigger_is_better; drop from 1000→800 = regressed
     assert.equal(result.entries[0].direction, "bigger_is_better");
     assert.equal(result.entries[0].status, "regressed");
@@ -184,7 +184,7 @@ describe("compare", () => {
       },
     ]);
 
-    const result = compare(current, baseline);
+    const result = compareRuns(current, baseline);
     assert.equal(result.entries.length, 3);
 
     const benchANs = result.entries.find((e) => e.benchmark === "BenchA" && e.metric === "ns_per_op");
@@ -210,11 +210,11 @@ describe("compare", () => {
     ]);
 
     // 15% change, 20% threshold → stable
-    const result = compare(current, baseline, { test: "percentage", threshold: 20 });
+    const result = compareRuns(current, baseline, { test: "percentage", threshold: 20 });
     assert.equal(result.entries[0].status, "stable");
 
     // 15% change, 10% threshold → regressed
-    const result2 = compare(current, baseline, { test: "percentage", threshold: 10 });
+    const result2 = compareRuns(current, baseline, { test: "percentage", threshold: 10 });
     assert.equal(result2.entries[0].status, "regressed");
   });
 
@@ -228,7 +228,7 @@ describe("compare", () => {
       { name: "BenchA", metrics: { allocs: { value: 5, unit: "allocs/op", direction: "smaller_is_better" } } },
     ]);
 
-    const result = compare(current, baseline);
+    const result = compareRuns(current, baseline);
     assert.equal(result.entries.length, 0);
   });
 
@@ -243,7 +243,7 @@ describe("compare", () => {
     ]);
 
     // 5% change with 5% threshold → stable (<=)
-    const result = compare(current, baseline, { test: "percentage", threshold: 5 });
+    const result = compareRuns(current, baseline, { test: "percentage", threshold: 5 });
     assert.equal(result.entries[0].status, "stable");
   });
 });

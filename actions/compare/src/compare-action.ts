@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
-  compare,
+  compareRuns,
   formatComparisonMarkdown,
-  parse,
+  parseBenchmarks,
   parseNative,
   type BenchmarkResult,
   type Format,
@@ -16,7 +16,7 @@ export function parseCurrentRun(files: string[], format: Format): BenchmarkResul
 
   const allBenchmarks = files.flatMap((file) => {
     const content = fs.readFileSync(file, "utf-8");
-    return parse(content, format).benchmarks;
+    return parseBenchmarks(content, format).benchmarks;
   });
 
   return { benchmarks: allBenchmarks };
@@ -58,7 +58,7 @@ export interface CompareOutput {
 export function runComparison(options: CompareOptions): CompareOutput {
   const current = parseCurrentRun(options.files, options.format);
   const baseline = readBaselineRuns(options.runsDir, options.baselineRuns);
-  const result = compare(current, baseline, {
+  const result = compareRuns(current, baseline, {
     test: "percentage",
     threshold: options.threshold,
   });

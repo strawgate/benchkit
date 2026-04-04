@@ -1,18 +1,18 @@
 /** Core types for the benchkit native format. */
 
 export interface BenchmarkResult {
-  benchmarks: Benchmark[];
-  context?: Context;
+  benchmarks: BenchmarkEntry[];
+  context?: RunContext;
 }
 
-export interface Benchmark {
+export interface BenchmarkEntry {
   name: string;
   tags?: Record<string, string>;
-  metrics: Record<string, Metric>;
-  samples?: Sample[];
+  metrics: Record<string, MetricValue>;
+  samples?: TimeSeriesSample[];
 }
 
-export interface Metric {
+export interface MetricValue {
   value: number;
   unit?: string;
   direction?: "bigger_is_better" | "smaller_is_better";
@@ -30,12 +30,12 @@ export interface NativeBenchmarkInit {
   name: string;
   tags?: Record<string, string>;
   metrics: Record<string, NativeMetricInit | number>;
-  samples?: Sample[];
+  samples?: TimeSeriesSample[];
 }
 
 export interface NativeResultInit {
   benchmarks: NativeBenchmarkInit[];
-  context?: Context;
+  context?: RunContext;
 }
 
 export type BenchkitRunKind = "code" | "workflow" | "hybrid";
@@ -110,7 +110,7 @@ export interface OtlpMetricsDocument {
   resourceMetrics: OtlpResourceMetrics[];
 }
 
-export interface Sample {
+export interface TimeSeriesSample {
   t: number;
   [metricName: string]: number;
 }
@@ -128,7 +128,7 @@ export interface MonitorContext {
   total_memory_mb?: number;
 }
 
-export interface Context {
+export interface RunContext {
   commit?: string;
   ref?: string;
   timestamp?: string;
@@ -147,10 +147,10 @@ export interface SeriesFile {
 
 export interface SeriesEntry {
   tags?: Record<string, string>;
-  points: DataPoint[];
+  points: SeriesDataPoint[];
 }
 
-export interface DataPoint {
+export interface SeriesDataPoint {
   timestamp: string;
   value: number;
   commit?: string;
@@ -236,7 +236,7 @@ export interface RunSnapshotMetric {
   name: string;
   value: number;
   unit?: string;
-  direction?: Metric["direction"];
+  direction?: MetricValue["direction"];
   range?: number;
   tags?: Record<string, string>;
 }
@@ -244,7 +244,7 @@ export interface RunSnapshotMetric {
 export interface RunDetailMetricSnapshot {
   metric: string;
   unit?: string;
-  direction?: Metric["direction"];
+  direction?: MetricValue["direction"];
   values: RunSnapshotMetric[];
 }
 
@@ -259,3 +259,16 @@ export interface MetricSummaryEntry {
   latestRunId?: string;
   latestTimestamp?: string;
 }
+
+// ---- Deprecated aliases (kept for backward compatibility) ----
+
+/** @deprecated Use MetricValue instead. */
+export type Metric = MetricValue;
+/** @deprecated Use RunContext instead. */
+export type Context = RunContext;
+/** @deprecated Use TimeSeriesSample instead. */
+export type Sample = TimeSeriesSample;
+/** @deprecated Use SeriesDataPoint instead. */
+export type DataPoint = SeriesDataPoint;
+/** @deprecated Use BenchmarkEntry instead. */
+export type Benchmark = BenchmarkEntry;

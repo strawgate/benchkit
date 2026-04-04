@@ -22,7 +22,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import "chartjs-adapter-date-fns";
-import type { Sample, DataPoint } from "@benchkit/format";
+import type { TimeSeriesSample, SeriesDataPoint } from "@benchkit/format";
 import { useChartLifecycle } from "../hooks/useChartLifecycle.js";
 import {
   samplesToDataPoints,
@@ -49,15 +49,15 @@ export interface ComparisonChartProps {
    * Intra-run time-series mode: pass `Sample[]` arrays.
    * The x-axis uses elapsed seconds (`sample.t`).
    */
-  baseSamples?: Sample[];
-  currentSamples?: Sample[];
+  baseSamples?: TimeSeriesSample[];
+  currentSamples?: TimeSeriesSample[];
 
   /**
    * Cross-run aggregated mode: pass `DataPoint[]` arrays.
    * The x-axis uses ISO-8601 timestamps.
    */
-  basePoints?: DataPoint[];
-  currentPoints?: DataPoint[];
+  basePoints?: SeriesDataPoint[];
+  currentPoints?: SeriesDataPoint[];
 
   /** Label for the base/baseline trace. Defaults to "Base". */
   baseLabel?: string;

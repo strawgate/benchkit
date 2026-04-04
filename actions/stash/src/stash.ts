@@ -2,14 +2,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
-  parse,
+  parseBenchmarks as formatParseBenchmarks,
   parseNative,
-  parseOtlpMetrics,
+  parseOtlp,
   projectBenchmarkResultFromOtlp,
   type Format,
   type BenchmarkResult,
-  type Benchmark,
-  type Context,
+  type BenchmarkEntry,
+  type RunContext,
   type MonitorContext,
 } from "@benchkit/format";
 
@@ -21,7 +21,7 @@ export interface StashContext {
 }
 
 export interface BuildResultOptions {
-  benchmarks: Benchmark[];
+  benchmarks: BenchmarkEntry[];
   monitorResult?: BenchmarkResult;
   context: StashContext;
 }
@@ -40,7 +40,7 @@ export function buildResult(opts: BuildResultOptions): BenchmarkResult {
     monitor = opts.monitorResult.context?.monitor;
   }
 
-  const context: Context = {
+  const context: RunContext = {
     commit: opts.context.commit,
     ref: opts.context.ref,
     timestamp: opts.context.timestamp,
@@ -52,11 +52,11 @@ export function buildResult(opts: BuildResultOptions): BenchmarkResult {
 }
 
 /** Parse all benchmark files (synchronous file reads). Throws if the list is empty. */
-export function parseBenchmarkFiles(files: string[], format: Format): Benchmark[] {
+export function parseBenchmarkFiles(files: string[], format: Format): BenchmarkEntry[] {
   if (files.length === 0) {
     throw new Error("No benchmark result files provided");
   }
-  const benchmarks: Benchmark[] = [];
+  const benchmarks: BenchmarkEntry[] = [];
   for (const file of files) {
     const content = fs.readFileSync(file, "utf-8");
     benchmarks.push(...parseBenchmarks(content, format, file));
@@ -72,10 +72,10 @@ export function parseBenchmarks(
   content: string,
   format: Format,
   fileName: string,
-): Benchmark[] {
+): BenchmarkEntry[] {
   let result: BenchmarkResult;
   try {
-    result = parse(content, format);
+    result = formatParseBenchmarks(content, format);
   } catch (err) {
     throw new Error(
       `Failed to parse '${path.basename(fileName)}': ${err instanceof Error ? err.message : String(err)}`,
@@ -97,7 +97,7 @@ export function readMonitorOutput(monitorPath: string): BenchmarkResult {
   }
   const content = fs.readFileSync(monitorPath, "utf-8");
   try {
-    return projectBenchmarkResultFromOtlp(parseOtlpMetrics(content));
+    return projectBenchmarkResultFromOtlp(parseOtlp(content));
   } catch {
     return parseNative(content);
   }
@@ -145,11 +145,11 @@ export function createTempResultPath(runId: string): string {
   return path.join(os.tmpdir(), `benchkit-run-${runId}.json`);
 }
 
-function isMonitorBenchmark(benchmark: Benchmark): boolean {
+function isMonitorBenchmark(benchmark: BenchmarkEntry): boolean {
   return benchmark.name.startsWith("_monitor/");
 }
 
-function formatMetricValue(metric: Benchmark["metrics"][string]): string {
+function formatMetricValue(metric: BenchmarkEntry["metrics"][string]): string {
   const parts = [String(metric.value)];
   if (metric.range !== undefined) {
     parts.push(`±${metric.range}`);

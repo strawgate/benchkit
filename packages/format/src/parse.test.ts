@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parse } from "./parse.js";
+import { parseBenchmarks } from "./parse.js";
 
 describe("parse (auto-detect)", () => {
   it("detects native format", () => {
@@ -9,7 +9,7 @@ describe("parse (auto-detect)", () => {
         { name: "test", metrics: { eps: { value: 100 } } },
       ],
     });
-    const result = parse(input);
+    const result = parseBenchmarks(input);
     assert.equal(result.benchmarks[0].name, "test");
   });
 
@@ -17,19 +17,19 @@ describe("parse (auto-detect)", () => {
     const input = JSON.stringify([
       { name: "Bench", value: 42, unit: "ns/op" },
     ]);
-    const result = parse(input);
+    const result = parseBenchmarks(input);
     assert.equal(result.benchmarks[0].name, "Bench");
   });
 
   it("detects Go bench format", () => {
     const input = `BenchmarkFoo-8    10000    1234 ns/op`;
-    const result = parse(input);
+    const result = parseBenchmarks(input);
     assert.equal(result.benchmarks[0].name, "BenchmarkFoo");
   });
 
   it("detects Rust bench format", () => {
     const input = `test sort::bench_sort   ... bench:         320 ns/iter (+/- 42)`;
-    const result = parse(input);
+    const result = parseBenchmarks(input);
     assert.equal(result.benchmarks[0].name, "sort::bench_sort");
   });
 
@@ -37,7 +37,7 @@ describe("parse (auto-detect)", () => {
     const input = JSON.stringify({
       results: [{ command: "sleep 1", mean: 1.0 }],
     });
-    const result = parse(input);
+    const result = parseBenchmarks(input);
     assert.equal(result.benchmarks[0].name, "sleep 1");
   });
 
@@ -78,19 +78,19 @@ describe("parse (auto-detect)", () => {
         },
       ],
     });
-    const result = parse(input);
+    const result = parseBenchmarks(input);
     assert.equal(result.benchmarks[0].name, "json-ingest");
   });
 
   it("throws on unrecognized input", () => {
-    assert.throws(() => parse("totally unknown format"), {
+    assert.throws(() => parseBenchmarks("totally unknown format"), {
       message: /Could not auto-detect/,
     });
   });
 
   it("respects explicit format override", () => {
     const input = `BenchmarkBar-4    5000    999 ns/op`;
-    const result = parse(input, "go");
+    const result = parseBenchmarks(input, "go");
     assert.equal(result.benchmarks[0].name, "BenchmarkBar");
   });
 
@@ -131,24 +131,24 @@ describe("parse (auto-detect)", () => {
         },
       ],
     });
-    const result = parse(input, "otlp");
+    const result = parseBenchmarks(input, "otlp");
     assert.equal(result.benchmarks[0].metrics.service_rss_mb.value, 543.1);
   });
 
   it("throws on empty input", () => {
-    assert.throws(() => parse(""), {
+    assert.throws(() => parseBenchmarks(""), {
       message: /Could not auto-detect/,
     });
   });
 
   it("throws on whitespace-only input", () => {
-    assert.throws(() => parse("   \n\t  \n  "), {
+    assert.throws(() => parseBenchmarks("   \n\t  \n  "), {
       message: /Could not auto-detect/,
     });
   });
 
   it("throws on invalid JSON that looks like JSON", () => {
-    assert.throws(() => parse("[{malformed"), {
+    assert.throws(() => parseBenchmarks("[{malformed"), {
       message: /Could not auto-detect/,
     });
   });
@@ -162,12 +162,12 @@ describe("parse (auto-detect)", () => {
       "BenchmarkFoo-8    10000    1234 ns/op",
       "ok      github.com/example/pkg  1.234s",
     ].join("\n");
-    const result = parse(input);
+    const result = parseBenchmarks(input);
     assert.equal(result.benchmarks[0].name, "BenchmarkFoo");
   });
 
   it("throws on JSON with unexpected shape", () => {
-    assert.throws(() => parse(JSON.stringify({ foo: "bar" })), {
+    assert.throws(() => parseBenchmarks(JSON.stringify({ foo: "bar" })), {
       message: /Could not auto-detect/,
     });
   });
@@ -176,7 +176,7 @@ describe("parse (auto-detect)", () => {
     const input = JSON.stringify([
       { name: "Sort", value: 100, unit: "ns/op", group: "Group1", extra: "ignored" },
     ]);
-    const result = parse(input);
+    const result = parseBenchmarks(input);
     assert.equal(result.benchmarks[0].name, "Sort");
   });
 
@@ -184,13 +184,13 @@ describe("parse (auto-detect)", () => {
     const input = JSON.stringify({
       benchmarks: [{ name: "min", metrics: { value: { value: 1 } } }],
     });
-    const result = parse(input);
+    const result = parseBenchmarks(input);
     assert.equal(result.benchmarks[0].name, "min");
   });
 
   it("throws when JSON is embedded in surrounding plain text", () => {
     const input = `some preamble text\n${JSON.stringify({ benchmarks: [] })}\nsome trailing text`;
-    assert.throws(() => parse(input), {
+    assert.throws(() => parseBenchmarks(input), {
       message: /Could not auto-detect/,
     });
   });

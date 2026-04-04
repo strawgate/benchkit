@@ -1,4 +1,4 @@
-import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import type { BenchmarkResult, BenchmarkEntry, MetricValue } from "./types.js";
 import { inferDirection } from "./infer-direction.js";
 import { unitToMetricName } from "./parser-utils.js";
 
@@ -17,7 +17,7 @@ export function parseGoBench(input: string): BenchmarkResult {
   }
 
   try {
-    const benchmarks: Benchmark[] = [];
+    const benchmarks: BenchmarkEntry[] = [];
 
     const re =
       /^(?<name>Benchmark\w[\w/()$%^&*=|,[\]{}"#]*?)(?:-(?<procs>\d+))?\s+(?<iters>\d+)\s+(?<rest>.+)$/;
@@ -31,7 +31,7 @@ export function parseGoBench(input: string): BenchmarkResult {
       if (procs) tags.procs = procs;
 
       const pieces = rest.trim().split(/\s+/);
-      const metrics: Record<string, Metric> = {};
+      const metrics: Record<string, MetricValue> = {};
 
       // Pieces come in (value, unit) pairs
       for (let i = 0; i + 1 < pieces.length; i += 2) {

@@ -1,4 +1,4 @@
-import type { Benchmark, BenchmarkResult, RunDetailView } from "./types.js";
+import type { BenchmarkEntry, BenchmarkResult, RunDetailView } from "./types.js";
 
 /** Stable tag comparison that is not sensitive to object key insertion order. */
 function tagsEqual(
@@ -20,7 +20,7 @@ function tagsEqual(
  * the data branch as `data/views/runs/{id}/detail.json` files.
  */
 export function detailViewToBenchmarkResult(detail: RunDetailView): BenchmarkResult {
-  const benchmarks: Benchmark[] = [];
+  const benchmarks: BenchmarkEntry[] = [];
 
   for (const snapshot of detail.metricSnapshots) {
     for (const snapshotMetric of snapshot.values) {

@@ -18,7 +18,7 @@ import {
   type ChartData,
   type ChartOptions,
 } from "chart.js";
-import type { Sample } from "@benchkit/format";
+import type { TimeSeriesSample } from "@benchkit/format";
 import { COLORS } from "../colors.js";
 import { useChartLifecycle } from "../hooks/useChartLifecycle.js";
 import { extractSampleMetrics } from "../sample-utils.js";
@@ -27,7 +27,7 @@ Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, 
 
 export interface SampleChartProps {
   /** Intra-run time-series data points. */
-  samples: Sample[];
+  samples: TimeSeriesSample[];
   /** Metric keys to plot. Defaults to all keys found in the samples. */
   metrics?: string[];
   height?: number;

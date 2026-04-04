@@ -1,4 +1,4 @@
-import type { DataPoint, SeriesFile, SeriesEntry } from "@benchkit/format";
+import type { SeriesDataPoint, SeriesFile, SeriesEntry } from "@benchkit/format";
 
 export type DatasetAggregate = "sum" | "avg" | "max";
 
@@ -31,7 +31,7 @@ function filterEntry(entry: SeriesEntry, filters: DatasetFilter[]): boolean {
   });
 }
 
-function aggregatePoints(entries: SeriesEntry[], aggregate: DatasetAggregate): DataPoint[] {
+function aggregatePoints(entries: SeriesEntry[], aggregate: DatasetAggregate): SeriesDataPoint[] {
   const byTimestamp = new Map<string, number[]>();
   for (const entry of entries) {
     for (const point of entry.points) {
