@@ -51,7 +51,7 @@ jobs:
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `results` | **yes** | — | Path or glob pattern to benchmark result file(s) for the current run. |
-| `format` | no | `auto` | Input format: `go`, `benchmark-action`, `native`, `rust`, `hyperfine`, or `auto`. |
+| `format` | no | `auto` | Input format: `auto`, `go`, `rust`, `hyperfine`, `pytest-benchmark`, `benchmark-action`, `native`, or `otlp`. |
 | `data-branch` | no | `bench-data` | Branch used for benchmark data storage. |
 | `baseline-runs` | no | `5` | Number of most recent baseline runs to average. |
 | `threshold` | no | `5` | Percentage change threshold for regression detection. |

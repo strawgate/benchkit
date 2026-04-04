@@ -6,13 +6,16 @@ inputs:
     required: true
   format:
     description: 'Input format: auto (default), go, rust, hyperfine, pytest-benchmark, benchmark-action, native, or otlp.'
+    required: false
     default: 'auto'
   data-branch:
     description: 'Branch used for benchmark data storage.'
+    required: false
     # Keep in sync with DEFAULT_DATA_BRANCH in @benchkit/format
     default: 'bench-data'
   github-token:
     description: 'Token with push access to the data branch.'
+    required: false
     default: ${{ github.token }}
   run-id:
     description: >-
@@ -31,6 +34,7 @@ inputs:
     required: false
   summary:
     description: 'When true, write a parsed benchmark summary to GITHUB_STEP_SUMMARY.'
+    required: false
     default: 'true'
 outputs:
   run-id:
