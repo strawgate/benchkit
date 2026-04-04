@@ -3,6 +3,7 @@ import * as exec from "@actions/exec";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { DEFAULT_DATA_BRANCH } from "@benchkit/format";
 import {
   sortRuns,
   pruneRuns,
@@ -31,7 +32,7 @@ interface AggregateOutputs {
 }
 
 async function run(): Promise<void> {
-  const dataBranch = core.getInput("data-branch") || "bench-data";
+  const dataBranch = core.getInput("data-branch") || DEFAULT_DATA_BRANCH;
   const token = core.getInput("github-token", { required: true });
   const maxRuns = parseInt(core.getInput("max-runs") || "0", 10);
   if (maxRuns < 0 || maxRuns > 10_000) {

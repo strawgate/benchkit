@@ -1,5 +1,5 @@
 import type { IndexFile, SeriesFile, BenchmarkResult, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, RunDetailView, ComparisonResult, ThresholdConfig } from "@benchkit/format";
-import { compareRuns as compare, detailViewToBenchmarkResult } from "@benchkit/format";
+import { compareRuns as compare, detailViewToBenchmarkResult, DEFAULT_DATA_BRANCH } from "@benchkit/format";
 
 export interface DataSource {
   owner?: string;
@@ -20,7 +20,7 @@ export function rawUrl(ds: DataSource, filePath: string): string {
   if (!ds.owner || !ds.repo) {
     throw new Error("DataSource must have either baseUrl or owner+repo");
   }
-  const branch = ds.branch ?? "bench-data";
+  const branch = ds.branch ?? DEFAULT_DATA_BRANCH;
   return `https://raw.githubusercontent.com/${ds.owner}/${ds.repo}/${branch}/${filePath}`;
 }
 
