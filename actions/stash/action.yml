@@ -5,7 +5,7 @@ inputs:
     description: 'Path or glob pattern to benchmark result file(s).'
     required: true
   format:
-    description: 'Input format: go, benchmark-action, native, or auto (default: auto).'
+    description: 'Input format: auto (default), go, rust, hyperfine, pytest-benchmark, benchmark-action, native, or otlp.'
     default: 'auto'
   data-branch:
     description: 'Branch used for benchmark data storage.'
