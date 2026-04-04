@@ -1,0 +1,17 @@
+{
+  "metric": "requests_per_sec",
+  "unit": "req/s",
+  "direction": "bigger_is_better",
+  "series": {
+    "http-throughput": {
+      "points": [
+        {
+          "timestamp": "2026-04-04T22:32:40.028Z",
+          "value": 15230,
+          "commit": "e461db78fc1e19d91d02175af9e2f3868df22fd0",
+          "run_id": "test-native-23988991777-1"
+        }
+      ]
+    }
+  }
+}
