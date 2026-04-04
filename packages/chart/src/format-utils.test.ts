@@ -124,5 +124,13 @@ describe("format-utils", () => {
     it("formats bigger-is-better directions", () => {
       assert.equal(formatDirection("bigger_is_better"), "↑ bigger");
     });
+
+    it("shows a clear fallback for unknown directions", () => {
+      assert.equal(formatDirection("sideways_is_better"), "? sideways_is_better");
+    });
+
+    it("shows unknown when no direction is provided", () => {
+      assert.equal(formatDirection(""), "unknown");
+    });
   });
 });

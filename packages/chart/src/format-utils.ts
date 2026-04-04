@@ -88,5 +88,13 @@ export function shortCommit(commit?: string): string {
  * Format metric direction semantics for human-readable UI copy.
  */
 export function formatDirection(direction: string): string {
-  return direction === "smaller_is_better" ? "↓ smaller" : "↑ bigger";
+  if (direction === "smaller_is_better") {
+    return "↓ smaller";
+  }
+
+  if (direction === "bigger_is_better") {
+    return "↑ bigger";
+  }
+
+  return direction ? `? ${direction}` : "unknown";
 }
