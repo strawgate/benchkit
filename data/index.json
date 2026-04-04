@@ -23,82 +23,11 @@
         "bytes_per_op",
         "ns_per_op"
       ]
-    },
-    {
-      "id": "test-native-23973828154-1",
-      "timestamp": "2026-04-04T07:04:35.765Z",
-      "commit": "05199fe3c0031a15f30bd5678fa5ff524bf6fc44",
-      "ref": "refs/heads/main",
-      "benchmarks": 1,
-      "metrics": [
-        "p99_latency_ms",
-        "requests_per_sec"
-      ]
-    },
-    {
-      "id": "test-count-23973827777-1",
-      "timestamp": "2026-04-04T07:04:35.566Z",
-      "commit": "f0a0dcae505741198338e949c466ae4c9cc4ad61",
-      "ref": "refs/heads/main",
-      "benchmarks": 2,
-      "metrics": [
-        "allocs_per_op",
-        "bytes_per_op",
-        "ns_per_op"
-      ]
-    },
-    {
-      "id": "test-go-23973827777-1",
-      "timestamp": "2026-04-04T07:04:35.097Z",
-      "commit": "f0a0dcae505741198338e949c466ae4c9cc4ad61",
-      "ref": "refs/heads/main",
-      "benchmarks": 3,
-      "metrics": [
-        "allocs_per_op",
-        "bytes_per_op",
-        "ns_per_op"
-      ]
-    },
-    {
-      "id": "test-native-23973827777-1",
-      "timestamp": "2026-04-04T07:04:34.447Z",
-      "commit": "f0a0dcae505741198338e949c466ae4c9cc4ad61",
-      "ref": "refs/heads/main",
-      "benchmarks": 1,
-      "metrics": [
-        "p99_latency_ms",
-        "requests_per_sec"
-      ]
-    },
-    {
-      "id": "test-count-23973653683-1",
-      "timestamp": "2026-04-04T06:54:05.971Z",
-      "commit": "7efa79878bc0b9ce8642b235ea1e85db150b29c0",
-      "ref": "refs/heads/main",
-      "benchmarks": 2,
-      "metrics": [
-        "allocs_per_op",
-        "bytes_per_op",
-        "ns_per_op"
-      ]
-    },
-    {
-      "id": "test-native-23973653683-1",
-      "timestamp": "2026-04-04T06:54:05.757Z",
-      "commit": "7efa79878bc0b9ce8642b235ea1e85db150b29c0",
-      "ref": "refs/heads/main",
-      "benchmarks": 1,
-      "metrics": [
-        "p99_latency_ms",
-        "requests_per_sec"
-      ]
     }
   ],
   "metrics": [
     "allocs_per_op",
     "bytes_per_op",
-    "ns_per_op",
-    "p99_latency_ms",
-    "requests_per_sec"
+    "ns_per_op"
   ]
 }
