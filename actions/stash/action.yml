@@ -28,7 +28,10 @@ inputs:
       `${{ matrix.os }}-${{ matrix.node }}`.
     required: false
   monitor:
-    description: 'Path to monitor.json produced by the monitor action. When provided, monitor benchmarks and context are merged into the stored result.'
+    description: >-
+      Path to the monitor output file (OTLP JSONL or native JSON).
+      When provided, monitor benchmarks and context are merged into the
+      stored result.
     required: false
   save-data-file:
     description: 'When false, parse and output the result JSON but do not commit it to the data branch.'
