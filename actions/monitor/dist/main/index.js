@@ -28696,6 +28696,7 @@ function compareRuns(current, baseline, config = DEFAULT_THRESHOLD) {
         }
     }
     const entries = [];
+    const warnings = [];
     for (const bench of current.benchmarks) {
         const baselineMetrics = baselineMap.get(bench.name);
         if (!baselineMetrics)
@@ -28706,8 +28707,10 @@ function compareRuns(current, baseline, config = DEFAULT_THRESHOLD) {
                 continue;
             const baselineAvg = baselineValues.reduce((a, b) => a + b, 0) / baselineValues.length;
             // Avoid division by zero
-            if (baselineAvg === 0)
+            if (baselineAvg === 0) {
+                warnings.push(`Skipped metric '${metricName}' for benchmark '${bench.name}': baseline mean is zero`);
                 continue;
+            }
             const direction = metric.direction ?? (0, infer_direction_js_1.inferDirection)(metric.unit ?? metricName);
             const rawChange = ((metric.value - baselineAvg) / baselineAvg) * 100;
             // For smaller_is_better: positive change = worse (regressed)
@@ -28743,6 +28746,7 @@ function compareRuns(current, baseline, config = DEFAULT_THRESHOLD) {
     return {
         entries,
         hasRegression: entries.some((e) => e.status === "regressed"),
+        ...(warnings.length > 0 ? { warnings } : {}),
     };
 }
 //# sourceMappingURL=compare.js.map

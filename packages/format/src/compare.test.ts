@@ -218,7 +218,7 @@ describe("compare", () => {
     assert.equal(result2.entries[0].status, "regressed");
   });
 
-  it("skips metrics with zero baseline", () => {
+  it("skips metrics with zero baseline and returns warnings", () => {
     const baseline = [
       makeResult([
         { name: "BenchA", metrics: { allocs: { value: 0, unit: "allocs/op", direction: "smaller_is_better" } } },
@@ -230,6 +230,25 @@ describe("compare", () => {
 
     const result = compare(current, baseline);
     assert.equal(result.entries.length, 0);
+    assert.ok(result.warnings);
+    assert.equal(result.warnings.length, 1);
+    assert.match(result.warnings[0], /allocs/);
+    assert.match(result.warnings[0], /BenchA/);
+    assert.match(result.warnings[0], /baseline mean is zero/);
+  });
+
+  it("omits warnings key when no metrics are skipped", () => {
+    const baseline = [
+      makeResult([
+        { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } },
+      ]),
+    ];
+    const current = makeResult([
+      { name: "BenchA", metrics: { ns_per_op: { value: 105, unit: "ns/op", direction: "smaller_is_better" } } },
+    ]);
+
+    const result = compare(current, baseline);
+    assert.equal(result.warnings, undefined);
   });
 
   it("boundary: exactly at threshold is stable", () => {
