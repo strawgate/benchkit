@@ -16,10 +16,11 @@ npm ci
 npm run build --workspace=packages/format
 ```
 
-Then, from your project directory, link the local package:
+Then, from your project directory, link the local package (adjust the path
+to where you cloned benchkit):
 
 ```bash
-npm link ../benchkit/packages/format
+npm link <path-to-benchkit>/packages/format
 ```
 
 Or use a `file:` reference in your project's `package.json`:
@@ -27,7 +28,7 @@ Or use a `file:` reference in your project's `package.json`:
 ```jsonc
 {
   "dependencies": {
-    "@benchkit/format": "file:../benchkit/packages/format"
+    "@benchkit/format": "file:<path-to-benchkit>/packages/format"
   }
 }
 ```

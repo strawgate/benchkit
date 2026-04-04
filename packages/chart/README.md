@@ -16,10 +16,11 @@ npm ci
 npm run build
 ```
 
-Then, from your project directory, link the local packages:
+Then, from your project directory, link the local packages (adjust the path
+to where you cloned benchkit):
 
 ```bash
-npm link ../benchkit/packages/chart ../benchkit/packages/format
+npm link <path-to-benchkit>/packages/chart <path-to-benchkit>/packages/format
 npm install preact
 ```
 
@@ -28,8 +29,8 @@ Or use `file:` references in your project's `package.json`:
 ```jsonc
 {
   "dependencies": {
-    "@benchkit/chart": "file:../benchkit/packages/chart",
-    "@benchkit/format": "file:../benchkit/packages/format",
+    "@benchkit/chart": "file:<path-to-benchkit>/packages/chart",
+    "@benchkit/format": "file:<path-to-benchkit>/packages/format",
     "preact": "^10.0.0"
   }
 }
