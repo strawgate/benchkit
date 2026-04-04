@@ -154,7 +154,11 @@ async function pushWithRetry(worktree, dataBranch, maxRetries) {
             const delayMs = (0, retry_js_1.computeRetryDelayMs)(Math.random());
             core.warning(`Push failed (attempt ${attempt}/${maxRetries}); waiting ${delayMs}ms before rebasing and retrying...`);
             await (0, retry_js_1.sleep)(delayMs);
-            await exec.exec("git", ["-C", worktree, "pull", "--rebase", "origin", dataBranch]);
+            const rebaseCode = await exec.exec("git", ["-C", worktree, "pull", "--rebase", "origin", dataBranch], { ignoreReturnCode: true });
+            if (rebaseCode !== 0) {
+                throw new Error(`Push failed on attempt ${attempt}/${maxRetries}, and rebasing onto '${dataBranch}' also failed. ` +
+                    "Resolve the conflicting bench-data history before retrying this workflow.");
+            }
         }
         else {
             throw new Error(`Failed to push after ${maxRetries} attempts`);
