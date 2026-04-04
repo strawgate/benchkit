@@ -66,7 +66,12 @@ export function otlpAttributesToRecord(attributes: OtlpAttribute[] | undefined):
  * @returns The parsed `OtlpMetricsDocument`.
  */
 export function parseOtlpMetrics(input: string): OtlpMetricsDocument {
-  const parsed: unknown = JSON.parse(input);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch (e) {
+    throw new Error(`[parse-otlp] Invalid JSON: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+  }
   if (
     typeof parsed !== "object" ||
     parsed === null ||

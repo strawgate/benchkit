@@ -329,7 +329,7 @@ describe("readMonitorOutput", () => {
     const filePath = path.join(tmpDir, "monitor.json");
     try {
       fs.writeFileSync(filePath, "{ not valid json }");
-      assert.throws(() => readMonitorOutput(filePath), SyntaxError);
+      assert.throws(() => readMonitorOutput(filePath), /\[parse-native\] Invalid JSON/);
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }

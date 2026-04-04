@@ -31,13 +31,19 @@ interface HyperfineResult {
 }
 
 export function parseHyperfine(input: string): BenchmarkResult {
-  const parsed = JSON.parse(input);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch (e) {
+    throw new Error(`[parse-hyperfine] Invalid JSON: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+  }
 
-  if (!parsed.results || !Array.isArray(parsed.results)) {
+  const doc = parsed as Record<string, unknown>;
+  if (!doc.results || !Array.isArray(doc.results)) {
     throw new Error("[parse-hyperfine] Hyperfine format must have a 'results' array.");
   }
 
-  const benchmarks: Benchmark[] = (parsed.results as HyperfineResult[]).map(
+  const benchmarks: Benchmark[] = (doc.results as HyperfineResult[]).map(
     (result) => {
       if (typeof result.command !== "string") {
         throw new Error("[parse-hyperfine] Each Hyperfine result must have a 'command' string.");

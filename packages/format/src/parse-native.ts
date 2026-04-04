@@ -4,15 +4,21 @@ import type { BenchmarkResult } from "./types.js";
  * Parse the benchkit native JSON format. Validates structure and returns as-is.
  */
 export function parseNative(input: string): BenchmarkResult {
-  const parsed = JSON.parse(input);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch (e) {
+    throw new Error(`[parse-native] Invalid JSON: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+  }
 
-  if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
+  const doc = parsed as Record<string, unknown>;
+  if (!doc.benchmarks || !Array.isArray(doc.benchmarks)) {
     throw new Error(
       "[parse-native] Native format must have a 'benchmarks' array at the top level.",
     );
   }
 
-  for (const bench of parsed.benchmarks) {
+  for (const bench of doc.benchmarks) {
     if (!bench.name || typeof bench.name !== "string") {
       throw new Error("[parse-native] Each benchmark must have a 'name' string.");
     }

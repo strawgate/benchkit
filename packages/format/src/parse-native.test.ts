@@ -129,7 +129,8 @@ describe("parseNative", () => {
 
   it("throws on invalid JSON", () => {
     assert.throws(() => parseNative("not-json"), {
-      name: "SyntaxError",
+      name: "Error",
+      message: /\[parse-native\] Invalid JSON/,
     });
   });
 });
