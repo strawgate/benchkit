@@ -23,47 +23,11 @@
         "bytes_per_op",
         "ns_per_op"
       ]
-    },
-    {
-      "id": "test-native-23987208891-1",
-      "timestamp": "2026-04-04T20:43:37.112Z",
-      "commit": "17e20ffae23b24fd10f981cb79066d14f34a8eef",
-      "ref": "refs/heads/main",
-      "benchmarks": 1,
-      "metrics": [
-        "p99_latency_ms",
-        "requests_per_sec"
-      ]
-    },
-    {
-      "id": "test-native-23987190474-1",
-      "timestamp": "2026-04-04T20:42:35.276Z",
-      "commit": "6a23f481e6e6fde8a504962a2dfb848f769642f5",
-      "ref": "refs/heads/main",
-      "benchmarks": 1,
-      "metrics": [
-        "p99_latency_ms",
-        "requests_per_sec"
-      ]
-    },
-    {
-      "id": "test-count-23987190474-1",
-      "timestamp": "2026-04-04T20:42:34.257Z",
-      "commit": "6a23f481e6e6fde8a504962a2dfb848f769642f5",
-      "ref": "refs/heads/main",
-      "benchmarks": 2,
-      "metrics": [
-        "allocs_per_op",
-        "bytes_per_op",
-        "ns_per_op"
-      ]
     }
   ],
   "metrics": [
     "allocs_per_op",
     "bytes_per_op",
-    "ns_per_op",
-    "p99_latency_ms",
-    "requests_per_sec"
+    "ns_per_op"
   ]
 }
