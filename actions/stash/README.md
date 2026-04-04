@@ -37,6 +37,7 @@ jobs:
         with:
           results: bench.txt
           format: go
+          monitor-results: monitor.json
 ```
 
 ## Inputs
@@ -48,8 +49,10 @@ jobs:
 | `data-branch` | no | `bench-data` | Branch used for benchmark data storage. |
 | `github-token` | no | `${{ github.token }}` | Token with push access to the repository. |
 | `run-id` | no | `{GITHUB_RUN_ID}-{GITHUB_RUN_ATTEMPT}--{GITHUB_JOB}` | Custom run identifier. Defaults to a value that is collision-proof across concurrent jobs. For matrix jobs, supply a value that includes the matrix key so each variant writes a distinct file. |
-| `monitor` | no | — | Path to `monitor.json` produced by `actions/monitor`. When provided, monitor benchmarks and context are merged into the stored result. |
-| `save-data-file` | no | `true` | When `false`, parse and output the result JSON but do not commit it to the data branch. |
+| `monitor-results` | no | — | Path to `monitor.json` produced by `actions/monitor`. When provided, monitor benchmarks and context are merged into the stored result. |
+| `commit-results` | no | `true` | When `false`, parse and output the result JSON but do not commit it to the data branch. |
+| `monitor` | no | — | *(Deprecated — use `monitor-results` instead)* Path to `monitor.json` produced by `actions/monitor`. |
+| `save-data-file` | no | `true` | *(Deprecated — use `commit-results` instead)* When `false`, parse and output the result JSON but do not commit it to the data branch. |
 | `summary` | no | `true` | When `true`, write a parsed benchmark summary to `GITHUB_STEP_SUMMARY`. |
 
 ## Outputs
@@ -57,7 +60,7 @@ jobs:
 | Output | Description |
 |--------|-------------|
 | `run-id` | The run identifier used for this stash. |
-| `file-path` | Path to the stored JSON file on the data branch, or to the temporary output file when `save-data-file` is `false`. |
+| `file-path` | Path to the stored JSON file on the data branch, or to the temporary output file when `commit-results` is `false`. |
 
 ## Stored output
 
@@ -76,7 +79,7 @@ attributes are merged in before writing.
 
 1. **Parse**: glob-expand `results`, parse every matched file using the
    requested (or auto-detected) format, and merge into a single result document
-2. **Merge** *(optional)*: if `monitor` is set, read the monitor output and
+2. **Merge** *(optional)*: if `monitor-results` is set, read the monitor output and
    merge its benchmarks and context into the result
 3. **Push**: checkout (or create) the data branch in a temporary git worktree,
    write the result file, commit, and push — retrying up to five times with a
