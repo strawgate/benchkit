@@ -16,6 +16,13 @@
     "hasRegression": {
       "type": "boolean",
       "description": "True if any entry has status 'regressed'."
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Human-readable warnings for metrics that were skipped (e.g. zero baseline).",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "$defs": {
