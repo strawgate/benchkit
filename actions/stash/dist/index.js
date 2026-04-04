@@ -68,7 +68,11 @@ async function run() {
     }
     core.info(`Found ${files.length} result file(s)`);
     const benchmarks = (0, stash_js_1.parseBenchmarkFiles)(files, format);
-    // Merge monitor output if provided
+    // Warn early if nothing was parsed — common mistake (e.g. Go test without -bench flag).
+    if (benchmarks.length === 0) {
+        core.warning("Parsed 0 benchmarks from the provided file(s). The stash will be saved but contains no benchmark data. " +
+            "Check that your benchmark output contains parseable results and that the correct format is specified.");
+    }
     const monitorResult = monitorPath ? (0, stash_js_1.readMonitorOutput)(monitorPath) : undefined;
     const result = (0, stash_js_1.buildResult)({
         benchmarks,
