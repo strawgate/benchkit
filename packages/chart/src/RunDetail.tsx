@@ -6,7 +6,7 @@ import type {
   MonitorContext,
 } from "@benchkit/format";
 import { fetchRunDetail, type DataSource } from "./fetch.js";
-import { formatValue, formatRef } from "./format-utils.js";
+import { formatRef, formatTimestamp, formatValue } from "./format-utils.js";
 import { VerdictBanner } from "./components/VerdictBanner.js";
 import { ComparisonSummaryTable } from "./components/ComparisonSummaryTable.js";
 import { defaultMetricLabel, isMonitorMetric } from "./labels.js";
@@ -287,21 +287,4 @@ export function RunDetail({
       )}
     </div>
   );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-function formatTimestamp(ts: string): string {
-  try {
-    return new Date(ts).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return ts;
-  }
 }

@@ -3,7 +3,11 @@ import type {
   PrIndexEntry,
   RefIndexEntry,
 } from "@benchkit/format";
-import { formatRef as defaultFormatRef } from "../format-utils.js";
+import {
+  formatRef as defaultFormatRef,
+  formatTimestamp,
+  shortCommit,
+} from "../format-utils.js";
 
 /** Maximum number of recent runs shown in ref-fallback mode. */
 const MAX_RECENT_RUNS = 20;
@@ -24,21 +28,6 @@ export interface RunSelectorProps {
   /** Custom ref formatter. Default: {@link formatRef} from format-utils. */
   formatRef?: (ref: string) => string;
   class?: string;
-}
-
-export function formatTimestamp(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-export function shortCommit(commit?: string): string {
-  return commit ? commit.slice(0, 7) : "–";
 }
 
 export function RunSelector({

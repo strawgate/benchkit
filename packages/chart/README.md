@@ -258,6 +258,28 @@ import { RunTable } from "@benchkit/chart";
 
 ---
 
+## Formatting and label helpers
+
+The package root intentionally exports a small set of reusable formatting and
+label helpers for custom dashboards:
+
+- `formatValue()`
+- `formatFixedValue()`
+- `formatRef()`
+- `formatPct()`
+- `formatTimestamp()`
+- `shortCommit()`
+- `formatDirection()`
+- `defaultMetricLabel()`
+- `defaultMonitorMetricLabel()`
+- `isMonitorMetric()`
+
+These are the stable helpers to build on when you need benchkit-flavored
+display logic in your own UI. Component-local implementation helpers such as
+comparison-table sorting or icon selection are not part of the package-root API.
+
+---
+
 ## Data fetching
 
 ### `DataSource`
