@@ -28,8 +28,6 @@ export {
   shortCommit,
   formatDirection,
 } from "./format-utils.js";
-/** @deprecated Use formatDirection instead. */
-export { formatDirection as directionLabel } from "./format-utils.js";
 
 // Data fetching
 export { fetchIndex, fetchSeries, fetchRun, fetchPrIndex, fetchRefIndex, fetchMetricSummary, fetchRunDetail, compareRuns, type DataSource } from "./fetch.js";

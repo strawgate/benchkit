@@ -27,24 +27,14 @@ async function run(): Promise<void> {
   const dataBranch = core.getInput("data-branch") || DEFAULT_DATA_BRANCH;
   const token = core.getInput("github-token", { required: true });
 
-  const monitorResultsInput = core.getInput("monitor-results");
-  const monitorInput = core.getInput("monitor");
-  if (monitorInput && !monitorResultsInput) {
-    core.warning("'monitor' is deprecated, use 'monitor-results' instead");
-  }
-  const monitorPath = monitorResultsInput || monitorInput || "";
+  const monitorPath = core.getInput("monitor-results") || "";
 
   const commitResultsInputRaw = core.getInput("commit-results");
-  const saveDataFileInputRaw = core.getInput("save-data-file");
   let saveDataFile = true;
-  let commitInputName = "commit-results";
+  const commitInputName = "commit-results";
 
   if (commitResultsInputRaw !== "") {
     saveDataFile = core.getBooleanInput("commit-results");
-  } else if (saveDataFileInputRaw !== "") {
-    core.warning("'save-data-file' is deprecated, use 'commit-results' instead");
-    saveDataFile = core.getBooleanInput("save-data-file");
-    commitInputName = "save-data-file";
   }
 
   const writeSummary = core.getBooleanInput("summary");
