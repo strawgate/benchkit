@@ -1,33 +1,41 @@
 # OTLP Aggregation Architecture
 
-This document describes a proposed OTLP-first architecture for benchkit.
+This document describes the OTLP-everywhere architecture for benchkit.
 
-The goal is to keep a generic, standards-based ingestion/storage model while
-still producing benchmark-specific derived views that are fast to serve and easy
-to render.
+OTLP JSON is the single data format at every layer: input parsing, in-memory
+representation, on-disk storage, aggregation, and view generation. There is no
+separate "native" or "benchkit" intermediate format.
 
-## Why change the current model
+## Why OTLP everywhere
 
-The current benchkit architecture assumes:
+Previous benchkit architecture used a custom `BenchmarkResult` type as the
+internal lingua franca. Parsers converted tool-specific output into
+`BenchmarkResult`, which was then projected to OTLP for storage. This created
+two parallel type systems and required round-trip conversion logic.
 
-- one canonical raw run JSON format (`BenchmarkResult`)
-- one aggregate pass that emits:
-  - `data/index.json`
-  - `data/series/{metric}.json`
+The new direction eliminates the intermediate format entirely:
 
-That has worked well for code benchmarks and simple workflow benchmarks, but it
-starts to strain when we want to support:
+- **Parsers produce `OtlpMetricsDocument` directly.** Reading Go bench output?
+  Produce OTLP. Reading pytest-benchmark JSON? Produce OTLP. Emitting a custom
+  metric? Produce OTLP.
+- **Actions pass `OtlpMetricsDocument`.** Stash writes OTLP JSON to disk.
+  Compare reads OTLP JSON. Aggregate traverses OTLP datapoints.
+- **Storage is OTLP JSON.** Already the case on the data branch.
+- **Charts consume view-shaped artifacts** derived from OTLP.
 
-- custom workflow metrics from arbitrary benchmark code
-- richer monitor telemetry
-- OTLP-native ingest from products that already emit OpenTelemetry metrics
-- run-first and scenario-first product surfaces
-- future analytics workflows without introducing a backend too early
+Benefits:
+
+- one type system instead of two
+- no lossy round-trip conversions
+- standards-based format that tools outside benchkit can produce and consume
+- `emit-metric` action already follows this model — it serves as the reference
+  implementation
 
 ## Design goals
 
-1. **Use OTLP as the canonical raw metric format**
-   Any benchmark source that can emit OTLP should fit naturally.
+1. **OTLP as the only data format**
+   Every component — parsers, actions, storage, aggregation — operates on
+   `OtlpMetricsDocument`. No intermediate types.
 
 2. **Keep frontend fetches small and purposeful**
    The frontend should not fetch hundreds of raw run files or one giant
@@ -296,43 +304,71 @@ This keeps core views stable and user-specific views flexible.
 
 ## Recommended implementation order
 
-### Phase 1 — Semantic conventions
+### Phase 1 — Semantic conventions ✅
 
 - define required OTLP resource and metric attributes
 - define direction/identity conventions
 - document benchmark-kind/resource-attribute expectations
 
-### Phase 2 — OTLP normalization
+### Phase 2 — OTLP normalization (partial)
 
-- add OTLP parsing and traversal helpers in `@benchkit/format`
-- add adapter-specific projection helpers rather than a universal benchkit
-  telemetry intermediate
-- support cumulative/delta awareness in projection logic where needed
+- ✅ add OTLP parsing and traversal helpers in `@benchkit/format`
+- ✅ add projection helpers for OTLP ↔ legacy conversion
+- remaining: remove legacy `BenchmarkResult` conversions entirely
 
-### Phase 3 — Aggregated view artifacts
+### Phase 3 — OTLP-everywhere parser migration
+
+- add `buildOtlpResult()` helper (modeled on emit-metric's
+  `buildOtlpMetricPayload`) to construct `OtlpMetricsDocument` with proper
+  resource attributes and benchmark datapoint attributes
+- rewrite each parser to produce `OtlpMetricsDocument` directly:
+  - `parse-go.ts`
+  - `parse-rust.ts`
+  - `parse-hyperfine.ts`
+  - `parse-pytest-benchmark.ts`
+  - `parse-benchmark-action.ts`
+- remove `parseNative`, `buildNativeResult`, `stringifyNativeResult`,
+  `NativeResultInit`, `NativeBenchmarkInit`, `NativeMetricInit`
+- remove `BenchmarkResult`, `Benchmark`, `Metric`, `Sample`, `Context` types
+- remove `parse-native.ts`, `native-builder.ts`, `run-detail-converter.ts`
+- remove `benchmark-result.schema.json`
+- update `parseBenchmarks()` return type to `OtlpMetricsDocument`
+
+### Phase 4 — Action migration
+
+- rewrite stash action to write OTLP JSON (`.otlp.json`) instead of
+  `BenchmarkResult` JSON
+- rewrite aggregate action to read OTLP JSON and traverse datapoints
+- rewrite compare action to accept `OtlpMetricsDocument` inputs
+- emit-metric already produces OTLP — no changes needed
+- monitor already produces OTLP — no changes needed
+
+### Phase 5 — Aggregated view artifacts
 
 - add navigation indexes
 - add run/PR/scenario/metric detail views
 - keep raw OTLP sidecars available
 
-### Phase 4 — Frontend transform layer
+### Phase 6 — Frontend transform layer
 
 - dataset-local transforms for one detail dataset
 - series hide/show/filter/group/aggregate
 - chart-library adapters for benchmark surfaces
 
-### Phase 5 — Optional advanced query mode
+### Phase 7 — Optional advanced query mode
 
 - investigate DuckDB-Wasm as an opt-in analysis mode
 - evaluate SQL or a constrained PromQL-like query subset on normalized OTLP
 
 ## Decision summary
 
-Recommended direction:
+Architecture direction:
 
-- OTLP JSON is the canonical raw storage format
+- **OTLP JSON is the only format** — no `BenchmarkResult`, no "native" format
+- parsers produce `OtlpMetricsDocument` directly
 - benchkit defines semantic conventions on top of OTLP
 - aggregate produces several view-shaped artifacts for product workflows
 - frontend performs only local reshaping within one fetched dataset
 - raw telemetry remains available for deep diagnostics
 - advanced query engines are optional, not the default path
+- `emit-metric` is the reference implementation for OTLP construction
