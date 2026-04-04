@@ -8,6 +8,7 @@ import {
   buildRunId,
   createTempResultPath,
   formatResultSummaryMarkdown,
+  getEmptyBenchmarksWarning,
   parseBenchmarkFiles,
   readMonitorOutput,
   writeResultFile,
@@ -42,6 +43,10 @@ async function run(): Promise<void> {
   }
   core.info(`Found ${files.length} result file(s)`);
   const benchmarks = parseBenchmarkFiles(files, format);
+  const emptyBenchmarksWarning = getEmptyBenchmarksWarning(benchmarks);
+  if (emptyBenchmarksWarning) {
+    core.warning(emptyBenchmarksWarning);
+  }
 
   // Merge monitor output if provided
   const monitorResult = monitorPath ? readMonitorOutput(monitorPath) : undefined;
@@ -143,7 +148,17 @@ async function pushWithRetry(worktree: string, dataBranch: string, maxRetries: n
         `Push failed (attempt ${attempt}/${maxRetries}); waiting ${delayMs}ms before rebasing and retrying...`,
       );
       await sleep(delayMs);
-      await exec.exec("git", ["-C", worktree, "pull", "--rebase", "origin", dataBranch]);
+      const rebaseCode = await exec.exec(
+        "git",
+        ["-C", worktree, "pull", "--rebase", "origin", dataBranch],
+        { ignoreReturnCode: true },
+      );
+      if (rebaseCode !== 0) {
+        throw new Error(
+          `Push failed on attempt ${attempt}/${maxRetries}, and rebasing onto '${dataBranch}' also failed. ` +
+          "Resolve the conflicting bench-data history before retrying this workflow.",
+        );
+      }
     } else {
       throw new Error(`Failed to push after ${maxRetries} attempts`);
     }

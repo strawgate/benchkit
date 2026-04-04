@@ -62,6 +62,16 @@ export function parseBenchmarkFiles(files: string[], format: Format): Benchmark[
   return benchmarks;
 }
 
+export function getEmptyBenchmarksWarning(benchmarks: Benchmark[]): string | undefined {
+  if (benchmarks.length !== 0) {
+    return undefined;
+  }
+  return (
+    "Parsed 0 benchmarks from the provided file(s). The stash will be saved but contains no benchmark data. " +
+    "Check that your benchmark output contains parseable results and that the correct format is specified."
+  );
+}
+
 /**
  * Parse a single benchmark file's content in the given format.
  * Throws a descriptive error including the filename if parsing fails.

@@ -46,6 +46,7 @@ on:
       - bench-data
     paths:
       - 'data/runs/**'
+  workflow_dispatch:  # allow manual triggering as a fallback
 
 permissions:
   contents: write
@@ -60,6 +61,27 @@ jobs:
         with:
           max-runs: 0
 ```
+
+> **Note on the `push` trigger**: The `push` trigger only fires when `bench-data` is updated
+> using a token with sufficient scope (a PAT or GitHub App token). Pushes made by the
+> default `GITHUB_TOKEN` — which is what `actions/stash` uses by default — do **not** trigger
+> other workflows in the same repository, per GitHub's security model. As a workaround, add
+> the following step at the end of each bench workflow to dispatch aggregate explicitly:
+>
+> ```yaml
+> permissions:
+>   contents: write
+>   actions: write   # required to dispatch another workflow
+>
+> # At the end of the stash job:
+> - name: Trigger aggregate
+>   env:
+>     GH_TOKEN: ${{ github.token }}
+>   run: gh workflow run aggregate.yml --repo ${{ github.repository }}
+> ```
+>
+> Including `workflow_dispatch:` in `aggregate.yml` also lets you trigger it manually
+> from the Actions tab or `gh workflow run` at any time.
 
 This rebuilds:
 

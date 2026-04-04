@@ -204,6 +204,32 @@ function readRuns(runsDir) {
 
 /***/ }),
 
+/***/ 1310:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.classifyFetchFailure = classifyFetchFailure;
+function classifyFetchFailure(dataBranch, stderr) {
+    if (stderr.includes("refusing to fetch into branch")
+        && stderr.includes("checked out")) {
+        return {
+            kind: "checked-out",
+            message: `Cannot aggregate: '${dataBranch}' is already checked out at the current working directory. `
+                + `Remove the 'ref: ${dataBranch}' input from your actions/checkout step — `
+                + "the aggregate action fetches the data branch into its own worktree.",
+        };
+    }
+    if (stderr.includes("couldn't find remote ref")) {
+        return { kind: "branch-missing" };
+    }
+    return { kind: "other" };
+}
+//# sourceMappingURL=git-fetch.js.map
+
+/***/ }),
+
 /***/ 6786:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -250,6 +276,7 @@ const path = __importStar(__nccwpck_require__(6760));
 const os = __importStar(__nccwpck_require__(8161));
 const aggregate_js_1 = __nccwpck_require__(7756);
 const views_js_1 = __nccwpck_require__(1349);
+const git_fetch_js_1 = __nccwpck_require__(1310);
 async function run() {
     const dataBranch = core.getInput("data-branch") || "bench-data";
     const token = core.getInput("github-token", { required: true });
@@ -260,12 +287,23 @@ async function run() {
     await configureGit(token);
     // Fetch data branch
     const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
-    const fetchCode = await exec.exec("git", ["fetch", "origin", `${dataBranch}:${dataBranch}`], { ignoreReturnCode: true });
+    let fetchStderr = "";
+    const fetchCode = await exec.exec("git", ["fetch", "origin", `${dataBranch}:${dataBranch}`], {
+        ignoreReturnCode: true,
+        listeners: { stderr: (data) => { fetchStderr += data.toString(); } },
+    });
     if (fetchCode !== 0) {
-        core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
-        core.setOutput("run-count", "0");
-        core.setOutput("metrics", "");
-        return;
+        const fetchFailure = (0, git_fetch_js_1.classifyFetchFailure)(dataBranch, fetchStderr);
+        if (fetchFailure.kind === "checked-out") {
+            throw new Error(fetchFailure.message);
+        }
+        if (fetchFailure.kind === "branch-missing") {
+            core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
+            core.setOutput("run-count", "0");
+            core.setOutput("metrics", "");
+            return;
+        }
+        throw new Error(`Failed to fetch '${dataBranch}' from origin: ${fetchStderr.trim() || `git fetch exited with code ${fetchCode}`}`);
     }
     await exec.exec("git", ["worktree", "add", worktree, dataBranch]);
     // Read run files

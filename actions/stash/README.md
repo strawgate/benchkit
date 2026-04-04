@@ -5,8 +5,8 @@ that later aggregation and comparison steps have a stable history to work with.
 
 ## What it does
 
-- accepts benchmark results in Go, benchmark-action, native, or auto-detected
-  format
+- accepts benchmark results in Go, Rust, Hyperfine, pytest-benchmark,
+  benchmark-action, native, OTLP, or auto-detected format
 - parses every matched file and merges the benchmarks into a single
   `BenchmarkResult` document
 - optionally merges monitor context produced by `actions/monitor` into the
@@ -44,7 +44,7 @@ jobs:
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `results` | **yes** | — | Path or glob pattern to benchmark result file(s). |
-| `format` | no | `auto` | Input format: `go`, `benchmark-action`, `native`, or `auto`. |
+| `format` | no | `auto` | Input format: `auto`, `go`, `rust`, `hyperfine`, `pytest-benchmark`, `benchmark-action`, `native`, or `otlp`. |
 | `data-branch` | no | `bench-data` | Branch used for benchmark data storage. |
 | `github-token` | no | `${{ github.token }}` | Token with push access to the repository. |
 | `run-id` | no | `{GITHUB_RUN_ID}-{GITHUB_RUN_ATTEMPT}--{GITHUB_JOB}` | Custom run identifier. Defaults to a value that is collision-proof across concurrent jobs. For matrix jobs, supply a value that includes the matrix key so each variant writes a distinct file. |

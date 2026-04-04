@@ -69,6 +69,10 @@ async function run() {
     }
     core.info(`Found ${files.length} result file(s)`);
     const benchmarks = (0, stash_js_1.parseBenchmarkFiles)(files, format);
+    const emptyBenchmarksWarning = (0, stash_js_1.getEmptyBenchmarksWarning)(benchmarks);
+    if (emptyBenchmarksWarning) {
+        core.warning(emptyBenchmarksWarning);
+    }
     // Merge monitor output if provided
     const monitorResult = monitorPath ? (0, stash_js_1.readMonitorOutput)(monitorPath) : undefined;
     const result = (0, stash_js_1.buildResult)({
@@ -150,7 +154,11 @@ async function pushWithRetry(worktree, dataBranch, maxRetries) {
             const delayMs = (0, retry_js_1.computeRetryDelayMs)(Math.random());
             core.warning(`Push failed (attempt ${attempt}/${maxRetries}); waiting ${delayMs}ms before rebasing and retrying...`);
             await (0, retry_js_1.sleep)(delayMs);
-            await exec.exec("git", ["-C", worktree, "pull", "--rebase", "origin", dataBranch]);
+            const rebaseCode = await exec.exec("git", ["-C", worktree, "pull", "--rebase", "origin", dataBranch], { ignoreReturnCode: true });
+            if (rebaseCode !== 0) {
+                throw new Error(`Push failed on attempt ${attempt}/${maxRetries}, and rebasing onto '${dataBranch}' also failed. ` +
+                    "Resolve the conflicting bench-data history before retrying this workflow.");
+            }
         }
         else {
             throw new Error(`Failed to push after ${maxRetries} attempts`);
@@ -230,6 +238,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.buildResult = buildResult;
 exports.parseBenchmarkFiles = parseBenchmarkFiles;
+exports.getEmptyBenchmarksWarning = getEmptyBenchmarksWarning;
 exports.parseBenchmarks = parseBenchmarks;
 exports.readMonitorOutput = readMonitorOutput;
 exports.buildRunId = buildRunId;
@@ -268,6 +277,13 @@ function parseBenchmarkFiles(files, format) {
         benchmarks.push(...parseBenchmarks(content, format, file));
     }
     return benchmarks;
+}
+function getEmptyBenchmarksWarning(benchmarks) {
+    if (benchmarks.length !== 0) {
+        return undefined;
+    }
+    return ("Parsed 0 benchmarks from the provided file(s). The stash will be saved but contains no benchmark data. " +
+        "Check that your benchmark output contains parseable results and that the correct format is specified.");
 }
 /**
  * Parse a single benchmark file's content in the given format.

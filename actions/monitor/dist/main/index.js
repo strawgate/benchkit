@@ -255,6 +255,7 @@ exports.platformArch = platformArch;
 exports.downloadUrl = downloadUrl;
 exports.validatePort = validatePort;
 exports.resolveRunId = resolveRunId;
+exports.waitForOtlpHttpReady = waitForOtlpHttpReady;
 exports.startOtelCollector = startOtelCollector;
 const core = __importStar(__nccwpck_require__(7184));
 const tc = __importStar(__nccwpck_require__(532));
@@ -345,6 +346,24 @@ function resolveRunId() {
         return sanitizeRunId(`${runId}-${attempt}`);
     return `local-${Date.now()}`;
 }
+async function waitForOtlpHttpReady(port, timeoutMs, pollIntervalMs = 200) {
+    const url = `http://localhost:${port}`;
+    const deadline = Date.now() + timeoutMs;
+    let lastError = "";
+    while (Date.now() < deadline) {
+        try {
+            await fetch(url, { signal: AbortSignal.timeout(500) });
+            core.info(`OTel Collector is ready on port ${port}`);
+            return true;
+        }
+        catch (err) {
+            lastError = err instanceof Error ? err.message : String(err);
+            await new Promise((r) => setTimeout(r, pollIntervalMs));
+        }
+    }
+    core.warning(`OTel Collector did not become ready within ${timeoutMs}ms (last error: ${lastError}). Continuing anyway.`);
+    return false;
+}
 async function startOtelCollector() {
     const version = core.getInput("collector-version") || "0.102.0";
     const scrapeInterval = core.getInput("scrape-interval") || "5s";
@@ -389,6 +408,15 @@ async function startOtelCollector() {
     fs.closeSync(logFd);
     if (!child.pid) {
         throw new Error("Failed to spawn OTel Collector process");
+    }
+    // Wait for the OTLP HTTP port to be ready before returning.
+    // The collector takes ~500ms-1s to bind on a cold start, so emit-metric
+    // calls in the immediately following step would otherwise hit ECONNREFUSED.
+    if (otlpHttpPort > 0) {
+        const ready = await waitForOtlpHttpReady(otlpHttpPort, 15_000);
+        if (!ready) {
+            throw new Error(`OTel Collector did not become ready on port ${otlpHttpPort}; refusing to publish an unreachable OTLP HTTP endpoint.`);
+        }
     }
     // Write state for the post step
     const state = {

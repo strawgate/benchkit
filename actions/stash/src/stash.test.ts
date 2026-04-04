@@ -8,6 +8,7 @@ import {
   buildRunId,
   createTempResultPath,
   formatResultSummaryMarkdown,
+  getEmptyBenchmarksWarning,
   parseBenchmarkFiles,
   parseBenchmarks,
   readMonitorOutput,
@@ -214,6 +215,22 @@ describe("parseBenchmarkFiles", () => {
 
   it("throws on empty file list", () => {
     assert.throws(() => parseBenchmarkFiles([], "go"), /No benchmark result files/);
+  });
+});
+
+describe("getEmptyBenchmarksWarning", () => {
+  it("returns a warning when parsing produced no benchmarks", () => {
+    assert.match(
+      getEmptyBenchmarksWarning([]) ?? "",
+      /Parsed 0 benchmarks from the provided file\(s\)/,
+    );
+  });
+
+  it("does not warn when at least one benchmark was parsed", () => {
+    assert.equal(
+      getEmptyBenchmarksWarning([{ name: "BenchmarkSort", metrics: { ns_per_op: { value: 320 } } }]),
+      undefined,
+    );
   });
 });
 
