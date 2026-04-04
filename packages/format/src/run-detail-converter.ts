@@ -1,5 +1,18 @@
 import type { Benchmark, BenchmarkResult, RunDetailView } from "./types.js";
 
+/** Stable tag comparison that is not sensitive to object key insertion order. */
+function tagsEqual(
+  a: Record<string, string> | undefined,
+  b: Record<string, string> | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return a === b;
+  const keysA = Object.keys(a).sort();
+  const keysB = Object.keys(b).sort();
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every((k, i) => keysB[i] === k && a[k] === b[k]);
+}
+
 /**
  * Convert a `RunDetailView` back into a `BenchmarkResult`.
  *
@@ -15,7 +28,7 @@ export function detailViewToBenchmarkResult(detail: RunDetailView): BenchmarkRes
       let bench = benchmarks.find(
         (b) =>
           b.name === snapshotMetric.name &&
-          JSON.stringify(b.tags) === JSON.stringify(snapshotMetric.tags),
+          tagsEqual(b.tags, snapshotMetric.tags),
       );
       if (!bench) {
         bench = {
