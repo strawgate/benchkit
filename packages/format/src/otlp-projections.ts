@@ -26,6 +26,7 @@ import type {
   BenchmarkResult,
   Context,
   OtlpAggregationTemporality,
+  OtlpAttribute,
   OtlpMetric,
   OtlpMetricsDocument,
   OtlpResourceMetrics,
@@ -149,6 +150,29 @@ function effectiveScenario(metricName: string, attrs: Record<string, string>): s
     || (metricName.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
 }
 
+/** Filter datapoints across all metric kinds using a single predicate. */
+function filterMetricDataPoints(
+  metric: OtlpMetric,
+  predicate: (dp: { attributes?: OtlpAttribute[] }) => boolean,
+): OtlpMetric {
+  const kind = getOtlpMetricKind(metric);
+  if (kind === "gauge") {
+    return { ...metric, gauge: { ...metric.gauge, dataPoints: (metric.gauge?.dataPoints ?? []).filter(predicate) } };
+  }
+  if (kind === "sum") {
+    return { ...metric, sum: { ...metric.sum, dataPoints: (metric.sum?.dataPoints ?? []).filter(predicate) } };
+  }
+  return { ...metric, histogram: { ...metric.histogram, dataPoints: (metric.histogram?.dataPoints ?? []).filter(predicate) } };
+}
+
+/** Returns true if the metric has at least one datapoint after filtering. */
+function hasDataPoints(metric: OtlpMetric): boolean {
+  const kind = getOtlpMetricKind(metric);
+  if (kind === "gauge") return (metric.gauge?.dataPoints?.length ?? 0) > 0;
+  if (kind === "sum") return (metric.sum?.dataPoints?.length ?? 0) > 0;
+  return (metric.histogram?.dataPoints?.length ?? 0) > 0;
+}
+
 function filterDocumentByScenario(
   doc: OtlpMetricsDocument,
   scenario: string,
@@ -158,50 +182,12 @@ function filterDocumentByScenario(
       ...rm,
       scopeMetrics: (rm.scopeMetrics ?? []).map((sm) => ({
         ...sm,
-        metrics: (sm.metrics ?? []).map((metric) => {
-          const kind = getOtlpMetricKind(metric);
-          if (kind === "gauge") {
-            return {
-              ...metric,
-              gauge: {
-                ...metric.gauge,
-                dataPoints: (metric.gauge?.dataPoints ?? []).filter((dp) => {
-                  const attrs = otlpAttributesToRecord(dp.attributes);
-                  return effectiveScenario(metric.name, attrs) === scenario;
-                }),
-              },
-            };
-          }
-          if (kind === "sum") {
-            return {
-              ...metric,
-              sum: {
-                ...metric.sum,
-                dataPoints: (metric.sum?.dataPoints ?? []).filter((dp) => {
-                  const attrs = otlpAttributesToRecord(dp.attributes);
-                  return effectiveScenario(metric.name, attrs) === scenario;
-                }),
-              },
-            };
-          }
-          // histogram
-          return {
-            ...metric,
-            histogram: {
-              ...metric.histogram,
-              dataPoints: (metric.histogram?.dataPoints ?? []).filter((dp) => {
-                const attrs = otlpAttributesToRecord(dp.attributes);
-                return effectiveScenario(metric.name, attrs) === scenario;
-              }),
-            },
-          };
-        }).filter((metric) => {
-          // Remove metrics that have zero datapoints after filtering
-          const kind = getOtlpMetricKind(metric);
-          if (kind === "gauge") return (metric.gauge?.dataPoints?.length ?? 0) > 0;
-          if (kind === "sum") return (metric.sum?.dataPoints?.length ?? 0) > 0;
-          return (metric.histogram?.dataPoints?.length ?? 0) > 0;
-        }),
+        metrics: (sm.metrics ?? [])
+          .map((metric) => filterMetricDataPoints(metric, (dp) => {
+            const attrs = otlpAttributesToRecord(dp.attributes);
+            return effectiveScenario(metric.name, attrs) === scenario;
+          }))
+          .filter(hasDataPoints),
       })),
     })),
   };
@@ -218,61 +204,17 @@ function filterDocumentForComparison(
         ...sm,
         metrics: (sm.metrics ?? [])
           .filter((metric) => {
-            // Exclude _monitor.* metrics if requested
             if (excludeMonitor && isMonitorMetric(metric.name)) return false;
             return true;
           })
           .map((metric) => {
             if (!excludeMonitor) return metric;
-            // Filter out diagnostic-role datapoints
-            return filterDiagnosticDatapoints(metric);
+            return filterMetricDataPoints(metric, (dp) =>
+              otlpAttributesToRecord(dp.attributes)[ATTR_METRIC_ROLE] !== "diagnostic",
+            );
           })
-          .filter((metric) => {
-            const kind = getOtlpMetricKind(metric);
-            if (kind === "gauge") return (metric.gauge?.dataPoints?.length ?? 0) > 0;
-            if (kind === "sum") return (metric.sum?.dataPoints?.length ?? 0) > 0;
-            return (metric.histogram?.dataPoints?.length ?? 0) > 0;
-          }),
+          .filter(hasDataPoints),
       })),
     })),
-  };
-}
-
-function filterDiagnosticDatapoints(metric: OtlpMetric): OtlpMetric {
-  const kind = getOtlpMetricKind(metric);
-  const isDiagnostic = (attrs: Record<string, string>) =>
-    attrs[ATTR_METRIC_ROLE] === "diagnostic";
-
-  if (kind === "gauge") {
-    return {
-      ...metric,
-      gauge: {
-        ...metric.gauge,
-        dataPoints: (metric.gauge?.dataPoints ?? []).filter(
-          (dp) => !isDiagnostic(otlpAttributesToRecord(dp.attributes)),
-        ),
-      },
-    };
-  }
-  if (kind === "sum") {
-    return {
-      ...metric,
-      sum: {
-        ...metric.sum,
-        dataPoints: (metric.sum?.dataPoints ?? []).filter(
-          (dp) => !isDiagnostic(otlpAttributesToRecord(dp.attributes)),
-        ),
-      },
-    };
-  }
-  // histogram
-  return {
-    ...metric,
-    histogram: {
-      ...metric.histogram,
-      dataPoints: (metric.histogram?.dataPoints ?? []).filter(
-        (dp) => !isDiagnostic(otlpAttributesToRecord(dp.attributes)),
-      ),
-    },
   };
 }

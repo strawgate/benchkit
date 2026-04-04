@@ -223,6 +223,29 @@ function resolveDirection(metricName: string, unit: string | undefined, pointAtt
   return inferDirection(unit ?? metricName);
 }
 
+function resolveDatapointGroup(
+  groups: Map<string, MutableBenchmarkGroup>,
+  metric: OtlpMetric,
+  pointAttributes: Record<string, string>,
+  metricKindLabel: string,
+): MutableBenchmarkGroup {
+  const benchmarkName = pointAttributes[ATTR_SCENARIO]
+    || (metric.name.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
+  if (!benchmarkName) {
+    throw new Error(`[parse-otlp] Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP ${metricKindLabel} '${metric.name}'.`);
+  }
+
+  const series = pointAttributes[ATTR_SERIES];
+  if (!series) {
+    throw new Error(`[parse-otlp] Missing required datapoint attribute '${ATTR_SERIES}' for OTLP ${metricKindLabel} '${metric.name}'.`);
+  }
+
+  return ensureGroup(groups, benchmarkName, series, {
+    series,
+    ...(benchmarkTags(pointAttributes) ?? {}),
+  });
+}
+
 function projectGaugeLikeMetric(
   groups: Map<string, MutableBenchmarkGroup>,
   metric: OtlpMetric,
@@ -231,21 +254,7 @@ function projectGaugeLikeMetric(
 ): void {
   for (const point of points ?? []) {
     const pointAttributes = otlpAttributesToRecord(point.attributes);
-    const benchmarkName = pointAttributes[ATTR_SCENARIO]
-      || (metric.name.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
-    if (!benchmarkName) {
-      throw new Error(`[parse-otlp] Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP metric '${metric.name}'.`);
-    }
-
-    const series = pointAttributes[ATTR_SERIES];
-    if (!series) {
-      throw new Error(`[parse-otlp] Missing required datapoint attribute '${ATTR_SERIES}' for OTLP metric '${metric.name}'.`);
-    }
-
-    const group = ensureGroup(groups, benchmarkName, series, {
-      series,
-      ...(benchmarkTags(pointAttributes) ?? {}),
-    });
+    const group = resolveDatapointGroup(groups, metric, pointAttributes, "metric");
     const timestampMillis = nanosToMillis(point.timeUnixNano);
     const timestampIso = nanosToIso(point.timeUnixNano);
     const metricValue = datapointNumberValue(point);
@@ -282,21 +291,7 @@ function projectHistogramMetric(
 ): void {
   for (const point of points ?? []) {
     const pointAttributes = otlpAttributesToRecord(point.attributes);
-    const benchmarkName = pointAttributes[ATTR_SCENARIO]
-      || (metric.name.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
-    if (!benchmarkName) {
-      throw new Error(`[parse-otlp] Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP histogram '${metric.name}'.`);
-    }
-
-    const series = pointAttributes[ATTR_SERIES];
-    if (!series) {
-      throw new Error(`[parse-otlp] Missing required datapoint attribute '${ATTR_SERIES}' for OTLP histogram '${metric.name}'.`);
-    }
-
-    const group = ensureGroup(groups, benchmarkName, series, {
-      series,
-      ...(benchmarkTags(pointAttributes) ?? {}),
-    });
+    const group = resolveDatapointGroup(groups, metric, pointAttributes, "histogram");
     const timestampMillis = nanosToMillis(point.timeUnixNano);
     const direction = resolveDirection(metric.name, metric.unit, pointAttributes);
     const count = point.count !== undefined ? Number(point.count) : undefined;
