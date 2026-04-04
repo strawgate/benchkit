@@ -76,19 +76,7 @@ export function isValidRunKind(value: string): value is RunKind {
 
 /** Validates and returns a `RunKind`, or throws. */
 export function validateRunKind(value: string | undefined): RunKind {
-  if (!value) {
-    throw new Error(
-      `Missing required attribute '${ATTR_KIND}'. ` +
-        `Expected one of: ${VALID_RUN_KINDS.join(", ")}.`,
-    );
-  }
-  if (!isValidRunKind(value)) {
-    throw new Error(
-      `Invalid '${ATTR_KIND}' value '${value}'. ` +
-        `Expected one of: ${VALID_RUN_KINDS.join(", ")}.`,
-    );
-  }
-  return value;
+  return validateAttribute(value, ATTR_KIND, VALID_RUN_KINDS);
 }
 
 /** Returns true if `value` is a valid `benchkit.metric.direction`. */
@@ -98,19 +86,7 @@ export function isValidDirection(value: string): value is Direction {
 
 /** Validates and returns a `Direction`, or throws. */
 export function validateDirection(value: string | undefined): Direction {
-  if (!value) {
-    throw new Error(
-      `Missing required attribute '${ATTR_METRIC_DIRECTION}'. ` +
-        `Expected one of: ${VALID_DIRECTIONS.join(", ")}.`,
-    );
-  }
-  if (!isValidDirection(value)) {
-    throw new Error(
-      `Invalid '${ATTR_METRIC_DIRECTION}' value '${value}'. ` +
-        `Expected one of: ${VALID_DIRECTIONS.join(", ")}.`,
-    );
-  }
-  return value;
+  return validateAttribute(value, ATTR_METRIC_DIRECTION, VALID_DIRECTIONS);
 }
 
 /** Returns true if `value` is a valid `benchkit.metric.role`. */
@@ -120,19 +96,7 @@ export function isValidMetricRole(value: string): value is MetricRole {
 
 /** Validates and returns a `MetricRole`, or throws. */
 export function validateMetricRole(value: string | undefined): MetricRole {
-  if (!value) {
-    throw new Error(
-      `Missing required attribute '${ATTR_METRIC_ROLE}'. ` +
-        `Expected one of: ${VALID_METRIC_ROLES.join(", ")}.`,
-    );
-  }
-  if (!isValidMetricRole(value)) {
-    throw new Error(
-      `Invalid '${ATTR_METRIC_ROLE}' value '${value}'. ` +
-        `Expected one of: ${VALID_METRIC_ROLES.join(", ")}.`,
-    );
-  }
-  return value;
+  return validateAttribute(value, ATTR_METRIC_ROLE, VALID_METRIC_ROLES);
 }
 
 /** Returns true if `value` is a valid `benchkit.source_format`. */
@@ -144,19 +108,7 @@ export function isValidSourceFormat(value: string): value is SourceFormat {
 export function validateSourceFormat(
   value: string | undefined,
 ): SourceFormat {
-  if (!value) {
-    throw new Error(
-      `Missing required attribute '${ATTR_SOURCE_FORMAT}'. ` +
-        `Expected one of: ${VALID_SOURCE_FORMATS.join(", ")}.`,
-    );
-  }
-  if (!isValidSourceFormat(value)) {
-    throw new Error(
-      `Invalid '${ATTR_SOURCE_FORMAT}' value '${value}'. ` +
-        `Expected one of: ${VALID_SOURCE_FORMATS.join(", ")}.`,
-    );
-  }
-  return value;
+  return validateAttribute(value, ATTR_SOURCE_FORMAT, VALID_SOURCE_FORMATS);
 }
 
 /** Returns true if the metric name uses the reserved `_monitor.` prefix. */
@@ -175,4 +127,24 @@ function requireAttribute(
   if (!attrs[key]) {
     throw new Error(`Missing required attribute '${key}'.`);
   }
+}
+
+function validateAttribute<T extends string>(
+  value: string | undefined,
+  attribute: string,
+  validValues: readonly T[],
+): T {
+  if (!value) {
+    throw new Error(
+      `Missing required attribute '${attribute}'. ` +
+        `Expected one of: ${validValues.join(", ")}.`,
+    );
+  }
+  if (!(validValues as readonly string[]).includes(value)) {
+    throw new Error(
+      `Invalid '${attribute}' value '${value}'. ` +
+        `Expected one of: ${validValues.join(", ")}.`,
+    );
+  }
+  return value as T;
 }
