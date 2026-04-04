@@ -31,7 +31,7 @@ export function compare(
   config: ThresholdConfig = DEFAULT_THRESHOLD,
 ): ComparisonResult {
   if (baseline.length === 0) {
-    return { entries: [], hasRegression: false };
+    return { entries: [], hasRegression: false, baselineRunCount: 0 };
   }
 
   // Build a lookup: benchmark name → metric name → values[]
@@ -110,5 +110,6 @@ export function compare(
   return {
     entries,
     hasRegression: entries.some((e) => e.status === "regressed"),
+    baselineRunCount: baseline.length,
   };
 }

@@ -193,6 +193,8 @@ export interface ComparisonEntry {
 export interface ComparisonResult {
   entries: ComparisonEntry[];
   hasRegression: boolean;
+  /** Number of baseline runs that were compared against. */
+  baselineRunCount?: number;
 }
 
 export interface FormatComparisonMarkdownOptions {
