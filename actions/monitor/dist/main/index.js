@@ -345,6 +345,28 @@ function resolveRunId() {
         return sanitizeRunId(`${runId}-${attempt}`);
     return `local-${Date.now()}`;
 }
+/**
+ * Poll the OTLP HTTP root endpoint until it responds (or timeout).
+ * This ensures the collector is ready to accept metrics before the
+ * action returns control to subsequent steps.
+ */
+async function waitForOtlpHttpReady(port, timeoutMs) {
+    const url = `http://localhost:${port}`;
+    const deadline = Date.now() + timeoutMs;
+    let lastError = "";
+    while (Date.now() < deadline) {
+        try {
+            await fetch(url, { signal: AbortSignal.timeout(500) });
+            core.info(`OTel Collector is ready on port ${port}`);
+            return;
+        }
+        catch (err) {
+            lastError = err instanceof Error ? err.message : String(err);
+            await new Promise((r) => setTimeout(r, 200));
+        }
+    }
+    core.warning(`OTel Collector did not become ready within ${timeoutMs}ms (last error: ${lastError}). Continuing anyway.`);
+}
 async function startOtelCollector() {
     const version = core.getInput("collector-version") || "0.102.0";
     const scrapeInterval = core.getInput("scrape-interval") || "5s";
@@ -389,6 +411,12 @@ async function startOtelCollector() {
     fs.closeSync(logFd);
     if (!child.pid) {
         throw new Error("Failed to spawn OTel Collector process");
+    }
+    // Wait for the OTLP HTTP port to be ready before returning.
+    // The collector takes ~500ms-1s to bind on a cold start, so emit-metric
+    // calls in the immediately following step would otherwise hit ECONNREFUSED.
+    if (otlpHttpPort > 0) {
+        await waitForOtlpHttpReady(otlpHttpPort, 15_000);
     }
     // Write state for the post step
     const state = {
