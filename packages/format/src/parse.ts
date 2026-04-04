@@ -5,14 +5,14 @@ import { parseBenchmarkAction } from "./parse-benchmark-action.js";
 import { parseNative } from "./parse-native.js";
 import { parseHyperfine } from "./parse-hyperfine.js";
 import { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
-import { parseOtlpMetrics, projectBenchmarkResultFromOtlp } from "./parse-otlp.js";
+import { parseOtlp, projectBenchmarkResultFromOtlp } from "./parse-otlp.js";
 
 export type Format = "native" | "go" | "benchmark-action" | "rust" | "hyperfine" | "pytest-benchmark" | "otlp" | "auto";
 
 /**
  * Detect the input format and parse into the native BenchmarkResult.
  */
-export function parse(input: string, format: Format = "auto"): BenchmarkResult {
+export function parseBenchmarks(input: string, format: Format = "auto"): BenchmarkResult {
   if (format === "auto") {
     format = detectFormat(input);
   }
@@ -31,7 +31,7 @@ export function parse(input: string, format: Format = "auto"): BenchmarkResult {
     case "pytest-benchmark":
       return parsePytestBenchmark(input);
     case "otlp":
-      return projectBenchmarkResultFromOtlp(parseOtlpMetrics(input));
+      return projectBenchmarkResultFromOtlp(parseOtlp(input));
     default:
       throw new Error(`Unknown format: ${format}`);
   }

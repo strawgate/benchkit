@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
-import { parse } from "./parse.js";
+import { parseBenchmarks as parse } from "./parse.js";
 
 const PYTEST_BENCHMARK_OUTPUT = JSON.stringify({
   benchmarks: [

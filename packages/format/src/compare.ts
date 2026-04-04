@@ -25,7 +25,7 @@ const DEFAULT_THRESHOLD: ThresholdConfig = { test: "percentage", threshold: 5 };
  * @param config - Threshold configuration controlling regression sensitivity (default: 5 % percentage).
  * @returns A `ComparisonResult` with per-metric entries and an overall regression flag.
  */
-export function compare(
+export function compareRuns(
   current: BenchmarkResult,
   baseline: BenchmarkResult[],
   config: ThresholdConfig = DEFAULT_THRESHOLD,

@@ -44,7 +44,7 @@ function statusIcon(status: string): string {
   return "–";
 }
 
-export function sortEntries(entries: ComparisonEntry[]): ComparisonEntry[] {
+export function sortBySeverity(entries: ComparisonEntry[]): ComparisonEntry[] {
   return [...entries].sort((a, b) => {
     const statusDiff = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
     if (statusDiff !== 0) return statusDiff;
@@ -69,7 +69,7 @@ export function ComparisonSummaryTable({
     );
   }
 
-  const sorted = sortEntries(entries);
+  const sorted = sortBySeverity(entries);
   const stableCount = sorted.filter((e) => e.status === "stable").length;
   const visible = showStable ? sorted : sorted.filter((e) => e.status !== "stable");
 

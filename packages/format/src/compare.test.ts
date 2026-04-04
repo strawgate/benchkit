@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { compare } from "./compare.js";
+import { compareRuns as compare } from "./compare.js";
 import type { BenchmarkResult } from "./types.js";
 
 function makeResult(benchmarks: BenchmarkResult["benchmarks"]): BenchmarkResult {

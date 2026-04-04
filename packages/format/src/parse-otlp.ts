@@ -65,7 +65,7 @@ export function otlpAttributesToRecord(attributes: OtlpAttribute[] | undefined):
  * @param input - Raw OTLP metrics JSON string.
  * @returns The parsed `OtlpMetricsDocument`.
  */
-export function parseOtlpMetrics(input: string): OtlpMetricsDocument {
+export function parseOtlp(input: string): OtlpMetricsDocument {
   const parsed: unknown = JSON.parse(input);
   if (
     typeof parsed !== "object" ||
@@ -346,7 +346,7 @@ function projectHistogramMetric(
  * 3. **Time-series building** — per-group datapoints are sorted by timestamp
  *    and attached as `samples` when more than one datapoint exists.
  *
- * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlpMetrics`).
+ * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlp`).
  * @returns A `BenchmarkResult` containing all projected benchmarks and context.
  */
 export function projectBenchmarkResultFromOtlp(document: OtlpMetricsDocument): BenchmarkResult {
