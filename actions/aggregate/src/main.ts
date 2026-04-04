@@ -18,6 +18,17 @@ import {
   buildMetricSummaryViews,
 } from "./views.js";
 import { classifyFetchFailure } from "./git-fetch.js";
+import { classifyPushFailure } from "./git-push.js";
+import {
+  computeRetryDelayMs,
+  DEFAULT_PUSH_RETRY_COUNT,
+  sleep,
+} from "./retry.js";
+
+interface AggregateOutputs {
+  runCount: number;
+  metrics: string[];
+}
 
 async function run(): Promise<void> {
   const dataBranch = core.getInput("data-branch") || "bench-data";
@@ -29,83 +40,54 @@ async function run(): Promise<void> {
 
   await configureGit(token);
 
-  // Fetch data branch
-  const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
-  let fetchStderr = "";
-  const fetchCode = await exec.exec(
-    "git", ["fetch", "origin", `${dataBranch}:${dataBranch}`],
-    {
-      ignoreReturnCode: true,
-      listeners: { stderr: (data: Buffer) => { fetchStderr += data.toString(); } },
-    },
-  );
-  if (fetchCode !== 0) {
-    const fetchFailure = classifyFetchFailure(dataBranch, fetchStderr);
-    if (fetchFailure.kind === "checked-out") {
-      throw new Error(fetchFailure.message);
+  const outputs = await aggregateWithRetry(dataBranch, maxRuns);
+  core.setOutput("run-count", String(outputs.runCount));
+  core.setOutput("metrics", outputs.metrics.join(","));
+}
+
+async function aggregateWithRetry(dataBranch: string, maxRuns: number): Promise<AggregateOutputs> {
+  for (let attempt = 1; attempt <= DEFAULT_PUSH_RETRY_COUNT; attempt++) {
+    const worktree = await checkoutDataBranch(dataBranch);
+    if (!worktree) {
+      return { runCount: 0, metrics: [] };
     }
-    if (fetchFailure.kind === "branch-missing") {
-      core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
-      core.setOutput("run-count", "0");
-      core.setOutput("metrics", "");
-      return;
+
+    try {
+      const { outputs, hasChanges } = await rebuildAggregates(worktree, maxRuns);
+      if (!hasChanges) {
+        core.info("No changes to commit");
+        return outputs;
+      }
+
+      await exec.exec("git", [
+        "-C", worktree, "commit", "-m",
+        `bench: rebuild index and series (${outputs.runCount} runs)`,
+      ]);
+
+      const pushResult = await pushAggregates(worktree, dataBranch);
+      if (!pushResult) {
+        core.info(`Pushed aggregated data to ${dataBranch}`);
+        return outputs;
+      }
+
+      if (pushResult.failure.kind === "non-fast-forward" && attempt < DEFAULT_PUSH_RETRY_COUNT) {
+        const delayMs = computeRetryDelayMs(Math.random());
+        core.warning(
+          `Aggregate push was rejected by concurrent bench-data updates (attempt ${attempt}/${DEFAULT_PUSH_RETRY_COUNT}); waiting ${delayMs}ms before refetching and recomputing...`,
+        );
+        await sleep(delayMs);
+        continue;
+      }
+
+      throw new Error(
+        `Failed to push aggregated data to '${dataBranch}': ${pushResult.stderr.trim() || "git push failed"}`,
+      );
+    } finally {
+      await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
     }
-    throw new Error(
-      `Failed to fetch '${dataBranch}' from origin: ${fetchStderr.trim() || `git fetch exited with code ${fetchCode}`}`,
-    );
-  }
-  await exec.exec("git", ["worktree", "add", worktree, dataBranch]);
-
-  // Read run files
-  const runsDir = path.join(worktree, "data", "runs");
-  if (!fs.existsSync(runsDir)) {
-    core.warning("No runs directory found. Nothing to aggregate.");
-    core.setOutput("run-count", "0");
-    core.setOutput("metrics", "");
-    await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
-    return;
   }
 
-  const runs = readRuns(runsDir);
-  core.info(`Found ${runs.length} run file(s)`);
-
-  // Sort, prune, aggregate
-  sortRuns(runs);
-  const pruned = pruneRuns(runs, maxRuns);
-  for (const id of pruned) {
-    fs.unlinkSync(path.join(runsDir, `${id}.json`));
-    core.info(`Pruned old run: ${id}`);
-  }
-
-  const index = buildIndex(runs);
-  const allMetrics = index.metrics ?? [];
-  const seriesMap = buildSeries(runs);
-
-  // Write output files
-  writeAggregatedFiles(worktree, index, seriesMap, runs);
-  core.info(`Wrote index.json (${index.runs.length} runs, ${allMetrics.length} metrics)`);
-
-  // Commit and push if changed
-  await exec.exec("git", ["-C", worktree, "add", "."]);
-  const diffCode = await exec.exec(
-    "git", ["-C", worktree, "diff", "--cached", "--quiet"],
-    { ignoreReturnCode: true },
-  );
-
-  if (diffCode === 0) {
-    core.info("No changes to commit");
-  } else {
-    await exec.exec("git", [
-      "-C", worktree, "commit", "-m",
-      `bench: rebuild index and series (${runs.length} runs)`,
-    ]);
-    await exec.exec("git", ["-C", worktree, "push", "origin", `HEAD:${dataBranch}`]);
-    core.info(`Pushed aggregated data to ${dataBranch}`);
-  }
-
-  await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
-  core.setOutput("run-count", String(runs.length));
-  core.setOutput("metrics", allMetrics.join(","));
+  throw new Error(`Failed to push aggregated data to '${dataBranch}' after ${DEFAULT_PUSH_RETRY_COUNT} attempts`);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -122,6 +104,97 @@ async function configureGit(token: string): Promise<void> {
     "http.https://github.com/.extraheader",
     `AUTHORIZATION: basic ${basicAuth}`,
   ]);
+}
+
+async function checkoutDataBranch(dataBranch: string): Promise<string | null> {
+  const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
+  let fetchStderr = "";
+  const fetchCode = await exec.exec(
+    "git", ["fetch", "origin", `${dataBranch}:${dataBranch}`],
+    {
+      ignoreReturnCode: true,
+      listeners: { stderr: (data: Buffer) => { fetchStderr += data.toString(); } },
+    },
+  );
+  if (fetchCode !== 0) {
+    const fetchFailure = classifyFetchFailure(dataBranch, fetchStderr);
+    if (fetchFailure.kind === "checked-out") {
+      throw new Error(fetchFailure.message);
+    }
+    if (fetchFailure.kind === "branch-missing") {
+      core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
+      return null;
+    }
+    throw new Error(
+      `Failed to fetch '${dataBranch}' from origin: ${fetchStderr.trim() || `git fetch exited with code ${fetchCode}`}`,
+    );
+  }
+
+  await exec.exec("git", ["worktree", "add", worktree, dataBranch]);
+  return worktree;
+}
+
+async function rebuildAggregates(
+  worktree: string,
+  maxRuns: number,
+): Promise<{ outputs: AggregateOutputs; hasChanges: boolean }> {
+  const runsDir = path.join(worktree, "data", "runs");
+  if (!fs.existsSync(runsDir)) {
+    core.warning("No runs directory found. Nothing to aggregate.");
+    return { outputs: { runCount: 0, metrics: [] }, hasChanges: false };
+  }
+
+  const runs = readRuns(runsDir);
+  core.info(`Found ${runs.length} run file(s)`);
+
+  sortRuns(runs);
+  const pruned = pruneRuns(runs, maxRuns);
+  for (const id of pruned) {
+    fs.unlinkSync(path.join(runsDir, `${id}.json`));
+    core.info(`Pruned old run: ${id}`);
+  }
+
+  const index = buildIndex(runs);
+  const allMetrics = index.metrics ?? [];
+  const seriesMap = buildSeries(runs);
+
+  writeAggregatedFiles(worktree, index, seriesMap, runs);
+  core.info(`Wrote index.json (${index.runs.length} runs, ${allMetrics.length} metrics)`);
+
+  await exec.exec("git", ["-C", worktree, "add", "."]);
+  const diffCode = await exec.exec(
+    "git", ["-C", worktree, "diff", "--cached", "--quiet"],
+    { ignoreReturnCode: true },
+  );
+
+  return {
+    outputs: { runCount: runs.length, metrics: allMetrics },
+    hasChanges: diffCode !== 0,
+  };
+}
+
+async function pushAggregates(
+  worktree: string,
+  dataBranch: string,
+): Promise<{ failure: ReturnType<typeof classifyPushFailure>; stderr: string } | null> {
+  let pushStderr = "";
+  const pushCode = await exec.exec(
+    "git",
+    ["-C", worktree, "push", "origin", `HEAD:${dataBranch}`],
+    {
+      ignoreReturnCode: true,
+      listeners: { stderr: (data: Buffer) => { pushStderr += data.toString(); } },
+    },
+  );
+
+  if (pushCode === 0) {
+    return null;
+  }
+
+  return {
+    failure: classifyPushFailure(pushStderr),
+    stderr: pushStderr,
+  };
 }
 
 function writeAggregatedFiles(

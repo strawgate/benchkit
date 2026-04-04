@@ -15,6 +15,8 @@ indexes that charts and dashboards rely on up to date.
 - builds `data/views/runs/{id}/detail.json` — per-run detail views
 - commits and pushes the updated files to the data branch (skips the commit
   when nothing changed)
+- retries from a fresh checkout when a concurrent stash updates `bench-data`
+  between the aggregate fetch and push
 
 ## Usage
 
@@ -79,7 +81,8 @@ new files are written.
 4. **Build**: compute the index, series, navigation indexes, and run detail
    views from the remaining runs
 5. **Push**: stage all changes, commit if anything changed, and push to the
-   data branch
+   data branch — retrying from a fresh checkout with a jittered delay if a
+   concurrent update causes a non-fast-forward rejection
 
 ## Relationship to stash and chart
 
