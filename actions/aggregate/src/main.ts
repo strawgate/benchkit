@@ -110,7 +110,7 @@ async function checkoutDataBranch(dataBranch: string): Promise<string | null> {
   const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
   let fetchStderr = "";
   const fetchCode = await exec.exec(
-    "git", ["fetch", "origin", `${dataBranch}:${dataBranch}`],
+    "git", ["fetch", "origin", `+${dataBranch}:${dataBranch}`],
     {
       ignoreReturnCode: true,
       listeners: { stderr: (data: Buffer) => { fetchStderr += data.toString(); } },

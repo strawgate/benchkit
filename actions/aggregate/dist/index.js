@@ -363,7 +363,7 @@ async function configureGit(token) {
 async function checkoutDataBranch(dataBranch) {
     const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
     let fetchStderr = "";
-    const fetchCode = await exec.exec("git", ["fetch", "origin", `${dataBranch}:${dataBranch}`], {
+    const fetchCode = await exec.exec("git", ["fetch", "origin", `+${dataBranch}:${dataBranch}`], {
         ignoreReturnCode: true,
         listeners: { stderr: (data) => { fetchStderr += data.toString(); } },
     });
