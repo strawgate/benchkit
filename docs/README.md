@@ -53,5 +53,6 @@ These are useful, but they are not the main user path:
 
 - [`internal/agent-handoff.md`](internal/agent-handoff.md) — current next-agent execution handoff, not the roadmap/status owner
 - [`history/architecture-review.md`](history/architecture-review.md) — historical architecture review
+- [`history/inventory-phase-180.md`](history/inventory-phase-180.md) — archived Phase #180 codebase vocabulary and assumptions deep-dive
 - [`history/plans.md`](history/plans.md) — historical planning notes
 - [`research/copilot-playwright-audit.md`](research/copilot-playwright-audit.md) — point-in-time demo-site audit

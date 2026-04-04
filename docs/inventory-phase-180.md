@@ -2,6 +2,8 @@
 
 This inventory identifies which product surfaces should remain clearly Benchkit-owned versus which can be extracted into a generic visualization or metric platform.
 
+> **See also:** [`history/inventory-phase-180.md`](history/inventory-phase-180.md) — archived deep-dive into benchmark-specific vocabulary and codebase assumptions that informed this inventory.
+
 ## Benchkit-owned Product Surfaces (Benchmark-oriented)
 
 These surfaces are tightly coupled to the benchmark domain: tracking performance over time, comparing runs/PRs, and correlating results with the runner environment.
@@ -31,8 +33,8 @@ These components are domain-agnostic and could live in a generic metric visualiz
 - **`TrendChart`** (`packages/chart/src/components/TrendChart.tsx`): Time-series line chart.
 - **`ComparisonBar`** (`packages/chart/src/components/ComparisonBar.tsx`): Simple bar chart comparing multiple series.
 - **`Leaderboard`** (`packages/chart/src/components/Leaderboard.tsx`): Ranked list with "winner" indication (generic ranked data).
-- **`MetricCard`** (`packages/chart/src/components/MetricCard.tsx`): A compact visual summary of a metric (sparkline + latest value).
-- **`OverviewGrid`** (`packages/chart/src/components/OverviewGrid.tsx`): Layout component for displaying multiple `MetricCard`s.
+- ~~`MetricCard`~~ (`packages/chart/src/components/MetricCard.tsx`): Internal — used by `Dashboard` but **not exported** from the package public API.
+- ~~`OverviewGrid`~~ (`packages/chart/src/components/OverviewGrid.tsx`): Internal — used by `Dashboard` but **not exported** from the package public API.
 - **`TagFilter`** (`packages/chart/src/components/TagFilter.tsx`): UI for filtering datasets by labels/tags.
 - **`DateRangeFilter`** (`packages/chart/src/components/DateRangeFilter.tsx`): Preset and custom time window selection.
 
