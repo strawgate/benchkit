@@ -32,6 +32,7 @@ async function run(): Promise<void> {
     githubRunId: process.env.GITHUB_RUN_ID,
     githubRunAttempt: process.env.GITHUB_RUN_ATTEMPT,
     githubJob: process.env.GITHUB_JOB,
+    matrixKey: core.getInput("matrix-key") || undefined,
   });
 
   // Parse benchmark files

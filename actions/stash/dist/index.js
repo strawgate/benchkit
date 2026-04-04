@@ -60,6 +60,7 @@ async function run() {
         githubRunId: process.env.GITHUB_RUN_ID,
         githubRunAttempt: process.env.GITHUB_RUN_ATTEMPT,
         githubJob: process.env.GITHUB_JOB,
+        matrixKey: core.getInput("matrix-key") || undefined,
     });
     // Parse benchmark files
     const globber = await glob.create(resultsPattern);
@@ -310,28 +311,33 @@ function readMonitorOutput(monitorPath) {
  *
  * Priority:
  * 1. `customRunId` — use as-is when explicitly provided.
- * 2. `{githubRunId}-{githubRunAttempt}--{sanitized(githubJob)}` — when a job
- *    name is available, append it (separated by `--`) so that multiple jobs
- *    within the same workflow run do not overwrite each other's raw data.
+ * 2. `{githubRunId}-{githubRunAttempt}--{sanitized(githubJob)}[-{sanitized(matrixKey)}]`
+ *    — when a job name is available, append it (separated by `--`) so that
+ *    multiple jobs within the same workflow run do not overwrite each other's
+ *    raw data. When a matrix key is also present it is appended so that
+ *    matrix variants are distinguished.
  * 3. `{githubRunId}-{githubRunAttempt}` — fallback when no job name is set.
  *
- * The job segment is lower-cased and any characters outside `[a-z0-9-]` are
- * replaced with `-`, with consecutive dashes collapsed and leading/trailing
- * dashes stripped.
+ * The job and matrix segments are lower-cased and any characters outside
+ * `[a-z0-9-]` are replaced with `-`, with consecutive dashes collapsed and
+ * leading/trailing dashes stripped.
  */
 function buildRunId(options) {
     if (options.customRunId)
         return options.customRunId;
     const base = `${options.githubRunId ?? "local"}-${options.githubRunAttempt ?? "1"}`;
-    if (options.githubJob) {
-        const sanitized = options.githubJob
+    const parts = [];
+    for (const raw of [options.githubJob, options.matrixKey]) {
+        if (!raw)
+            continue;
+        const sanitized = raw
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-+|-+$/g, "");
         if (sanitized)
-            return `${base}--${sanitized}`;
+            parts.push(sanitized);
     }
-    return base;
+    return parts.length > 0 ? `${base}--${parts.join("-")}` : base;
 }
 function writeResultFile(result, runId, outputPath) {
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });

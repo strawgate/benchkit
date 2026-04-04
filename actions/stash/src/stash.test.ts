@@ -94,6 +94,34 @@ describe("buildRunId", () => {
       "42-1",
     );
   });
+
+  it("appends matrix key to distinguish matrix variants", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "12345", githubRunAttempt: "1", githubJob: "bench", matrixKey: "ubuntu-20" }),
+      "12345-1--bench-ubuntu-20",
+    );
+  });
+
+  it("sanitizes matrix key the same way as job name", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "1", githubRunAttempt: "1", githubJob: "test", matrixKey: "Linux (x86_64)" }),
+      "1-1--test-linux-x86-64",
+    );
+  });
+
+  it("uses matrix key alone when job is not available", () => {
+    assert.equal(
+      buildRunId({ githubRunId: "1", githubRunAttempt: "1", matrixKey: "windows-latest" }),
+      "1-1--windows-latest",
+    );
+  });
+
+  it("ignores matrix key when custom run-id is set", () => {
+    assert.equal(
+      buildRunId({ customRunId: "custom", matrixKey: "ubuntu" }),
+      "custom",
+    );
+  });
 });
 
 // ── buildResult ─────────────────────────────────────────────────────
