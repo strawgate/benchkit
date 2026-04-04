@@ -58,3 +58,35 @@ export function formatPct(pct: number): string {
   const sign = pct > 0 ? "+" : "";
   return `${sign}${pct.toFixed(2)}%`;
 }
+
+/**
+ * Format a run timestamp for compact UI display.
+ *
+ * Returns the original input when it is not a valid date string.
+ */
+export function formatTimestamp(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * Format a commit SHA as a short display-friendly hash.
+ *
+ * Returns an en dash when no commit is available.
+ */
+export function shortCommit(commit?: string): string {
+  return commit ? commit.slice(0, 7) : "–";
+}
+
+/**
+ * Format metric direction semantics for human-readable UI copy.
+ */
+export function formatDirection(direction: string): string {
+  return direction === "smaller_is_better" ? "↓ smaller" : "↑ bigger";
+}

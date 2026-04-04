@@ -1,6 +1,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatValue, formatFixedValue, formatRef, formatPct } from "./format-utils.js";
+import {
+  formatDirection,
+  formatFixedValue,
+  formatPct,
+  formatRef,
+  formatTimestamp,
+  formatValue,
+  shortCommit,
+} from "./format-utils.js";
 
 describe("format-utils", () => {
   describe("formatValue", () => {
@@ -78,6 +86,43 @@ describe("format-utils", () => {
 
     it("shows no sign for zero", () => {
       assert.equal(formatPct(0), "0.00%");
+    });
+  });
+
+  describe("formatTimestamp", () => {
+    it("returns a formatted string for valid ISO dates", () => {
+      const result = formatTimestamp("2026-04-01T10:30:00Z");
+      assert.ok(typeof result === "string");
+      assert.ok(result.length > 0);
+      assert.notEqual(result, "2026-04-01T10:30:00Z");
+    });
+
+    it("returns raw input for invalid dates", () => {
+      assert.equal(formatTimestamp("not-a-date"), "not-a-date");
+    });
+  });
+
+  describe("shortCommit", () => {
+    it("truncates to 7 characters", () => {
+      assert.equal(shortCommit("abc123def456"), "abc123d");
+    });
+
+    it("returns a dash for undefined", () => {
+      assert.equal(shortCommit(undefined), "–");
+    });
+
+    it("handles short commits", () => {
+      assert.equal(shortCommit("abc"), "abc");
+    });
+  });
+
+  describe("formatDirection", () => {
+    it("formats smaller-is-better directions", () => {
+      assert.equal(formatDirection("smaller_is_better"), "↓ smaller");
+    });
+
+    it("formats bigger-is-better directions", () => {
+      assert.equal(formatDirection("bigger_is_better"), "↑ bigger");
     });
   });
 });

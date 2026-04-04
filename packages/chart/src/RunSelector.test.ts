@@ -1,7 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatTimestamp, shortCommit } from "./components/RunSelector.js";
-import { formatRef } from "./format-utils.js";
+import { formatRef, formatTimestamp, shortCommit } from "./format-utils.js";
 
 describe("RunSelector helpers", () => {
   describe("shortCommit", () => {
