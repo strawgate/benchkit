@@ -82,6 +82,26 @@ These are useful for:
 - aggregating visible series
 - sorting or limiting visible series
 
+## Formatting and label helpers
+
+When you are composing your own UI around benchkit data, prefer the package-root
+helpers that are intentionally shared across dashboard surfaces:
+
+- `formatValue()`
+- `formatFixedValue()`
+- `formatRef()`
+- `formatPct()`
+- `formatTimestamp()`
+- `shortCommit()`
+- `formatDirection()`
+- `defaultMetricLabel()`
+- `defaultMonitorMetricLabel()`
+- `isMonitorMetric()`
+
+These are the supported formatting/label helpers to depend on. Lower-level
+component internals such as comparison-row sorting or icon-selection helpers are
+not part of the documented public surface.
+
 ## Data-fetch helpers
 
 The chart package also exports fetch helpers such as:

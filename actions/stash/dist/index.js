@@ -46,6 +46,7 @@ const glob = __importStar(__nccwpck_require__(2922));
 const path = __importStar(__nccwpck_require__(6760));
 const os = __importStar(__nccwpck_require__(8161));
 const stash_js_1 = __nccwpck_require__(8990);
+const retry_js_1 = __nccwpck_require__(5049);
 async function run() {
     const resultsPattern = core.getInput("results", { required: true });
     const format = (core.getInput("format") || "auto");
@@ -106,7 +107,7 @@ async function run() {
         core.info(`Wrote ${resultPath}`);
         await exec.exec("git", ["-C", worktree, "add", "."]);
         await exec.exec("git", ["-C", worktree, "commit", "-m", `bench: add run ${runId}`]);
-        await pushWithRetry(worktree, dataBranch, 3);
+        await pushWithRetry(worktree, dataBranch, retry_js_1.DEFAULT_PUSH_RETRY_COUNT);
         await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
         filePathOutput = `data/runs/${runId}.json`;
     }
@@ -150,11 +151,9 @@ async function pushWithRetry(worktree, dataBranch, maxRetries) {
             return;
         }
         if (attempt < maxRetries) {
-            core.warning(`Push failed (attempt ${attempt}/${maxRetries}), rebasing and retrying...`);
-            // Random jitter prevents all concurrent jobs from retrying in lock-step,
-            // which would exhaust retries without making progress.
-            const jitterMs = Math.floor(Math.random() * 2500) + 500;
-            await new Promise((resolve) => setTimeout(resolve, jitterMs));
+            const delayMs = (0, retry_js_1.computeRetryDelayMs)(Math.random());
+            core.warning(`Push failed (attempt ${attempt}/${maxRetries}); waiting ${delayMs}ms before rebasing and retrying...`);
+            await (0, retry_js_1.sleep)(delayMs);
             await exec.exec("git", ["-C", worktree, "pull", "--rebase", "origin", dataBranch]);
         }
         else {
@@ -166,6 +165,31 @@ run().catch((err) => {
     core.setFailed(err instanceof Error ? err.message : String(err));
 });
 //# sourceMappingURL=main.js.map
+
+/***/ }),
+
+/***/ 5049:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.RETRY_DELAY_MAX_MS = exports.RETRY_DELAY_MIN_MS = exports.DEFAULT_PUSH_RETRY_COUNT = void 0;
+exports.computeRetryDelayMs = computeRetryDelayMs;
+exports.sleep = sleep;
+exports.DEFAULT_PUSH_RETRY_COUNT = 5;
+exports.RETRY_DELAY_MIN_MS = 500;
+exports.RETRY_DELAY_MAX_MS = 3000;
+function computeRetryDelayMs(randomValue, minMs = exports.RETRY_DELAY_MIN_MS, maxMs = exports.RETRY_DELAY_MAX_MS) {
+    const normalized = Math.min(1, Math.max(0, randomValue));
+    return Math.round(minMs + normalized * (maxMs - minMs));
+}
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+//# sourceMappingURL=retry.js.map
 
 /***/ }),
 

@@ -9,8 +9,8 @@ export { TagFilter, type TagFilterProps, extractTags, filterSeriesFile } from ".
 export { DateRangeFilter, type DateRangeFilterProps, type DateRangePreset, type DateRange, presetToDateRange, filterSeriesFileByDateRange } from "./components/DateRangeFilter.js";
 export { Leaderboard, type LeaderboardProps } from "./components/Leaderboard.js";
 export { VerdictBanner, type VerdictBannerProps } from "./components/VerdictBanner.js";
-export { ComparisonSummaryTable, type ComparisonSummaryTableProps, sortEntries, statusIcon, directionLabel } from "./components/ComparisonSummaryTable.js";
-export { RunSelector, type RunSelectorProps, formatTimestamp, shortCommit } from "./components/RunSelector.js";
+export { ComparisonSummaryTable, type ComparisonSummaryTableProps } from "./components/ComparisonSummaryTable.js";
+export { RunSelector, type RunSelectorProps } from "./components/RunSelector.js";
 export { Dashboard, type DashboardProps } from "./Dashboard.js";
 export { RunDashboard, type RunDashboardProps } from "./RunDashboard.js";
 export { RunDetail, type RunDetailProps, type MetricSnapshotCardProps, MetricSnapshotCard } from "./RunDetail.js";
@@ -19,7 +19,17 @@ export { RunDetail, type RunDetailProps, type MetricSnapshotCardProps, MetricSna
 export { type DashboardLabels, defaultDashboardLabels, resolveLabels } from "./dashboard-labels.js";
 
 // Shared formatting utilities
-export { formatValue, formatFixedValue, formatRef, formatPct } from "./format-utils.js";
+export {
+  formatValue,
+  formatFixedValue,
+  formatRef,
+  formatPct,
+  formatTimestamp,
+  shortCommit,
+  formatDirection,
+} from "./format-utils.js";
+/** @deprecated Use formatDirection instead. */
+export { formatDirection as directionLabel } from "./format-utils.js";
 
 // Data fetching
 export { fetchIndex, fetchSeries, fetchRun, fetchPrIndex, fetchRefIndex, fetchMetricSummary, fetchRunDetail, compareRuns, type DataSource } from "./fetch.js";
@@ -30,6 +40,6 @@ export { rankSeries, getWinner, type RankedEntry } from "./leaderboard.js";
 export { useChartLifecycle, type ChartLifecycleResult } from "./hooks/useChartLifecycle.js";
 // Utilities
 export { detectRegressions, regressionTooltip, type RegressionResult } from "./utils.js";
-export { defaultMetricLabel, defaultMonitorMetricLabel } from "./labels.js";
+export { defaultMetricLabel, defaultMonitorMetricLabel, isMonitorMetric } from "./labels.js";
 export { samplesToDataPoints, dataPointsToComparisonData } from "./comparison-transforms.js";
 export { extractSampleMetrics } from "./sample-utils.js";

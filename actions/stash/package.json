@@ -5,7 +5,7 @@
   "description": "GitHub Action: parse benchmark results and commit to a data branch.",
   "scripts": {
     "build": "tsc && ncc build lib/main.js -o dist -s",
-    "test": "tsc && node --test lib/stash.test.js",
+    "test": "tsc && node --test lib/*.test.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

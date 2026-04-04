@@ -1,10 +1,11 @@
 # Agent Handoff
 
-This document is the current high-signal handoff for future agents working on
-benchkit.
+This is the current operational handoff for agents working in `benchkit`.
 
-It supersedes older GitHub issue handoff notes. In particular, issue `#71`
-should be treated as historical context rather than the current source of truth.
+Keep this file short and execution-focused. Product direction and roadmap truth
+belong in [`../vision-and-roadmap.md`](../vision-and-roadmap.md), not here.
+
+Matching GitHub issue: `strawgate/benchkit#164`.
 
 ## Read order
 
@@ -14,179 +15,52 @@ When picking up work, read these files in this order:
 2. [`../../README.md`](../../README.md)
 3. [`../../DEVELOPING.md`](../../DEVELOPING.md)
 4. [`../../CODE_STYLE.md`](../../CODE_STYLE.md)
-5. [`../vision-and-roadmap.md`](../vision-and-roadmap.md)
-6. [`../otlp-aggregation-architecture.md`](../otlp-aggregation-architecture.md)
-7. [`../otlp-semantic-conventions.md`](../otlp-semantic-conventions.md)
+5. [`../README.md`](../README.md)
+6. [`../vision-and-roadmap.md`](../vision-and-roadmap.md)
 
-Then read the package or action you are about to edit.
+Then read the package, action, or workflow you are about to change.
 
-## Current product direction
+If you work on dashboard accessibility, also read
+[`../research/copilot-playwright-audit.md`](../research/copilot-playwright-audit.md).
 
-The key product principle is:
+## Current execution queue
 
-- **generic core**
-- **highly ergonomic first-class workflows**
+- Active cleanup/documentation sequence:
+  - `#159` define current-truth docs and deprecation policy
+  - `#160` clarify the role of `packages/dashboard`
+  - `#161` add the migration-readiness and example-coverage matrix
+  - `#162` fix public dashboard accessibility and semantics
+  - `#163` align chart docs with the shipped component surfaces
+- Follow-on format work:
+  - `#153` fix unsafe `JSON.stringify` equality in run-detail conversion
+  - `#152` wrap parser `JSON.parse` failures with contextual errors
+  - `#137` reduce OTLP projection duplication
+- Historical handoff issue `#71` is no longer the active queue.
 
-Benchkit should remain generic in its fundamentals:
+## Recommended next-agent sequence
 
-- metric model
-- run model
-- compare pipeline
-- stash / aggregate / monitor actions
-- chart primitives
+1. Start with `#159` so docs ownership is clear and this file stays
+   operational-only.
+2. Then land `#160` and `#161` to make the public package/demo story and
+   example inventory truthful.
+3. After that, land `#162` and `#163` to improve the public dashboard surface
+   and align shipped docs with shipped exports.
+4. Parallel or follow-on work can then pick up `#153`, `#152`, and `#137`.
 
-But it should make a small number of obvious workflows very easy:
+## Cross-repo context
 
-1. custom metric exploration
-2. competitive benchmarking
-3. PR / run benchmarking
+- `strawgate/benchkit-demo` now has a baseline cleanup PR open as `#16`.
+- Demo PR `#15` should not be merged until it is rebased or recreated on top of
+  that cleaned-up baseline.
+- Demo issue `#4` still tracks the switch from sibling `file:` dependencies to
+  published `benchkit` packages.
 
-The long-term migration targets are:
+## Guardrails
 
-- `beats-bench` for run / PR style benchmarking
-- `memagent` for competitive benchmarking
-
-## Strategic architecture decisions
-
-### 1. Runs and scenarios are the primary UX surfaces
-
-Metrics are the primitive, but top-level UX should be organized around:
-
-- runs / PRs
-- scenarios
-
-not around one monolithic metric-first dashboard.
-
-### 2. Runner diagnostics belong in run detail
-
-Runner / monitor metrics are useful, but not as top-level overview content.
-They should appear in run detail and related diagnostics surfaces.
-
-### 3. OTLP is the canonical raw direction
-
-Benchkit is moving toward:
-
-- OTLP JSON as canonical raw metric storage
-- semantic conventions on top of OTLP
-- view-shaped aggregate artifacts for product surfaces
-
-### 4. No universal benchkit telemetry point model
-
-Do **not** invent a generic benchkit-wide telemetry intermediate that all OTLP
-work must normalize into.
-
-Instead:
-
-- keep OTLP as raw canonical storage
-- provide typed OTLP parsing / traversal helpers
-- provide adapter-specific projections for downstream consumers
-
-Examples:
-
-- compare / summary adapters
-- aggregate artifact builders
-- chart dataset transforms
-
-### 5. Frontend should not perform cross-file joins
-
-The frontend may:
-
-- reshape one already-fetched dataset
-- filter series
-- group or aggregate within one dataset
-
-The frontend should **not**:
-
-- fetch hundreds of raw run files
-- join across many artifacts
-- reconstruct the whole benchmark model in-browser
-
-## What is already shipped on `main`
-
-### Format package
-
-Shipped:
-
-- `compare()`
-- `formatComparisonMarkdown()`
-- parsers for native, Go bench, Rust bench, Hyperfine, benchmark-action, pytest-benchmark
-- native builder helpers: `defineMetric()`, `defineBenchmark()`, `buildNativeResult()`, `stringifyNativeResult()`
-- initial OTLP support: parse / traversal helpers, metric kind detection, temporality detection, and one compatibility projection into benchmark-style results
-
-### Stash action
-
-Shipped:
-
-- `save-data-file`
-- `summary`
-- summary markdown to `GITHUB_STEP_SUMMARY`
-
-### Compare action
-
-Shipped:
-
-- baseline loading from `bench-data`
-- markdown summary output
-- PR comment update behavior
-- optional fail-on-regression
-
-### Aggregate action
-
-Shipped:
-
-- `data/index.json`
-- `data/series/*.json`
-- `data/index/refs.json`
-- `data/index/prs.json`
-- `data/index/metrics.json`
-- `data/views/runs/{run-id}/detail.json`
-- branch-driven aggregate workflow guidance and collision-proof raw run naming
-
-### Monitor action
-
-The current monitor work in this repository is the OTel Collector-based model. It is a single-step action with automatic post cleanup and raw OTLP sidecar storage under `data/telemetry/`.
-
-## Current roadmap / milestones
-
-- `v0.4.0`: `#61`, `#82`, `#83`, `#54`
-- `v0.5.0`: `#79`, `#80`, `#81`, `#7`
-- `v0.6.0`: `#89`, `#90`, `#93`
-
-Already landed from the OTLP milestone:
-
-- `#91` aggregate view artifacts
-- `#92` bench-data push aggregation flow / stash naming guidance
-
-## What prototypes already exist
-
-### Aggregate artifact builders
-
-In `actions/aggregate/src/views.ts` and related tests:
-
-- ref index builder
-- PR index builder
-- metric index builder
-- run detail artifact builder
-
-### Frontend transform prototype
-
-In `packages/chart/src/dataset-transforms.ts`:
-
-- dataset-local filtering
-- exclusion filters
-- group-by-tag
-- `sum`, `avg`, `max`
-- sort-by-latest
-- limiting visible series
-
-Treat this as scaffolding for the bounded frontend transform layer, not as a
-final public product surface.
-
-## What not to do
-
-1. Do not build a giant frontend query system that joins across many files.
-2. Do not invent a universal benchkit telemetry intermediate model.
-3. Do not re-promote runner metrics as top-level overview content.
-4. Do not overfit the product to only Go microbenchmarks.
-5. Do not assume old Copilot PR references are still active without checking GitHub.
-6. Do not forget that action `dist/` bundles are committed artifacts.
+1. Do not duplicate roadmap or shipped-status content in this file.
+2. Do not change committed action `dist/` bundles unless the corresponding
+   action source changed and you rebuilt intentionally.
+3. `packages/dashboard` is a real public Pages surface today, but its exact role
+   is still being clarified in `#160`.
+4. Do not assume old issue references, PR dependency notes, or pre-OTLP monitor
+   behavior are still current without checking the code and GitHub state first.

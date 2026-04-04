@@ -35,6 +35,7 @@ Then read files for the area you will edit:
 ## Onboarding and references
 
 - Docs hub: `docs/README.md`
-- Current internal handoff: `docs/internal/agent-handoff.md`
+- Roadmap and shipped/open status: `docs/vision-and-roadmap.md`
+- Current internal handoff: `docs/internal/agent-handoff.md` (operational only)
 - `CLAUDE.md` is a symlink to this file.
 - `.github/copilot-instructions.md` points to this file.

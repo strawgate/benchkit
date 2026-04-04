@@ -13,6 +13,11 @@ import {
   writeResultFile,
 } from "./stash.js";
 import type { Format } from "@benchkit/format";
+import {
+  computeRetryDelayMs,
+  DEFAULT_PUSH_RETRY_COUNT,
+  sleep,
+} from "./retry.js";
 
 async function run(): Promise<void> {
   const resultsPattern = core.getInput("results", { required: true });
@@ -88,7 +93,7 @@ async function run(): Promise<void> {
 
     await exec.exec("git", ["-C", worktree, "add", "."]);
     await exec.exec("git", ["-C", worktree, "commit", "-m", `bench: add run ${runId}`]);
-    await pushWithRetry(worktree, dataBranch, 3);
+    await pushWithRetry(worktree, dataBranch, DEFAULT_PUSH_RETRY_COUNT);
     await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
     filePathOutput = `data/runs/${runId}.json`;
   } else {
@@ -141,11 +146,11 @@ async function pushWithRetry(worktree: string, dataBranch: string, maxRetries: n
       return;
     }
     if (attempt < maxRetries) {
-      core.warning(`Push failed (attempt ${attempt}/${maxRetries}), rebasing and retrying...`);
-      // Random jitter prevents all concurrent jobs from retrying in lock-step,
-      // which would exhaust retries without making progress.
-      const jitterMs = Math.floor(Math.random() * 2500) + 500;
-      await new Promise<void>((resolve) => setTimeout(resolve, jitterMs));
+      const delayMs = computeRetryDelayMs(Math.random());
+      core.warning(
+        `Push failed (attempt ${attempt}/${maxRetries}); waiting ${delayMs}ms before rebasing and retrying...`,
+      );
+      await sleep(delayMs);
       await exec.exec("git", ["-C", worktree, "pull", "--rebase", "origin", dataBranch]);
     } else {
       throw new Error(`Failed to push after ${maxRetries} attempts`);
