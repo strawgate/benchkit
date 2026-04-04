@@ -72,7 +72,7 @@ you **must** supply a custom `run-id` that incorporates the matrix key:
 
 ```yaml
 - name: Stash results
-  uses: strawgate/benchkit/actions/stash@main
+  uses: strawgate/benchkit/actions/stash@main-dist
   with:
     results: bench.txt
     run-id: ${{ github.run_id }}-${{ github.run_attempt }}--${{ matrix.go-version }}
@@ -102,7 +102,7 @@ jobs:
         run: go test -bench=. -benchmem ./... | tee bench.txt
 
       - name: Stash results
-        uses: strawgate/benchkit/actions/stash@main
+        uses: strawgate/benchkit/actions/stash@main-dist
         with:
           results: bench.txt
           format: go
@@ -135,7 +135,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Aggregate
-        uses: strawgate/benchkit/actions/aggregate@main
+        uses: strawgate/benchkit/actions/aggregate@main-dist
         with:
           max-runs: 0   # 0 = keep all runs
 ```
@@ -158,12 +158,12 @@ If your current workflow calls both stash and aggregate in the same job:
 ```yaml
 # Before (combined — no longer recommended)
 - name: Stash results
-  uses: strawgate/benchkit/actions/stash@main
+  uses: strawgate/benchkit/actions/stash@main-dist
   with:
     results: bench.txt
 
 - name: Aggregate
-  uses: strawgate/benchkit/actions/aggregate@main
+  uses: strawgate/benchkit/actions/aggregate@main-dist
 ```
 
 Split it into the two separate workflow files shown above. The stash step

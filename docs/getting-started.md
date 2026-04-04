@@ -17,7 +17,7 @@ Add a benchmark step and a stash step to your workflow:
   run: go test -bench=. -benchmem ./... | tee bench.txt
 
 - name: Stash results
-  uses: strawgate/benchkit/actions/stash@main
+  uses: strawgate/benchkit/actions/stash@main-dist
   with:
     results: bench.txt
     format: auto
@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Aggregate
-        uses: strawgate/benchkit/actions/aggregate@main
+        uses: strawgate/benchkit/actions/aggregate@main-dist
         with:
           max-runs: 0
 ```
@@ -101,7 +101,7 @@ Use `actions/compare` to compare current results to recent baselines and optiona
 ```yaml
 - name: Compare
   if: github.event_name == 'pull_request'
-  uses: strawgate/benchkit/actions/compare@main
+  uses: strawgate/benchkit/actions/compare@main-dist
   with:
     results: bench.txt
     format: auto
@@ -120,7 +120,7 @@ If you want host metrics or custom OTLP metrics, start the monitor once near the
 ```yaml
 - name: Start monitor
   id: monitor
-  uses: strawgate/benchkit/actions/monitor@main
+  uses: strawgate/benchkit/actions/monitor@main-dist
   with:
     scrape-interval: 5s
     metric-sets: cpu,memory,load,process
@@ -139,7 +139,7 @@ To record a one-off workflow metric without wiring up a full OTLP SDK:
 
 ```yaml
 - name: Emit score metric
-  uses: strawgate/benchkit/actions/emit-metric@main
+  uses: strawgate/benchkit/actions/emit-metric@main-dist
   with:
     otlp-http-endpoint: ${{ steps.monitor.outputs.otlp-http-endpoint }}
     name: test_score

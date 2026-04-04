@@ -33,7 +33,7 @@ jobs:
 
       - name: Start monitor
         id: monitor
-        uses: strawgate/benchkit/actions/monitor@main
+        uses: strawgate/benchkit/actions/monitor@main-dist
         with:
           scrape-interval: 5s
           metric-sets: cpu,memory,load,process
@@ -45,7 +45,7 @@ jobs:
           go test -bench=. -benchmem -count=3 ./... | tee bench.txt
 
       - name: Stash benchmark results
-        uses: strawgate/benchkit/actions/stash@main
+        uses: strawgate/benchkit/actions/stash@main-dist
         with:
           results: bench.txt
           format: go
@@ -62,7 +62,7 @@ emit action against the collector endpoint from the monitor step:
 
 ```yaml
 - name: Emit score metric
-  uses: strawgate/benchkit/actions/emit-metric@main
+  uses: strawgate/benchkit/actions/emit-metric@main-dist
   with:
     otlp-http-endpoint: ${{ steps.monitor.outputs.otlp-http-endpoint }}
     name: test_score

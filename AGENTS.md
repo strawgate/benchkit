@@ -20,7 +20,7 @@ Then read files for the area you will edit:
 ## Non-negotiable rules
 
 - Keep this file lean: route to docs, do not duplicate long guidance.
-- Do not change generated action bundles unless source changed and rebuild is intentional.
+- Action `dist/` bundles are NOT committed to the repo. CI builds and pushes them to the `main-dist` branch automatically. Do not run ncc or commit dist/ files.
 - Add or update tests for behavior changes in packages or actions.
 - If changing data structure, update schema files and docs in the same PR.
 - Keep public APIs backward compatible unless explicitly planned otherwise.

@@ -24,7 +24,7 @@ import {
   computeRetryDelayMs,
   DEFAULT_PUSH_RETRY_COUNT,
   sleep,
-} from "./retry.js";
+} from "@benchkit/format";
 
 interface AggregateOutputs {
   runCount: number;

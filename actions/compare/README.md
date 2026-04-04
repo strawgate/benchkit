@@ -34,7 +34,7 @@ jobs:
 
       - name: Compare benchmark results
         id: compare
-        uses: strawgate/benchkit/actions/compare@main
+        uses: strawgate/benchkit/actions/compare@main-dist
         with:
           results: bench.txt
           format: go
