@@ -14,12 +14,12 @@ import {
   writeResultFile,
 } from "./stash.js";
 import type { Format } from "@benchkit/format";
-import { DEFAULT_DATA_BRANCH } from "@benchkit/format";
 import {
   computeRetryDelayMs,
+  DEFAULT_DATA_BRANCH,
   DEFAULT_PUSH_RETRY_COUNT,
   sleep,
-} from "./retry.js";
+} from "@benchkit/format";
 
 async function run(): Promise<void> {
   const resultsPattern = core.getInput("results", { required: true });

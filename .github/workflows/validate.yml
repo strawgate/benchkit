@@ -24,11 +24,3 @@ jobs:
 
       - name: Lint workspaces
         run: npm run lint
-
-      - name: Verify action bundles are up-to-date
-        run: |
-          if [[ -n "$(git status --porcelain actions/*/dist/)" ]]; then
-            echo "::error::Action dist/ bundles are out of date. Run 'npm run build' and commit."
-            git diff --stat actions/*/dist/
-            exit 1
-          fi

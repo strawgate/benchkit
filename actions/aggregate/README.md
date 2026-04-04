@@ -32,7 +32,7 @@ jobs:
 
       - name: Aggregate benchmark results
         id: aggregate
-        uses: strawgate/benchkit/actions/aggregate@main
+        uses: strawgate/benchkit/actions/aggregate@main-dist
         with:
           max-runs: 100
 ```

@@ -10,10 +10,10 @@ SDK inside benchmark code.
 ```yaml
 - name: Start monitor
   id: monitor
-  uses: strawgate/benchkit/actions/monitor@main
+  uses: strawgate/benchkit/actions/monitor@main-dist
 
 - name: Emit score metric
-  uses: strawgate/benchkit/actions/emit-metric@main
+  uses: strawgate/benchkit/actions/emit-metric@main-dist
   with:
     otlp-http-endpoint: ${{ steps.monitor.outputs.otlp-http-endpoint }}
     name: test_score
