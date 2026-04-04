@@ -258,6 +258,67 @@ import { RunTable } from "@benchkit/chart";
 
 ---
 
+### `RunDetail`
+
+Renders a deep-dive view of a single benchmark run, including metadata, metric snapshots partitioned into user and monitor metrics, and optional comparison results. Can fetch data on demand or accept a preloaded detail object.
+
+```tsx
+import "@benchkit/chart/css";
+import { RunDetail } from "@benchkit/chart";
+
+<RunDetail
+  source={{ owner: "your-org", repo: "your-repo" }}
+  runId="123456789-1"
+  commitHref={(sha) => `https://github.com/your-org/your-repo/commit/${sha}`}
+  metricLabelFormatter={(m) => m.replace(/_/g, " ")}
+/>
+```
+
+#### `RunDetailProps`
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `detail` | `RunDetailView` | — | Preloaded run detail. When provided, `source` and `runId` are ignored. |
+| `source` | `DataSource` | — | **Required when `detail` is not set.** Data source for on-demand fetching. |
+| `runId` | `string` | — | **Required when `detail` is not set.** Run ID to fetch. |
+| `comparison` | `ComparisonResult \| null` | — | Optional comparison result to show a verdict banner + comparison table. |
+| `currentLabel` | `string` | — | Label for the current run in comparison context. |
+| `baselineLabel` | `string` | — | Label for the baseline run in comparison context. |
+| `commitHref` | `(commit: string) => string \| undefined` | — | Builds a URL for a commit hash. |
+| `metricLabelFormatter` | `(metric: string) => string` | `defaultMetricLabel` | Custom metric label renderer. |
+| `class` | `string` | — | CSS class applied to the root element. |
+
+---
+
+### `RunDashboard`
+
+A PR-oriented dashboard that auto-selects the latest run, resolves a baseline from the default branch, and renders run selectors, comparison verdict, and a summary table.
+
+```tsx
+import "@benchkit/chart/css";
+import { RunDashboard } from "@benchkit/chart";
+
+<RunDashboard
+  source={{ owner: "your-org", repo: "your-repo" }}
+  defaultBranch="main"
+  regressionThreshold={5}
+  commitHref={(sha) => `https://github.com/your-org/your-repo/commit/${sha}`}
+/>
+```
+
+#### `RunDashboardProps`
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `source` | `DataSource` | — | **Required.** Where to fetch data from. |
+| `defaultBranch` | `string` | `"main"` | Branch used for baseline resolution. |
+| `regressionThreshold` | `number` | `5` | Percentage change threshold for regressions. |
+| `commitHref` | `(commit: string) => string \| undefined` | — | Link builder for commit hashes. |
+| `metricLabelFormatter` | `(metric: string) => string` | — | Custom metric label renderer. |
+| `class` | `string` | — | CSS class applied to the root element. |
+
+---
+
 ## Formatting and label helpers
 
 The package root intentionally exports a small set of reusable formatting and
@@ -458,6 +519,8 @@ const filtered = filterSeriesFile(seriesFile, { arch: "arm64" });
 
 ## Usage patterns
 
+> **Note:** The functions below (`CompetitiveDashboard`, `EvolutionDashboard`) are **illustrative usage patterns**, not exported components. They show how to compose the exported primitives for common scenarios. See [issue #83](https://github.com/strawgate/benchkit/issues/83) for the status of a real `CompetitiveDashboard` component.
+
 ### Competitive benchmarking
 
 Use this pattern when you want to compare multiple implementations (series) for the same metric. `Leaderboard` and `ComparisonBar` are the primary components here.
@@ -466,6 +529,7 @@ Use this pattern when you want to compare multiple implementations (series) for 
 import { TrendChart, ComparisonBar, Leaderboard, TagFilter, filterSeriesFile } from "@benchkit/chart";
 import { useState } from "preact/hooks";
 
+// Example pattern — not an exported component
 function CompetitiveDashboard({ seriesMap }: { seriesMap: Map<string, SeriesFile> }) {
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
 
@@ -507,6 +571,7 @@ Use this pattern when you have a single implementation and want to track how it 
 ```tsx
 import { TrendChart, detectRegressions, regressionTooltip } from "@benchkit/chart";
 
+// Example pattern — not an exported component
 function EvolutionDashboard({ seriesMap }: { seriesMap: Map<string, SeriesFile> }) {
   return (
     <>
