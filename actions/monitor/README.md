@@ -10,6 +10,8 @@ stops and flushes telemetry automatically in the action post step.
 - collects host metrics through the collector's `hostmetrics` receiver
 - enables OTLP gRPC (`4317`) and HTTP (`4318`) receivers by default so your
   benchmark code can emit custom metrics to the same collector
+- waits for the OTLP HTTP receiver to answer before returning so the next step
+  can emit metrics immediately
 - works with `actions/emit-metric` for simple one-off workflow metrics without a
   full OTLP SDK
 - writes a raw OTLP JSONL sidecar (gzipped) to the data branch at

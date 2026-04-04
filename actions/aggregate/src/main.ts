@@ -17,6 +17,7 @@ import {
   buildRunDetail,
   buildMetricSummaryViews,
 } from "./views.js";
+import { getFetchFailureMessage } from "./git-fetch.js";
 
 async function run(): Promise<void> {
   const dataBranch = core.getInput("data-branch") || "bench-data";
@@ -30,11 +31,19 @@ async function run(): Promise<void> {
 
   // Fetch data branch
   const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
+  let fetchStderr = "";
   const fetchCode = await exec.exec(
     "git", ["fetch", "origin", `${dataBranch}:${dataBranch}`],
-    { ignoreReturnCode: true },
+    {
+      ignoreReturnCode: true,
+      listeners: { stderr: (data: Buffer) => { fetchStderr += data.toString(); } },
+    },
   );
   if (fetchCode !== 0) {
+    const fetchFailureMessage = getFetchFailureMessage(dataBranch, fetchStderr);
+    if (fetchFailureMessage) {
+      throw new Error(fetchFailureMessage);
+    }
     core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
     core.setOutput("run-count", "0");
     core.setOutput("metrics", "");

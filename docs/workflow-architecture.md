@@ -123,6 +123,7 @@ on:
     paths:
       - 'data/runs/**'   # only raw-run writes trigger aggregation
                           # derived-file pushes are ignored
+  workflow_dispatch:      # allow manual triggering as a fallback
 
 permissions:
   contents: write   # push derived files back to bench-data
@@ -142,6 +143,11 @@ jobs:
 The `paths` filter is the key to preventing an infinite loop: aggregate writes
 `data/index.json` and `data/series/**`, neither of which matches
 `data/runs/**`, so those commits do not retrigger this workflow.
+
+> **Note**: The `push` trigger only fires when `bench-data` is updated by a token with
+> sufficient scope (PAT or GitHub App token). Pushes from the default `GITHUB_TOKEN` — used
+> by `actions/stash` — do not trigger other workflows. See the getting-started guide for
+> the explicit dispatch workaround.
 
 ---
 

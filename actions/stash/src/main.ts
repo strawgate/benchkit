@@ -8,6 +8,7 @@ import {
   buildRunId,
   createTempResultPath,
   formatResultSummaryMarkdown,
+  getEmptyBenchmarksWarning,
   parseBenchmarkFiles,
   readMonitorOutput,
   writeResultFile,
@@ -42,6 +43,10 @@ async function run(): Promise<void> {
   }
   core.info(`Found ${files.length} result file(s)`);
   const benchmarks = parseBenchmarkFiles(files, format);
+  const emptyBenchmarksWarning = getEmptyBenchmarksWarning(benchmarks);
+  if (emptyBenchmarksWarning) {
+    core.warning(emptyBenchmarksWarning);
+  }
 
   // Merge monitor output if provided
   const monitorResult = monitorPath ? readMonitorOutput(monitorPath) : undefined;

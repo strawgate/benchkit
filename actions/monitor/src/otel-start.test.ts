@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { platformArch, downloadUrl, resolveRunId, validatePort } from "./otel-start.js";
+import * as http from "node:http";
+import { platformArch, downloadUrl, resolveRunId, validatePort, waitForOtlpHttpReady } from "./otel-start.js";
 
 // ── platformArch ────────────────────────────────────────────────────
 
@@ -177,5 +178,27 @@ describe("validatePort", () => {
       () => validatePort("otlp-http-port", "-1"),
       /Invalid port number for otlp-http-port: -1 is out of range/,
     );
+  });
+});
+
+describe("waitForOtlpHttpReady", () => {
+  it("returns true once an HTTP endpoint responds", async () => {
+    const server = http.createServer((_req, res) => {
+      res.statusCode = 404;
+      res.end("ready");
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+
+    try {
+      assert.equal(await waitForOtlpHttpReady(address.port, 500, 10), true);
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((err) => err ? reject(err) : resolve()));
+    }
+  });
+
+  it("returns false when the endpoint never becomes ready", async () => {
+    assert.equal(await waitForOtlpHttpReady(9, 50, 10), false);
   });
 });
