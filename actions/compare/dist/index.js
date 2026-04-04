@@ -64618,15 +64618,7 @@ function isValidRunKind(value) {
 }
 /** Validates and returns a `RunKind`, or throws. */
 function validateRunKind(value) {
-    if (!value) {
-        throw new Error(`Missing required attribute '${otlp_conventions_js_1.ATTR_KIND}'. ` +
-            `Expected one of: ${otlp_conventions_js_1.VALID_RUN_KINDS.join(", ")}.`);
-    }
-    if (!isValidRunKind(value)) {
-        throw new Error(`Invalid '${otlp_conventions_js_1.ATTR_KIND}' value '${value}'. ` +
-            `Expected one of: ${otlp_conventions_js_1.VALID_RUN_KINDS.join(", ")}.`);
-    }
-    return value;
+    return validateAttribute(value, otlp_conventions_js_1.ATTR_KIND, otlp_conventions_js_1.VALID_RUN_KINDS);
 }
 /** Returns true if `value` is a valid `benchkit.metric.direction`. */
 function isValidDirection(value) {
@@ -64634,15 +64626,7 @@ function isValidDirection(value) {
 }
 /** Validates and returns a `Direction`, or throws. */
 function validateDirection(value) {
-    if (!value) {
-        throw new Error(`Missing required attribute '${otlp_conventions_js_1.ATTR_METRIC_DIRECTION}'. ` +
-            `Expected one of: ${otlp_conventions_js_1.VALID_DIRECTIONS.join(", ")}.`);
-    }
-    if (!isValidDirection(value)) {
-        throw new Error(`Invalid '${otlp_conventions_js_1.ATTR_METRIC_DIRECTION}' value '${value}'. ` +
-            `Expected one of: ${otlp_conventions_js_1.VALID_DIRECTIONS.join(", ")}.`);
-    }
-    return value;
+    return validateAttribute(value, otlp_conventions_js_1.ATTR_METRIC_DIRECTION, otlp_conventions_js_1.VALID_DIRECTIONS);
 }
 /** Returns true if `value` is a valid `benchkit.metric.role`. */
 function isValidMetricRole(value) {
@@ -64650,15 +64634,7 @@ function isValidMetricRole(value) {
 }
 /** Validates and returns a `MetricRole`, or throws. */
 function validateMetricRole(value) {
-    if (!value) {
-        throw new Error(`Missing required attribute '${otlp_conventions_js_1.ATTR_METRIC_ROLE}'. ` +
-            `Expected one of: ${otlp_conventions_js_1.VALID_METRIC_ROLES.join(", ")}.`);
-    }
-    if (!isValidMetricRole(value)) {
-        throw new Error(`Invalid '${otlp_conventions_js_1.ATTR_METRIC_ROLE}' value '${value}'. ` +
-            `Expected one of: ${otlp_conventions_js_1.VALID_METRIC_ROLES.join(", ")}.`);
-    }
-    return value;
+    return validateAttribute(value, otlp_conventions_js_1.ATTR_METRIC_ROLE, otlp_conventions_js_1.VALID_METRIC_ROLES);
 }
 /** Returns true if `value` is a valid `benchkit.source_format`. */
 function isValidSourceFormat(value) {
@@ -64666,15 +64642,7 @@ function isValidSourceFormat(value) {
 }
 /** Validates and returns a `SourceFormat`, or throws. */
 function validateSourceFormat(value) {
-    if (!value) {
-        throw new Error(`Missing required attribute '${otlp_conventions_js_1.ATTR_SOURCE_FORMAT}'. ` +
-            `Expected one of: ${otlp_conventions_js_1.VALID_SOURCE_FORMATS.join(", ")}.`);
-    }
-    if (!isValidSourceFormat(value)) {
-        throw new Error(`Invalid '${otlp_conventions_js_1.ATTR_SOURCE_FORMAT}' value '${value}'. ` +
-            `Expected one of: ${otlp_conventions_js_1.VALID_SOURCE_FORMATS.join(", ")}.`);
-    }
-    return value;
+    return validateAttribute(value, otlp_conventions_js_1.ATTR_SOURCE_FORMAT, otlp_conventions_js_1.VALID_SOURCE_FORMATS);
 }
 /** Returns true if the metric name uses the reserved `_monitor.` prefix. */
 function isMonitorMetric(name) {
@@ -64687,6 +64655,17 @@ function requireAttribute(attrs, key) {
     if (!attrs[key]) {
         throw new Error(`Missing required attribute '${key}'.`);
     }
+}
+function validateAttribute(value, attribute, validValues) {
+    if (!value) {
+        throw new Error(`Missing required attribute '${attribute}'. ` +
+            `Expected one of: ${validValues.join(", ")}.`);
+    }
+    if (!validValues.includes(value)) {
+        throw new Error(`Invalid '${attribute}' value '${value}'. ` +
+            `Expected one of: ${validValues.join(", ")}.`);
+    }
+    return value;
 }
 //# sourceMappingURL=otlp-validation.js.map
 
