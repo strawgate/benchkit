@@ -63808,12 +63808,13 @@ function compare(current, baseline, config = DEFAULT_THRESHOLD) {
 /***/ }),
 
 /***/ 1160:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.formatComparisonMarkdown = formatComparisonMarkdown;
+const otlp_conventions_js_1 = __nccwpck_require__(1757);
 const DEFAULT_OPTIONS = {
     currentLabel: "Current",
     baselineLabel: "Baseline",
@@ -63822,7 +63823,7 @@ const DEFAULT_OPTIONS = {
     footerHref: "https://github.com/strawgate/benchkit",
 };
 function isMonitorEntry(entry) {
-    return entry.benchmark.startsWith("_monitor/");
+    return entry.benchmark.startsWith(otlp_conventions_js_1.MONITOR_BENCHMARK_PREFIX);
 }
 function sortEntries(entries) {
     return [...entries].sort((a, b) => {
@@ -63971,8 +63972,8 @@ function formatComparisonMarkdown(result, options = {}) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.isValidRunKind = exports.validateSourceFormat = exports.validateMetricRole = exports.validateDirection = exports.validateRunKind = exports.validateRequiredDatapointAttributes = exports.validateRequiredResourceAttributes = exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlpMetrics = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.unitToMetricName = exports.inferDirection = exports.parse = void 0;
-exports.detailViewToBenchmarkResult = exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.getMetricUnits = exports.getMetricTemporality = exports.extractResourceContext = exports.extractComparisonMetrics = exports.extractScenarioMetrics = exports.extractRunMetrics = exports.isMonitorMetric = exports.isValidSourceFormat = exports.isValidMetricRole = exports.isValidDirection = void 0;
+exports.validateSourceFormat = exports.validateMetricRole = exports.validateDirection = exports.validateRunKind = exports.validateRequiredDatapointAttributes = exports.validateRequiredResourceAttributes = exports.MONITOR_BENCHMARK_PREFIX = exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlpMetrics = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.unitToMetricName = exports.inferDirection = exports.parse = void 0;
+exports.detailViewToBenchmarkResult = exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.getMetricUnits = exports.getMetricTemporality = exports.extractResourceContext = exports.extractComparisonMetrics = exports.extractScenarioMetrics = exports.extractRunMetrics = exports.isMonitorMetric = exports.isValidSourceFormat = exports.isValidMetricRole = exports.isValidDirection = exports.isValidRunKind = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
@@ -64038,6 +64039,7 @@ Object.defineProperty(exports, "VALID_DIRECTIONS", ({ enumerable: true, get: fun
 Object.defineProperty(exports, "VALID_METRIC_ROLES", ({ enumerable: true, get: function () { return otlp_conventions_js_1.VALID_METRIC_ROLES; } }));
 Object.defineProperty(exports, "VALID_SOURCE_FORMATS", ({ enumerable: true, get: function () { return otlp_conventions_js_1.VALID_SOURCE_FORMATS; } }));
 Object.defineProperty(exports, "MONITOR_METRIC_PREFIX", ({ enumerable: true, get: function () { return otlp_conventions_js_1.MONITOR_METRIC_PREFIX; } }));
+Object.defineProperty(exports, "MONITOR_BENCHMARK_PREFIX", ({ enumerable: true, get: function () { return otlp_conventions_js_1.MONITOR_BENCHMARK_PREFIX; } }));
 /** Runtime validators for the benchkit OTLP semantic contract. */
 var otlp_validation_js_1 = __nccwpck_require__(8442);
 Object.defineProperty(exports, "validateRequiredResourceAttributes", ({ enumerable: true, get: function () { return otlp_validation_js_1.validateRequiredResourceAttributes; } }));
@@ -64222,7 +64224,7 @@ function stringifyNativeResult(resultOrInit, indent = 2) {
  * rather than hard-coding attribute strings.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = void 0;
+exports.MONITOR_BENCHMARK_PREFIX = exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = void 0;
 // ---------------------------------------------------------------------------
 // Resource attributes (run-level metadata on every ResourceMetrics)
 // ---------------------------------------------------------------------------
@@ -64315,10 +64317,18 @@ exports.VALID_SOURCE_FORMATS = [
 // Metric naming conventions
 // ---------------------------------------------------------------------------
 /**
- * Prefix reserved for infrastructure / diagnostic metrics emitted by the
- * benchkit monitor action (e.g. `_monitor.cpu_user_pct`).
+ * OTLP wire-format prefix for infrastructure / diagnostic metrics emitted
+ * by the benchkit monitor action (e.g. `_monitor.cpu_user_pct`).
+ *
+ * During OTLP → native conversion this prefix is stripped from metric names
+ * and the benchmark is placed under {@link MONITOR_BENCHMARK_PREFIX}.
  */
 exports.MONITOR_METRIC_PREFIX = "_monitor.";
+/**
+ * Native-format prefix for monitor benchmark and metric names
+ * (e.g. benchmark `_monitor/diagnostic`, resolved metric `_monitor/cpu_user_pct`).
+ */
+exports.MONITOR_BENCHMARK_PREFIX = "_monitor/";
 //# sourceMappingURL=otlp-conventions.js.map
 
 /***/ }),
@@ -64343,7 +64353,6 @@ exports.extractResourceContext = extractResourceContext;
 exports.getMetricTemporality = getMetricTemporality;
 exports.getMetricUnits = getMetricUnits;
 const otlp_conventions_js_1 = __nccwpck_require__(1757);
-const otlp_validation_js_1 = __nccwpck_require__(8442);
 const parse_otlp_js_1 = __nccwpck_require__(3158);
 // ---------------------------------------------------------------------------
 // Run-level projection
@@ -64501,7 +64510,7 @@ function filterDocumentForComparison(doc, excludeMonitor) {
                 metrics: (sm.metrics ?? [])
                     .filter((metric) => {
                     // Exclude _monitor.* metrics if requested
-                    if (excludeMonitor && (0, otlp_validation_js_1.isMonitorMetric)(metric.name))
+                    if (excludeMonitor && metric.name.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX))
                         return false;
                     return true;
                 })
@@ -64605,7 +64614,7 @@ function validateRequiredResourceAttributes(attrs) {
  * to `"diagnostic"` scenario.
  */
 function validateRequiredDatapointAttributes(attrs, metricName) {
-    if (isMonitorMetric(metricName)) {
+    if (metricName.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX)) {
         requireAttribute(attrs, otlp_conventions_js_1.ATTR_SERIES);
         return;
     }
@@ -64679,9 +64688,14 @@ function validateSourceFormat(value) {
     }
     return value;
 }
-/** Returns true if the metric name uses the reserved `_monitor.` prefix. */
+/**
+ * Returns true if the name uses the `_monitor/` prefix (native format).
+ *
+ * Works for both benchmark names (`_monitor/diagnostic`) and resolved
+ * metric names (`_monitor/cpu_user_pct`).
+ */
 function isMonitorMetric(name) {
-    return name.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX);
+    return name.startsWith(otlp_conventions_js_1.MONITOR_BENCHMARK_PREFIX);
 }
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -65123,10 +65137,17 @@ function resolveDirection(metricName, unit, pointAttributes) {
     return (0, infer_direction_js_1.inferDirection)(unit ?? metricName);
 }
 function projectGaugeLikeMetric(groups, metric, points, _resourceAttributes) {
+    const isMonitor = metric.name.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX);
+    const nativeMetricName = isMonitor
+        ? metric.name.slice(otlp_conventions_js_1.MONITOR_METRIC_PREFIX.length)
+        : metric.name;
     for (const point of points ?? []) {
         const pointAttributes = otlpAttributesToRecord(point.attributes);
-        const benchmarkName = pointAttributes[otlp_conventions_js_1.ATTR_SCENARIO]
-            || (metric.name.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
+        const rawScenario = pointAttributes[otlp_conventions_js_1.ATTR_SCENARIO]
+            || (isMonitor ? "diagnostic" : "");
+        const benchmarkName = isMonitor
+            ? `${otlp_conventions_js_1.MONITOR_BENCHMARK_PREFIX}${rawScenario}`
+            : rawScenario;
         if (!benchmarkName) {
             throw new Error(`Missing required datapoint attribute '${otlp_conventions_js_1.ATTR_SCENARIO}' for OTLP metric '${metric.name}'.`);
         }
@@ -65147,12 +65168,12 @@ function projectGaugeLikeMetric(groups, metric, points, _resourceAttributes) {
             unit: metric.unit,
             direction,
         };
-        upsertMetric(group, metric.name, metricRecord, timestampMillis);
+        upsertMetric(group, nativeMetricName, metricRecord, timestampMillis);
         if (timestampMillis !== undefined) {
             if (group.sampleBaselineMillis === undefined || timestampMillis < group.sampleBaselineMillis) {
                 group.sampleBaselineMillis = timestampMillis;
             }
-            pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, metric.name, metricValue);
+            pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, nativeMetricName, metricValue);
         }
         else if (timestampIso === undefined) {
             // no-op, metric still captured as latest snapshot
@@ -65160,10 +65181,17 @@ function projectGaugeLikeMetric(groups, metric, points, _resourceAttributes) {
     }
 }
 function projectHistogramMetric(groups, metric, points, _resourceAttributes) {
+    const isMonitor = metric.name.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX);
+    const nativeMetricName = isMonitor
+        ? metric.name.slice(otlp_conventions_js_1.MONITOR_METRIC_PREFIX.length)
+        : metric.name;
     for (const point of points ?? []) {
         const pointAttributes = otlpAttributesToRecord(point.attributes);
-        const benchmarkName = pointAttributes[otlp_conventions_js_1.ATTR_SCENARIO]
-            || (metric.name.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
+        const rawScenario = pointAttributes[otlp_conventions_js_1.ATTR_SCENARIO]
+            || (isMonitor ? "diagnostic" : "");
+        const benchmarkName = isMonitor
+            ? `${otlp_conventions_js_1.MONITOR_BENCHMARK_PREFIX}${rawScenario}`
+            : rawScenario;
         if (!benchmarkName) {
             throw new Error(`Missing required datapoint attribute '${otlp_conventions_js_1.ATTR_SCENARIO}' for OTLP histogram '${metric.name}'.`);
         }
@@ -65180,14 +65208,14 @@ function projectHistogramMetric(groups, metric, points, _resourceAttributes) {
         const count = point.count !== undefined ? Number(point.count) : undefined;
         const sum = point.sum;
         if (count !== undefined) {
-            upsertMetric(group, `${metric.name}.count`, {
+            upsertMetric(group, `${nativeMetricName}.count`, {
                 value: count,
                 unit: "count",
                 direction: "bigger_is_better",
             }, timestampMillis);
         }
         if (typeof sum === "number") {
-            upsertMetric(group, `${metric.name}.sum`, {
+            upsertMetric(group, `${nativeMetricName}.sum`, {
                 value: sum,
                 unit: metric.unit,
                 direction,
@@ -65198,10 +65226,10 @@ function projectHistogramMetric(groups, metric, points, _resourceAttributes) {
                 group.sampleBaselineMillis = timestampMillis;
             }
             if (count !== undefined) {
-                pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, `${metric.name}.count`, count);
+                pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, `${nativeMetricName}.count`, count);
             }
             if (typeof sum === "number") {
-                pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, `${metric.name}.sum`, sum);
+                pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, `${nativeMetricName}.sum`, sum);
             }
         }
     }

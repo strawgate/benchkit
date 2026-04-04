@@ -127,7 +127,7 @@ describe("extractRunMetrics", () => {
     const names = result.benchmarks.map((b) => b.name);
     assert.ok(names.includes("json-ingest"));
     assert.ok(names.includes("tcp-syslog"));
-    assert.ok(names.includes("diagnostic"));
+    assert.ok(names.includes("_monitor/diagnostic"));
   });
 
   it("includes context from resource attributes", () => {
@@ -171,6 +171,7 @@ describe("extractScenarioMetrics", () => {
     assert.ok(names.includes("json-ingest"));
     assert.ok(!names.includes("tcp-syslog"));
     assert.ok(!names.includes("diagnostic"));
+    assert.ok(!names.includes("_monitor/diagnostic"));
   });
 
   it("returns empty benchmarks for non-existent scenario", () => {
@@ -197,10 +198,10 @@ describe("extractScenarioMetrics", () => {
   it("includes monitor metrics when filtering by 'diagnostic' scenario", () => {
     const result = extractScenarioMetrics(makeDocument(), "diagnostic");
     const names = result.benchmarks.map((b) => b.name);
-    assert.ok(names.includes("diagnostic"));
-    const diag = result.benchmarks.find((b) => b.name === "diagnostic");
+    assert.ok(names.includes("_monitor/diagnostic"));
+    const diag = result.benchmarks.find((b) => b.name === "_monitor/diagnostic");
     assert.ok(diag);
-    assert.ok("_monitor.cpu_user_pct" in diag.metrics);
+    assert.ok("cpu_user_pct" in diag.metrics);
   });
 
   it("treats monitor datapoints without benchkit.scenario as diagnostic", () => {
@@ -224,9 +225,9 @@ describe("extractScenarioMetrics", () => {
       ],
     });
     const result = extractScenarioMetrics(doc, "diagnostic");
-    const diag = result.benchmarks.find((b) => b.name === "diagnostic");
+    const diag = result.benchmarks.find((b) => b.name === "_monitor/diagnostic");
     assert.ok(diag);
-    assert.ok("_monitor.mem_rss_mb" in diag.metrics);
+    assert.ok("mem_rss_mb" in diag.metrics);
   });
 });
 
@@ -241,12 +242,14 @@ describe("extractComparisonMetrics", () => {
       Object.keys(b.metrics),
     );
     assert.ok(!allMetricNames.some((n) => n.startsWith("_monitor.")));
+    assert.ok(!allMetricNames.some((n) => n.startsWith("_monitor/")));
   });
 
   it("excludes diagnostic-role datapoints", () => {
     const result = extractComparisonMetrics(makeDocument());
     const names = result.benchmarks.map((b) => b.name);
     assert.ok(!names.includes("diagnostic"));
+    assert.ok(!names.includes("_monitor/diagnostic"));
   });
 
   it("keeps outcome metrics", () => {
@@ -260,7 +263,7 @@ describe("extractComparisonMetrics", () => {
   it("includes monitor metrics when excludeMonitor is false", () => {
     const result = extractComparisonMetrics(makeDocument(), false);
     const names = result.benchmarks.map((b) => b.name);
-    assert.ok(names.includes("diagnostic"));
+    assert.ok(names.includes("_monitor/diagnostic"));
   });
 });
 

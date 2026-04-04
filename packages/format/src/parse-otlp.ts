@@ -10,6 +10,7 @@ import {
   ATTR_SERIES,
   ATTR_SERVICE_NAME,
   ATTR_SOURCE_FORMAT,
+  MONITOR_BENCHMARK_PREFIX,
   MONITOR_METRIC_PREFIX,
   RESERVED_DATAPOINT_ATTRIBUTES,
 } from "./otlp-conventions.js";
@@ -234,10 +235,18 @@ function projectGaugeLikeMetric(
   points: OtlpGaugeDataPoint[] | undefined,
   _resourceAttributes: Record<string, string>,
 ): void {
+  const isMonitor = metric.name.startsWith(MONITOR_METRIC_PREFIX);
+  const nativeMetricName = isMonitor
+    ? metric.name.slice(MONITOR_METRIC_PREFIX.length)
+    : metric.name;
+
   for (const point of points ?? []) {
     const pointAttributes = otlpAttributesToRecord(point.attributes);
-    const benchmarkName = pointAttributes[ATTR_SCENARIO]
-      || (metric.name.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
+    const rawScenario = pointAttributes[ATTR_SCENARIO]
+      || (isMonitor ? "diagnostic" : "");
+    const benchmarkName = isMonitor
+      ? `${MONITOR_BENCHMARK_PREFIX}${rawScenario}`
+      : rawScenario;
     if (!benchmarkName) {
       throw new Error(`Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP metric '${metric.name}'.`);
     }
@@ -261,7 +270,7 @@ function projectGaugeLikeMetric(
       direction,
     };
 
-    upsertMetric(group, metric.name, metricRecord, timestampMillis);
+    upsertMetric(group, nativeMetricName, metricRecord, timestampMillis);
     if (timestampMillis !== undefined) {
       if (group.sampleBaselineMillis === undefined || timestampMillis < group.sampleBaselineMillis) {
         group.sampleBaselineMillis = timestampMillis;
@@ -270,7 +279,7 @@ function projectGaugeLikeMetric(
         group.samplesByMillis,
         timestampMillis,
         group.sampleBaselineMillis,
-        metric.name,
+        nativeMetricName,
         metricValue,
       );
     } else if (timestampIso === undefined) {
@@ -285,10 +294,18 @@ function projectHistogramMetric(
   points: OtlpHistogramDataPoint[] | undefined,
   _resourceAttributes: Record<string, string>,
 ): void {
+  const isMonitor = metric.name.startsWith(MONITOR_METRIC_PREFIX);
+  const nativeMetricName = isMonitor
+    ? metric.name.slice(MONITOR_METRIC_PREFIX.length)
+    : metric.name;
+
   for (const point of points ?? []) {
     const pointAttributes = otlpAttributesToRecord(point.attributes);
-    const benchmarkName = pointAttributes[ATTR_SCENARIO]
-      || (metric.name.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
+    const rawScenario = pointAttributes[ATTR_SCENARIO]
+      || (isMonitor ? "diagnostic" : "");
+    const benchmarkName = isMonitor
+      ? `${MONITOR_BENCHMARK_PREFIX}${rawScenario}`
+      : rawScenario;
     if (!benchmarkName) {
       throw new Error(`Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP histogram '${metric.name}'.`);
     }
@@ -308,14 +325,14 @@ function projectHistogramMetric(
     const sum = point.sum;
 
     if (count !== undefined) {
-      upsertMetric(group, `${metric.name}.count`, {
+      upsertMetric(group, `${nativeMetricName}.count`, {
         value: count,
         unit: "count",
         direction: "bigger_is_better",
       }, timestampMillis);
     }
     if (typeof sum === "number") {
-      upsertMetric(group, `${metric.name}.sum`, {
+      upsertMetric(group, `${nativeMetricName}.sum`, {
         value: sum,
         unit: metric.unit,
         direction,
@@ -327,10 +344,10 @@ function projectHistogramMetric(
         group.sampleBaselineMillis = timestampMillis;
       }
       if (count !== undefined) {
-        pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, `${metric.name}.count`, count);
+        pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, `${nativeMetricName}.count`, count);
       }
       if (typeof sum === "number") {
-        pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, `${metric.name}.sum`, sum);
+        pushSample(group.samplesByMillis, timestampMillis, group.sampleBaselineMillis, `${nativeMetricName}.sum`, sum);
       }
     }
   }

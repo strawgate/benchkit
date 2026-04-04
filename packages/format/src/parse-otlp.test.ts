@@ -155,9 +155,9 @@ describe("projectBenchmarkResultFromOtlp", () => {
     });
     assert.equal(workflowBench?.samples?.length, 2);
 
-    const diagnosticBench = result.benchmarks.find((benchmark) => benchmark.name === "diagnostic");
+    const diagnosticBench = result.benchmarks.find((benchmark) => benchmark.name === "_monitor/diagnostic");
     assert.ok(diagnosticBench);
-    assert.equal(diagnosticBench?.metrics["_monitor.cpu_user_pct"].value, 71.2);
+    assert.equal(diagnosticBench?.metrics["cpu_user_pct"].value, 71.2);
     assert.deepEqual(diagnosticBench?.tags, {
       series: "system",
     });

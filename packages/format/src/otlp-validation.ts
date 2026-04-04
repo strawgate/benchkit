@@ -14,6 +14,7 @@ import {
   ATTR_SCENARIO,
   ATTR_SERIES,
   ATTR_SOURCE_FORMAT,
+  MONITOR_BENCHMARK_PREFIX,
   MONITOR_METRIC_PREFIX,
   VALID_DIRECTIONS,
   VALID_METRIC_ROLES,
@@ -56,7 +57,7 @@ export function validateRequiredDatapointAttributes(
   attrs: Record<string, string>,
   metricName: string,
 ): void {
-  if (isMonitorMetric(metricName)) {
+  if (metricName.startsWith(MONITOR_METRIC_PREFIX)) {
     requireAttribute(attrs, ATTR_SERIES);
     return;
   }
@@ -159,9 +160,14 @@ export function validateSourceFormat(
   return value;
 }
 
-/** Returns true if the metric name uses the reserved `_monitor.` prefix. */
+/**
+ * Returns true if the name uses the `_monitor/` prefix (native format).
+ *
+ * Works for both benchmark names (`_monitor/diagnostic`) and resolved
+ * metric names (`_monitor/cpu_user_pct`).
+ */
 export function isMonitorMetric(name: string): boolean {
-  return name.startsWith(MONITOR_METRIC_PREFIX);
+  return name.startsWith(MONITOR_BENCHMARK_PREFIX);
 }
 
 // ---------------------------------------------------------------------------

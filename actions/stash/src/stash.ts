@@ -4,6 +4,8 @@ import * as path from "node:path";
 import {
   parse,
   parseNative,
+  parseOtlpMetrics,
+  projectBenchmarkResultFromOtlp,
   type Format,
   type BenchmarkResult,
   type Benchmark,
@@ -83,13 +85,22 @@ export function parseBenchmarks(
   return result.benchmarks;
 }
 
-/** Read and parse a monitor output file. */
+/**
+ * Read and parse a monitor output file.
+ *
+ * The monitor action produces OTLP JSONL but callers may also pass native
+ * JSON (e.g. in tests). We try OTLP first and fall back to native format.
+ */
 export function readMonitorOutput(monitorPath: string): BenchmarkResult {
   if (!fs.existsSync(monitorPath)) {
     throw new Error(`Monitor file not found: ${monitorPath}`);
   }
   const content = fs.readFileSync(monitorPath, "utf-8");
-  return parseNative(content);
+  try {
+    return projectBenchmarkResultFromOtlp(parseOtlpMetrics(content));
+  } catch {
+    return parseNative(content);
+  }
 }
 
 /**

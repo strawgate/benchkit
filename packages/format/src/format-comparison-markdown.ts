@@ -1,3 +1,4 @@
+import { MONITOR_BENCHMARK_PREFIX } from "./otlp-conventions.js";
 import type {
   ComparisonEntry,
   ComparisonResult,
@@ -18,7 +19,7 @@ const DEFAULT_OPTIONS: Required<
 };
 
 function isMonitorEntry(entry: ComparisonEntry): boolean {
-  return entry.benchmark.startsWith("_monitor/");
+  return entry.benchmark.startsWith(MONITOR_BENCHMARK_PREFIX);
 }
 
 function sortEntries(entries: ComparisonEntry[]): ComparisonEntry[] {

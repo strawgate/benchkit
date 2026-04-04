@@ -15,7 +15,6 @@ import {
   ATTR_SERVICE_NAME,
   MONITOR_METRIC_PREFIX,
 } from "./otlp-conventions.js";
-import { isMonitorMetric } from "./otlp-validation.js";
 import {
   getOtlpMetricKind,
   getOtlpTemporality,
@@ -219,7 +218,7 @@ function filterDocumentForComparison(
         metrics: (sm.metrics ?? [])
           .filter((metric) => {
             // Exclude _monitor.* metrics if requested
-            if (excludeMonitor && isMonitorMetric(metric.name)) return false;
+            if (excludeMonitor && metric.name.startsWith(MONITOR_METRIC_PREFIX)) return false;
             return true;
           })
           .map((metric) => {

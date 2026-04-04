@@ -124,14 +124,25 @@ Examples:
 ### Monitor and diagnostic naming
 
 Benchkit reserves the `_monitor.` prefix for diagnostic metrics captured by
-benchkit-managed monitoring or telemetry adapters.
+benchkit-managed monitoring or telemetry adapters in OTLP wire format.
 
-Examples:
+During OTLP → native conversion the `_monitor.` prefix is stripped from
+metric names, and the benchmark is placed under the `_monitor/` prefix
+(e.g. OTLP metric `_monitor.cpu_user_pct` → native benchmark
+`_monitor/diagnostic`, metric `cpu_user_pct`). After aggregation the
+resolved metric name becomes `_monitor/cpu_user_pct`.
+
+OTLP wire-format examples:
 
 - `_monitor.cpu_user_pct`
 - `_monitor.cpu_system_pct`
 - `_monitor.wall_clock_ms`
 - `_monitor.peak_rss_kb`
+
+Native-format equivalents (after parsing):
+
+- Benchmark: `_monitor/diagnostic`
+- Metrics: `cpu_user_pct`, `cpu_system_pct`, `wall_clock_ms`, `peak_rss_kb`
 
 This makes it easy for aggregators and dashboards to partition outcome metrics
 from diagnostics without depending only on free-form tags.

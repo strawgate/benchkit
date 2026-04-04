@@ -136,7 +136,16 @@ export type SourceFormat = (typeof VALID_SOURCE_FORMATS)[number];
 // ---------------------------------------------------------------------------
 
 /**
- * Prefix reserved for infrastructure / diagnostic metrics emitted by the
- * benchkit monitor action (e.g. `_monitor.cpu_user_pct`).
+ * OTLP wire-format prefix for infrastructure / diagnostic metrics emitted
+ * by the benchkit monitor action (e.g. `_monitor.cpu_user_pct`).
+ *
+ * During OTLP → native conversion this prefix is stripped from metric names
+ * and the benchmark is placed under {@link MONITOR_BENCHMARK_PREFIX}.
  */
 export const MONITOR_METRIC_PREFIX = "_monitor.";
+
+/**
+ * Native-format prefix for monitor benchmark and metric names
+ * (e.g. benchmark `_monitor/diagnostic`, resolved metric `_monitor/cpu_user_pct`).
+ */
+export const MONITOR_BENCHMARK_PREFIX = "_monitor/";

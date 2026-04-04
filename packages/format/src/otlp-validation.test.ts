@@ -239,14 +239,16 @@ describe("type guards", () => {
 });
 
 describe("isMonitorMetric", () => {
-  it("detects _monitor. prefix", () => {
-    assert.ok(isMonitorMetric("_monitor.cpu_user_pct"));
-    assert.ok(isMonitorMetric("_monitor.peak_rss_kb"));
+  it("detects _monitor/ prefix (native format)", () => {
+    assert.ok(isMonitorMetric("_monitor/cpu_user_pct"));
+    assert.ok(isMonitorMetric("_monitor/diagnostic"));
+    assert.ok(isMonitorMetric("_monitor/system"));
   });
 
-  it("rejects non-monitor metrics", () => {
+  it("rejects non-monitor and OTLP-format names", () => {
     assert.ok(!isMonitorMetric("events_per_sec"));
-    assert.ok(!isMonitorMetric("monitor.cpu"));
+    assert.ok(!isMonitorMetric("_monitor.cpu_user_pct"));
+    assert.ok(!isMonitorMetric("monitor/cpu"));
     assert.ok(!isMonitorMetric(""));
   });
 });
