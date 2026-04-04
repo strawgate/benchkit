@@ -135,10 +135,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+
+      - run: npm ci
 
       - name: Validate schemas on data branch
         run: |
-          npm install ajv ajv-formats ajv-cli
           git fetch origin bench-data
 
           # Extract and validate index.json
