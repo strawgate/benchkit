@@ -346,7 +346,7 @@ function projectHistogramMetric(
  * 3. **Time-series building** — per-group datapoints are sorted by timestamp
  *    and attached as `samples` when more than one datapoint exists.
  *
- * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlpMetrics`).
+ * @param document - A parsed `OtlpMetricsDocument` (e.g. from `parseOtlp`).
  * @returns A `BenchmarkResult` containing all projected benchmarks and context.
  */
 export function projectBenchmarkResultFromOtlp(document: OtlpMetricsDocument): BenchmarkResult {
