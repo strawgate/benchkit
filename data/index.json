@@ -1,6 +1,41 @@
 {
   "runs": [
     {
+      "id": "test-go-23988750800-1",
+      "timestamp": "2026-04-04T22:17:35.512Z",
+      "commit": "a07f7a602c01150805629bc2f19765352d9828f6",
+      "ref": "refs/heads/main",
+      "benchmarks": 3,
+      "metrics": [
+        "allocs_per_op",
+        "bytes_per_op",
+        "ns_per_op"
+      ]
+    },
+    {
+      "id": "test-count-23988750800-1",
+      "timestamp": "2026-04-04T22:17:35.381Z",
+      "commit": "a07f7a602c01150805629bc2f19765352d9828f6",
+      "ref": "refs/heads/main",
+      "benchmarks": 2,
+      "metrics": [
+        "allocs_per_op",
+        "bytes_per_op",
+        "ns_per_op"
+      ]
+    },
+    {
+      "id": "test-native-23988750800-1",
+      "timestamp": "2026-04-04T22:17:34.228Z",
+      "commit": "a07f7a602c01150805629bc2f19765352d9828f6",
+      "ref": "refs/heads/main",
+      "benchmarks": 1,
+      "metrics": [
+        "p99_latency_ms",
+        "requests_per_sec"
+      ]
+    },
+    {
       "id": "test-go-23988741151-1",
       "timestamp": "2026-04-04T22:16:55.928Z",
       "commit": "038a4ac9819890271fce0a2d8f9a25d54b804931",
