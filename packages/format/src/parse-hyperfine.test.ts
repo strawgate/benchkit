@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { parseHyperfine } from "./parse-hyperfine.js";
-import { parse } from "./parse.js";
+import { parseBenchmarks as parse } from "./parse.js";
 
 const HYPERFINE_OUTPUT = JSON.stringify({
   results: [

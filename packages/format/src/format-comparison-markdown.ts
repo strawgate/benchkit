@@ -21,7 +21,7 @@ function isMonitorEntry(entry: ComparisonEntry): boolean {
   return entry.benchmark.startsWith("_monitor/");
 }
 
-function sortEntries(entries: ComparisonEntry[]): ComparisonEntry[] {
+function sortAlphabetically(entries: ComparisonEntry[]): ComparisonEntry[] {
   return [...entries].sort((a, b) => {
     if (a.benchmark !== b.benchmark) return a.benchmark.localeCompare(b.benchmark);
     return a.metric.localeCompare(b.metric);
@@ -83,7 +83,7 @@ function formatTable(entries: ComparisonEntry[], options: Required<Pick<FormatCo
     "| --- | --- | --- | --- | --- | --- |",
   ];
 
-  for (const entry of sortEntries(entries)) {
+  for (const entry of sortAlphabetically(entries)) {
     lines.push(
       `| \`${entry.benchmark}\` | \`${entry.metric}\` | ${formatValue(entry.baseline, entry.unit)} | ${formatValue(entry.current, entry.unit)} | ${formatPercent(entry.percentChange)} | ${statusLabel(entry)} |`,
     );
@@ -122,7 +122,7 @@ export function formatComparisonMarkdown(
 
   const benchmarkEntries = result.entries.filter((entry) => !isMonitorEntry(entry));
   const monitorEntries = result.entries.filter((entry) => isMonitorEntry(entry));
-  const regressions = sortEntries(result.entries.filter((entry) => entry.status === "regressed"));
+  const regressions = sortAlphabetically(result.entries.filter((entry) => entry.status === "regressed"));
 
   if (regressions.length > 0) {
     lines.push("### Regressions");
