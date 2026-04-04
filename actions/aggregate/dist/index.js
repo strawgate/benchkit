@@ -230,6 +230,26 @@ function classifyFetchFailure(dataBranch, stderr) {
 
 /***/ }),
 
+/***/ 2668:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.classifyPushFailure = classifyPushFailure;
+function classifyPushFailure(stderr) {
+    if (stderr.includes("failed to push some refs")
+        && (stderr.includes("non-fast-forward")
+            || stderr.includes("fetch first")
+            || stderr.includes("Updates were rejected because the remote contains work that you do not have locally"))) {
+        return { kind: "non-fast-forward" };
+    }
+    return { kind: "other" };
+}
+//# sourceMappingURL=git-push.js.map
+
+/***/ }),
+
 /***/ 6786:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -277,6 +297,8 @@ const os = __importStar(__nccwpck_require__(8161));
 const aggregate_js_1 = __nccwpck_require__(7756);
 const views_js_1 = __nccwpck_require__(1349);
 const git_fetch_js_1 = __nccwpck_require__(1310);
+const git_push_js_1 = __nccwpck_require__(2668);
+const retry_js_1 = __nccwpck_require__(5049);
 async function run() {
     const dataBranch = core.getInput("data-branch") || "bench-data";
     const token = core.getInput("github-token", { required: true });
@@ -285,68 +307,47 @@ async function run() {
         throw new Error(`max-runs must be between 0 and 10000, got ${maxRuns}`);
     }
     await configureGit(token);
-    // Fetch data branch
-    const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
-    let fetchStderr = "";
-    const fetchCode = await exec.exec("git", ["fetch", "origin", `${dataBranch}:${dataBranch}`], {
-        ignoreReturnCode: true,
-        listeners: { stderr: (data) => { fetchStderr += data.toString(); } },
-    });
-    if (fetchCode !== 0) {
-        const fetchFailure = (0, git_fetch_js_1.classifyFetchFailure)(dataBranch, fetchStderr);
-        if (fetchFailure.kind === "checked-out") {
-            throw new Error(fetchFailure.message);
+    const outputs = await aggregateWithRetry(dataBranch, maxRuns);
+    core.setOutput("run-count", String(outputs.runCount));
+    core.setOutput("metrics", outputs.metrics.join(","));
+}
+async function aggregateWithRetry(dataBranch, maxRuns) {
+    for (let attempt = 1; attempt <= retry_js_1.DEFAULT_PUSH_RETRY_COUNT; attempt++) {
+        const worktree = await checkoutDataBranch(dataBranch);
+        if (!worktree) {
+            return { runCount: 0, metrics: [] };
         }
-        if (fetchFailure.kind === "branch-missing") {
-            core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
-            core.setOutput("run-count", "0");
-            core.setOutput("metrics", "");
-            return;
+        try {
+            const { outputs, hasChanges } = await rebuildAggregates(worktree, maxRuns);
+            if (!hasChanges) {
+                core.info("No changes to commit");
+                return outputs;
+            }
+            await exec.exec("git", [
+                "-C", worktree, "commit", "-m",
+                `bench: rebuild index and series (${outputs.runCount} runs)`,
+            ]);
+            const pushResult = await pushAggregates(worktree, dataBranch);
+            if (!pushResult) {
+                core.info(`Pushed aggregated data to ${dataBranch}`);
+                return outputs;
+            }
+            if (pushResult.failure.kind === "non-fast-forward" && attempt < retry_js_1.DEFAULT_PUSH_RETRY_COUNT) {
+                const delayMs = (0, retry_js_1.computeRetryDelayMs)(Math.random());
+                core.warning(`Aggregate push was rejected by concurrent bench-data updates (attempt ${attempt}/${retry_js_1.DEFAULT_PUSH_RETRY_COUNT}); waiting ${delayMs}ms before refetching and recomputing...`);
+                await (0, retry_js_1.sleep)(delayMs);
+                continue;
+            }
+            throw new Error(`Failed to push aggregated data to '${dataBranch}': ${pushResult.stderr.trim() || "git push failed"}`);
         }
-        throw new Error(`Failed to fetch '${dataBranch}' from origin: ${fetchStderr.trim() || `git fetch exited with code ${fetchCode}`}`);
+        finally {
+            const removeCode = await exec.exec("git", ["worktree", "remove", worktree, "--force"], { ignoreReturnCode: true });
+            if (removeCode !== 0) {
+                core.warning(`Failed to remove worktree '${worktree}'; it may need manual cleanup.`);
+            }
+        }
     }
-    await exec.exec("git", ["worktree", "add", worktree, dataBranch]);
-    // Read run files
-    const runsDir = path.join(worktree, "data", "runs");
-    if (!fs.existsSync(runsDir)) {
-        core.warning("No runs directory found. Nothing to aggregate.");
-        core.setOutput("run-count", "0");
-        core.setOutput("metrics", "");
-        await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
-        return;
-    }
-    const runs = (0, aggregate_js_1.readRuns)(runsDir);
-    core.info(`Found ${runs.length} run file(s)`);
-    // Sort, prune, aggregate
-    (0, aggregate_js_1.sortRuns)(runs);
-    const pruned = (0, aggregate_js_1.pruneRuns)(runs, maxRuns);
-    for (const id of pruned) {
-        fs.unlinkSync(path.join(runsDir, `${id}.json`));
-        core.info(`Pruned old run: ${id}`);
-    }
-    const index = (0, aggregate_js_1.buildIndex)(runs);
-    const allMetrics = index.metrics ?? [];
-    const seriesMap = (0, aggregate_js_1.buildSeries)(runs);
-    // Write output files
-    writeAggregatedFiles(worktree, index, seriesMap, runs);
-    core.info(`Wrote index.json (${index.runs.length} runs, ${allMetrics.length} metrics)`);
-    // Commit and push if changed
-    await exec.exec("git", ["-C", worktree, "add", "."]);
-    const diffCode = await exec.exec("git", ["-C", worktree, "diff", "--cached", "--quiet"], { ignoreReturnCode: true });
-    if (diffCode === 0) {
-        core.info("No changes to commit");
-    }
-    else {
-        await exec.exec("git", [
-            "-C", worktree, "commit", "-m",
-            `bench: rebuild index and series (${runs.length} runs)`,
-        ]);
-        await exec.exec("git", ["-C", worktree, "push", "origin", `HEAD:${dataBranch}`]);
-        core.info(`Pushed aggregated data to ${dataBranch}`);
-    }
-    await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
-    core.setOutput("run-count", String(runs.length));
-    core.setOutput("metrics", allMetrics.join(","));
+    throw new Error(`Failed to push aggregated data to '${dataBranch}' after ${retry_js_1.DEFAULT_PUSH_RETRY_COUNT} attempts`);
 }
 // ── Helpers ─────────────────────────────────────────────────────────
 async function configureGit(token) {
@@ -361,6 +362,67 @@ async function configureGit(token) {
         "http.https://github.com/.extraheader",
         `AUTHORIZATION: basic ${basicAuth}`,
     ]);
+}
+async function checkoutDataBranch(dataBranch) {
+    const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
+    let fetchStderr = "";
+    const fetchCode = await exec.exec("git", ["fetch", "origin", `+${dataBranch}:${dataBranch}`], {
+        ignoreReturnCode: true,
+        listeners: { stderr: (data) => { fetchStderr += data.toString(); } },
+    });
+    if (fetchCode !== 0) {
+        const fetchFailure = (0, git_fetch_js_1.classifyFetchFailure)(dataBranch, fetchStderr);
+        if (fetchFailure.kind === "checked-out") {
+            throw new Error(fetchFailure.message);
+        }
+        if (fetchFailure.kind === "branch-missing") {
+            core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
+            return null;
+        }
+        throw new Error(`Failed to fetch '${dataBranch}' from origin: ${fetchStderr.trim() || `git fetch exited with code ${fetchCode}`}`);
+    }
+    await exec.exec("git", ["worktree", "add", worktree, dataBranch]);
+    return worktree;
+}
+async function rebuildAggregates(worktree, maxRuns) {
+    const runsDir = path.join(worktree, "data", "runs");
+    if (!fs.existsSync(runsDir)) {
+        core.warning("No runs directory found. Nothing to aggregate.");
+        return { outputs: { runCount: 0, metrics: [] }, hasChanges: false };
+    }
+    const runs = (0, aggregate_js_1.readRuns)(runsDir);
+    core.info(`Found ${runs.length} run file(s)`);
+    (0, aggregate_js_1.sortRuns)(runs);
+    const pruned = (0, aggregate_js_1.pruneRuns)(runs, maxRuns);
+    for (const id of pruned) {
+        fs.unlinkSync(path.join(runsDir, `${id}.json`));
+        core.info(`Pruned old run: ${id}`);
+    }
+    const index = (0, aggregate_js_1.buildIndex)(runs);
+    const allMetrics = index.metrics ?? [];
+    const seriesMap = (0, aggregate_js_1.buildSeries)(runs);
+    writeAggregatedFiles(worktree, index, seriesMap, runs);
+    core.info(`Wrote index.json (${index.runs.length} runs, ${allMetrics.length} metrics)`);
+    await exec.exec("git", ["-C", worktree, "add", "."]);
+    const diffCode = await exec.exec("git", ["-C", worktree, "diff", "--cached", "--quiet"], { ignoreReturnCode: true });
+    return {
+        outputs: { runCount: runs.length, metrics: allMetrics },
+        hasChanges: diffCode !== 0,
+    };
+}
+async function pushAggregates(worktree, dataBranch) {
+    let pushStderr = "";
+    const pushCode = await exec.exec("git", ["-C", worktree, "push", "origin", `HEAD:${dataBranch}`], {
+        ignoreReturnCode: true,
+        listeners: { stderr: (data) => { pushStderr += data.toString(); } },
+    });
+    if (pushCode === 0) {
+        return null;
+    }
+    return {
+        failure: (0, git_push_js_1.classifyPushFailure)(pushStderr),
+        stderr: pushStderr,
+    };
 }
 function writeAggregatedFiles(worktree, index, seriesMap, runs) {
     const dataDir = path.join(worktree, "data");
@@ -414,6 +476,31 @@ run().catch((err) => {
     core.setFailed(err instanceof Error ? err.message : String(err));
 });
 //# sourceMappingURL=main.js.map
+
+/***/ }),
+
+/***/ 5049:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.RETRY_DELAY_MAX_MS = exports.RETRY_DELAY_MIN_MS = exports.DEFAULT_PUSH_RETRY_COUNT = void 0;
+exports.computeRetryDelayMs = computeRetryDelayMs;
+exports.sleep = sleep;
+exports.DEFAULT_PUSH_RETRY_COUNT = 5;
+exports.RETRY_DELAY_MIN_MS = 500;
+exports.RETRY_DELAY_MAX_MS = 3000;
+function computeRetryDelayMs(randomValue, minMs = exports.RETRY_DELAY_MIN_MS, maxMs = exports.RETRY_DELAY_MAX_MS) {
+    const normalized = Math.min(1, Math.max(0, randomValue));
+    return Math.round(minMs + normalized * (maxMs - minMs));
+}
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+//# sourceMappingURL=retry.js.map
 
 /***/ }),
 
