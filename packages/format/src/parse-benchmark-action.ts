@@ -11,7 +11,15 @@ import { inferDirection } from "./infer-direction.js";
  */
 
 export function parseBenchmarkAction(input: string): BenchmarkResult {
-  const entries: unknown = JSON.parse(input);
+  let entries: unknown;
+  try {
+    entries = JSON.parse(input);
+  } catch (err) {
+    throw new Error(
+      `[parse-benchmark-action] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    );
+  }
 
   if (!Array.isArray(entries)) {
     throw new Error(

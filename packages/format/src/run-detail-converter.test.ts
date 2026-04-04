@@ -185,14 +185,40 @@ describe("detailViewToBenchmarkResult", () => {
     assert.equal(result.context?.commit, "deadbeef");
     assert.equal(result.context?.ref, "refs/heads/main");
 
-    const jsonBench = result.benchmarks.find((b) => JSON.stringify(b.tags) === JSON.stringify({ scenario: "json-ingest" }));
+    const jsonBench = result.benchmarks.find((b) => b.tags?.scenario === "json-ingest");
     assert.ok(jsonBench);
     assert.equal(jsonBench.metrics["events_per_sec"].value, 13240.5);
     assert.equal(jsonBench.metrics["p95_batch_ms"].value, 143.2);
 
-    const csvBench = result.benchmarks.find((b) => JSON.stringify(b.tags) === JSON.stringify({ scenario: "csv-ingest" }));
+    const csvBench = result.benchmarks.find((b) => b.tags?.scenario === "csv-ingest");
     assert.ok(csvBench);
     assert.equal(csvBench.metrics["events_per_sec"].value, 9800);
     assert.equal(csvBench.metrics["p95_batch_ms"].value, 220.1);
+  });
+
+  it("matches tags regardless of property insertion order", () => {
+    const detail: RunDetailView = {
+      run: { id: "run-8", timestamp: "2026-04-01T00:00:00Z" },
+      metricSnapshots: [
+        {
+          metric: "ns_per_op",
+          unit: "ns/op",
+          direction: "smaller_is_better",
+          values: [{ name: "Bench", value: 100, tags: { a: "1", b: "2" } }],
+        },
+        {
+          metric: "bytes_per_op",
+          unit: "B/op",
+          direction: "smaller_is_better",
+          values: [{ name: "Bench", value: 64, tags: { b: "2", a: "1" } }],
+        },
+      ],
+    };
+
+    const result = detailViewToBenchmarkResult(detail);
+
+    assert.equal(result.benchmarks.length, 1, "tags in different order should still group into one benchmark");
+    assert.ok("ns_per_op" in result.benchmarks[0].metrics);
+    assert.ok("bytes_per_op" in result.benchmarks[0].metrics);
   });
 });

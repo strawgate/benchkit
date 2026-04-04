@@ -4,7 +4,15 @@ import type { BenchmarkResult } from "./types.js";
  * Parse the benchkit native JSON format. Validates structure and returns as-is.
  */
 export function parseNative(input: string): BenchmarkResult {
-  const parsed = JSON.parse(input);
+  let parsed;
+  try {
+    parsed = JSON.parse(input);
+  } catch (err) {
+    throw new Error(
+      `[parse-native] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    );
+  }
 
   if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
     throw new Error(

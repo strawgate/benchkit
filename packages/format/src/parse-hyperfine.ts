@@ -31,7 +31,15 @@ interface HyperfineResult {
 }
 
 export function parseHyperfine(input: string): BenchmarkResult {
-  const parsed = JSON.parse(input);
+  let parsed;
+  try {
+    parsed = JSON.parse(input);
+  } catch (err) {
+    throw new Error(
+      `[parse-hyperfine] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    );
+  }
 
   if (!parsed.results || !Array.isArray(parsed.results)) {
     throw new Error("[parse-hyperfine] Hyperfine format must have a 'results' array.");

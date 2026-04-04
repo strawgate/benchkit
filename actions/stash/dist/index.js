@@ -60625,7 +60625,13 @@ const infer_direction_js_1 = __nccwpck_require__(5083);
  * Direction is inferred from the unit string.
  */
 function parseBenchmarkAction(input) {
-    const entries = JSON.parse(input);
+    let entries;
+    try {
+        entries = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`[parse-benchmark-action] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!Array.isArray(entries)) {
         throw new Error("[parse-benchmark-action] Input must be a JSON array of {name, value, unit} objects.");
     }
@@ -60744,7 +60750,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseHyperfine = parseHyperfine;
 const infer_direction_js_1 = __nccwpck_require__(5083);
 function parseHyperfine(input) {
-    const parsed = JSON.parse(input);
+    let parsed;
+    try {
+        parsed = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`[parse-hyperfine] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!parsed.results || !Array.isArray(parsed.results)) {
         throw new Error("[parse-hyperfine] Hyperfine format must have a 'results' array.");
     }
@@ -60803,7 +60815,13 @@ exports.parseNative = parseNative;
  * Parse the benchkit native JSON format. Validates structure and returns as-is.
  */
 function parseNative(input) {
-    const parsed = JSON.parse(input);
+    let parsed;
+    try {
+        parsed = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`[parse-native] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
         throw new Error("[parse-native] Native format must have a 'benchmarks' array at the top level.");
     }
@@ -61185,7 +61203,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parsePytestBenchmark = parsePytestBenchmark;
 const infer_direction_js_1 = __nccwpck_require__(5083);
 function parsePytestBenchmark(input) {
-    const parsed = JSON.parse(input);
+    let parsed;
+    try {
+        parsed = JSON.parse(input);
+    }
+    catch (err) {
+        throw new Error(`[parse-pytest-benchmark] Failed to parse input as JSON: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     if (!parsed.benchmarks || !Array.isArray(parsed.benchmarks)) {
         throw new Error("[parse-pytest-benchmark] pytest-benchmark format must have a 'benchmarks' array.");
     }
@@ -61448,6 +61472,16 @@ function unitToMetricName(unit) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.detailViewToBenchmarkResult = detailViewToBenchmarkResult;
+function tagsEqual(a, b) {
+    if (a === b)
+        return true;
+    if (!a || !b)
+        return false;
+    const keysA = Object.keys(a);
+    if (keysA.length !== Object.keys(b).length)
+        return false;
+    return keysA.every((k) => a[k] === b[k]);
+}
 /**
  * Convert a `RunDetailView` back into a `BenchmarkResult`.
  *
@@ -61460,7 +61494,7 @@ function detailViewToBenchmarkResult(detail) {
         for (const snapshotMetric of snapshot.values) {
             // Find or create the benchmark entry for this series name
             let bench = benchmarks.find((b) => b.name === snapshotMetric.name &&
-                JSON.stringify(b.tags) === JSON.stringify(snapshotMetric.tags));
+                tagsEqual(b.tags, snapshotMetric.tags));
             if (!bench) {
                 bench = {
                     name: snapshotMetric.name,
