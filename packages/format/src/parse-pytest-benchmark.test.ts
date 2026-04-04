@@ -121,4 +121,10 @@ describe("parsePytestBenchmark", () => {
       { message: /stats/ },
     );
   });
+
+  it("throws contextual error on malformed JSON", () => {
+    assert.throws(() => parsePytestBenchmark("not-json"), {
+      message: /\[parse-pytest-benchmark\] Failed to parse input as JSON/,
+    });
+  });
 });
