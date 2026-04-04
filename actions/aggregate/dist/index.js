@@ -260,8 +260,17 @@ async function run() {
     await configureGit(token);
     // Fetch data branch
     const worktree = path.join(os.tmpdir(), `benchkit-agg-${Date.now()}`);
-    const fetchCode = await exec.exec("git", ["fetch", "origin", `${dataBranch}:${dataBranch}`], { ignoreReturnCode: true });
+    let fetchStderr = "";
+    const fetchCode = await exec.exec("git", ["fetch", "origin", `${dataBranch}:${dataBranch}`], {
+        ignoreReturnCode: true,
+        listeners: { stderr: (data) => { fetchStderr += data.toString(); } },
+    });
     if (fetchCode !== 0) {
+        if (fetchStderr.includes("refusing to fetch into branch") && fetchStderr.includes("checked out")) {
+            throw new Error(`Cannot aggregate: '${dataBranch}' is already checked out at the current working directory. ` +
+                `Remove the 'ref: ${dataBranch}' input from your actions/checkout step — ` +
+                `the aggregate action fetches the data branch into its own worktree.`);
+        }
         core.warning(`Branch '${dataBranch}' does not exist. Nothing to aggregate.`);
         core.setOutput("run-count", "0");
         core.setOutput("metrics", "");

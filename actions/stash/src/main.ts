@@ -134,6 +134,10 @@ async function pushWithRetry(worktree: string, dataBranch: string, maxRetries: n
     }
     if (attempt < maxRetries) {
       core.warning(`Push failed (attempt ${attempt}/${maxRetries}), rebasing and retrying...`);
+      // Random jitter prevents all concurrent jobs from retrying in lock-step,
+      // which would exhaust retries without making progress.
+      const jitterMs = Math.floor(Math.random() * 2500) + 500;
+      await new Promise<void>((resolve) => setTimeout(resolve, jitterMs));
       await exec.exec("git", ["-C", worktree, "pull", "--rebase", "origin", dataBranch]);
     } else {
       throw new Error(`Failed to push after ${maxRetries} attempts`);
