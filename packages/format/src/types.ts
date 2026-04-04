@@ -193,6 +193,7 @@ export interface ComparisonEntry {
 export interface ComparisonResult {
   entries: ComparisonEntry[];
   hasRegression: boolean;
+  warnings?: string[];
 }
 
 export interface FormatComparisonMarkdownOptions {
