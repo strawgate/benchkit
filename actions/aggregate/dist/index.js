@@ -341,7 +341,10 @@ async function aggregateWithRetry(dataBranch, maxRuns) {
             throw new Error(`Failed to push aggregated data to '${dataBranch}': ${pushResult.stderr.trim() || "git push failed"}`);
         }
         finally {
-            await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
+            const removeCode = await exec.exec("git", ["worktree", "remove", worktree, "--force"], { ignoreReturnCode: true });
+            if (removeCode !== 0) {
+                core.warning(`Failed to remove worktree '${worktree}'; it may need manual cleanup.`);
+            }
         }
     }
     throw new Error(`Failed to push aggregated data to '${dataBranch}' after ${retry_js_1.DEFAULT_PUSH_RETRY_COUNT} attempts`);
