@@ -26755,58 +26755,38 @@ function effectiveScenario(metricName, attrs) {
     return attrs[otlp_conventions_js_1.ATTR_SCENARIO]
         || (metricName.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
 }
+/** Filter datapoints across all metric kinds using a single predicate. */
+function filterMetricDataPoints(metric, predicate) {
+    const kind = (0, parse_otlp_js_1.getOtlpMetricKind)(metric);
+    if (kind === "gauge") {
+        return { ...metric, gauge: { ...metric.gauge, dataPoints: (metric.gauge?.dataPoints ?? []).filter(predicate) } };
+    }
+    if (kind === "sum") {
+        return { ...metric, sum: { ...metric.sum, dataPoints: (metric.sum?.dataPoints ?? []).filter(predicate) } };
+    }
+    return { ...metric, histogram: { ...metric.histogram, dataPoints: (metric.histogram?.dataPoints ?? []).filter(predicate) } };
+}
+/** Returns true if the metric has at least one datapoint after filtering. */
+function hasDataPoints(metric) {
+    const kind = (0, parse_otlp_js_1.getOtlpMetricKind)(metric);
+    if (kind === "gauge")
+        return (metric.gauge?.dataPoints?.length ?? 0) > 0;
+    if (kind === "sum")
+        return (metric.sum?.dataPoints?.length ?? 0) > 0;
+    return (metric.histogram?.dataPoints?.length ?? 0) > 0;
+}
 function filterDocumentByScenario(doc, scenario) {
     return {
         resourceMetrics: doc.resourceMetrics.map((rm) => ({
             ...rm,
             scopeMetrics: (rm.scopeMetrics ?? []).map((sm) => ({
                 ...sm,
-                metrics: (sm.metrics ?? []).map((metric) => {
-                    const kind = (0, parse_otlp_js_1.getOtlpMetricKind)(metric);
-                    if (kind === "gauge") {
-                        return {
-                            ...metric,
-                            gauge: {
-                                ...metric.gauge,
-                                dataPoints: (metric.gauge?.dataPoints ?? []).filter((dp) => {
-                                    const attrs = (0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes);
-                                    return effectiveScenario(metric.name, attrs) === scenario;
-                                }),
-                            },
-                        };
-                    }
-                    if (kind === "sum") {
-                        return {
-                            ...metric,
-                            sum: {
-                                ...metric.sum,
-                                dataPoints: (metric.sum?.dataPoints ?? []).filter((dp) => {
-                                    const attrs = (0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes);
-                                    return effectiveScenario(metric.name, attrs) === scenario;
-                                }),
-                            },
-                        };
-                    }
-                    // histogram
-                    return {
-                        ...metric,
-                        histogram: {
-                            ...metric.histogram,
-                            dataPoints: (metric.histogram?.dataPoints ?? []).filter((dp) => {
-                                const attrs = (0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes);
-                                return effectiveScenario(metric.name, attrs) === scenario;
-                            }),
-                        },
-                    };
-                }).filter((metric) => {
-                    // Remove metrics that have zero datapoints after filtering
-                    const kind = (0, parse_otlp_js_1.getOtlpMetricKind)(metric);
-                    if (kind === "gauge")
-                        return (metric.gauge?.dataPoints?.length ?? 0) > 0;
-                    if (kind === "sum")
-                        return (metric.sum?.dataPoints?.length ?? 0) > 0;
-                    return (metric.histogram?.dataPoints?.length ?? 0) > 0;
-                }),
+                metrics: (sm.metrics ?? [])
+                    .map((metric) => filterMetricDataPoints(metric, (dp) => {
+                    const attrs = (0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes);
+                    return effectiveScenario(metric.name, attrs) === scenario;
+                }))
+                    .filter(hasDataPoints),
             })),
         })),
     };
@@ -26819,7 +26799,6 @@ function filterDocumentForComparison(doc, excludeMonitor) {
                 ...sm,
                 metrics: (sm.metrics ?? [])
                     .filter((metric) => {
-                    // Exclude _monitor.* metrics if requested
                     if (excludeMonitor && (0, otlp_validation_js_1.isMonitorMetric)(metric.name))
                         return false;
                     return true;
@@ -26827,49 +26806,11 @@ function filterDocumentForComparison(doc, excludeMonitor) {
                     .map((metric) => {
                     if (!excludeMonitor)
                         return metric;
-                    // Filter out diagnostic-role datapoints
-                    return filterDiagnosticDatapoints(metric);
+                    return filterMetricDataPoints(metric, (dp) => (0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes)[otlp_conventions_js_1.ATTR_METRIC_ROLE] !== "diagnostic");
                 })
-                    .filter((metric) => {
-                    const kind = (0, parse_otlp_js_1.getOtlpMetricKind)(metric);
-                    if (kind === "gauge")
-                        return (metric.gauge?.dataPoints?.length ?? 0) > 0;
-                    if (kind === "sum")
-                        return (metric.sum?.dataPoints?.length ?? 0) > 0;
-                    return (metric.histogram?.dataPoints?.length ?? 0) > 0;
-                }),
+                    .filter(hasDataPoints),
             })),
         })),
-    };
-}
-function filterDiagnosticDatapoints(metric) {
-    const kind = (0, parse_otlp_js_1.getOtlpMetricKind)(metric);
-    const isDiagnostic = (attrs) => attrs[otlp_conventions_js_1.ATTR_METRIC_ROLE] === "diagnostic";
-    if (kind === "gauge") {
-        return {
-            ...metric,
-            gauge: {
-                ...metric.gauge,
-                dataPoints: (metric.gauge?.dataPoints ?? []).filter((dp) => !isDiagnostic((0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes))),
-            },
-        };
-    }
-    if (kind === "sum") {
-        return {
-            ...metric,
-            sum: {
-                ...metric.sum,
-                dataPoints: (metric.sum?.dataPoints ?? []).filter((dp) => !isDiagnostic((0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes))),
-            },
-        };
-    }
-    // histogram
-    return {
-        ...metric,
-        histogram: {
-            ...metric.histogram,
-            dataPoints: (metric.histogram?.dataPoints ?? []).filter((dp) => !isDiagnostic((0, parse_otlp_js_1.otlpAttributesToRecord)(dp.attributes))),
-        },
     };
 }
 //# sourceMappingURL=otlp-projections.js.map
@@ -27412,22 +27353,25 @@ function resolveDirection(metricName, unit, pointAttributes) {
     }
     return (0, infer_direction_js_1.inferDirection)(unit ?? metricName);
 }
+function resolveDatapointGroup(groups, metric, pointAttributes, metricKindLabel) {
+    const benchmarkName = pointAttributes[otlp_conventions_js_1.ATTR_SCENARIO]
+        || (metric.name.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
+    if (!benchmarkName) {
+        throw new Error(`[parse-otlp] Missing required datapoint attribute '${otlp_conventions_js_1.ATTR_SCENARIO}' for OTLP ${metricKindLabel} '${metric.name}'.`);
+    }
+    const series = pointAttributes[otlp_conventions_js_1.ATTR_SERIES];
+    if (!series) {
+        throw new Error(`[parse-otlp] Missing required datapoint attribute '${otlp_conventions_js_1.ATTR_SERIES}' for OTLP ${metricKindLabel} '${metric.name}'.`);
+    }
+    return ensureGroup(groups, benchmarkName, series, {
+        series,
+        ...(benchmarkTags(pointAttributes) ?? {}),
+    });
+}
 function projectGaugeLikeMetric(groups, metric, points, _resourceAttributes) {
     for (const point of points ?? []) {
         const pointAttributes = otlpAttributesToRecord(point.attributes);
-        const benchmarkName = pointAttributes[otlp_conventions_js_1.ATTR_SCENARIO]
-            || (metric.name.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
-        if (!benchmarkName) {
-            throw new Error(`[parse-otlp] Missing required datapoint attribute '${otlp_conventions_js_1.ATTR_SCENARIO}' for OTLP metric '${metric.name}'.`);
-        }
-        const series = pointAttributes[otlp_conventions_js_1.ATTR_SERIES];
-        if (!series) {
-            throw new Error(`[parse-otlp] Missing required datapoint attribute '${otlp_conventions_js_1.ATTR_SERIES}' for OTLP metric '${metric.name}'.`);
-        }
-        const group = ensureGroup(groups, benchmarkName, series, {
-            series,
-            ...(benchmarkTags(pointAttributes) ?? {}),
-        });
+        const group = resolveDatapointGroup(groups, metric, pointAttributes, "metric");
         const timestampMillis = nanosToMillis(point.timeUnixNano);
         const timestampIso = nanosToIso(point.timeUnixNano);
         const metricValue = datapointNumberValue(point);
@@ -27452,19 +27396,7 @@ function projectGaugeLikeMetric(groups, metric, points, _resourceAttributes) {
 function projectHistogramMetric(groups, metric, points, _resourceAttributes) {
     for (const point of points ?? []) {
         const pointAttributes = otlpAttributesToRecord(point.attributes);
-        const benchmarkName = pointAttributes[otlp_conventions_js_1.ATTR_SCENARIO]
-            || (metric.name.startsWith(otlp_conventions_js_1.MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
-        if (!benchmarkName) {
-            throw new Error(`[parse-otlp] Missing required datapoint attribute '${otlp_conventions_js_1.ATTR_SCENARIO}' for OTLP histogram '${metric.name}'.`);
-        }
-        const series = pointAttributes[otlp_conventions_js_1.ATTR_SERIES];
-        if (!series) {
-            throw new Error(`[parse-otlp] Missing required datapoint attribute '${otlp_conventions_js_1.ATTR_SERIES}' for OTLP histogram '${metric.name}'.`);
-        }
-        const group = ensureGroup(groups, benchmarkName, series, {
-            series,
-            ...(benchmarkTags(pointAttributes) ?? {}),
-        });
+        const group = resolveDatapointGroup(groups, metric, pointAttributes, "histogram");
         const timestampMillis = nanosToMillis(point.timeUnixNano);
         const direction = resolveDirection(metric.name, metric.unit, pointAttributes);
         const count = point.count !== undefined ? Number(point.count) : undefined;
