@@ -55,6 +55,7 @@ export function compareRuns(
   }
 
   const entries: ComparisonEntry[] = [];
+  const warnings: string[] = [];
 
   for (const bench of current.benchmarks) {
     const baselineMetrics = baselineMap.get(bench.name);
@@ -68,7 +69,12 @@ export function compareRuns(
         baselineValues.reduce((a, b) => a + b, 0) / baselineValues.length;
 
       // Avoid division by zero
-      if (baselineAvg === 0) continue;
+      if (baselineAvg === 0) {
+        warnings.push(
+          `Skipped metric '${metricName}' for benchmark '${bench.name}': baseline mean is zero`,
+        );
+        continue;
+      }
 
       const direction =
         metric.direction ?? inferDirection(metric.unit ?? metricName);
@@ -110,5 +116,6 @@ export function compareRuns(
   return {
     entries,
     hasRegression: entries.some((e) => e.status === "regressed"),
+    ...(warnings.length > 0 ? { warnings } : {}),
   };
 }
