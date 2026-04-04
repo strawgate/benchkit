@@ -370,7 +370,12 @@ export async function stopOtelCollector(): Promise<void> {
 
   let state: OtelState;
   try {
-    state = JSON.parse(fs.readFileSync(statePath, "utf-8"));
+    const parsed = JSON.parse(fs.readFileSync(statePath, "utf-8"));
+    if (!parsed || typeof parsed !== "object") {
+      core.warning("Collector state is invalid (not an object) — skipping.");
+      return;
+    }
+    state = parsed as OtelState;
   } catch (err) {
     core.warning(`Failed to read collector state: ${err instanceof Error ? err.message : String(err)}`);
     return;

@@ -140,6 +140,9 @@ async function run() {
     const dataBranch = core.getInput("data-branch") || "bench-data";
     const baselineRuns = parseInt(core.getInput("baseline-runs") || "5", 10);
     const threshold = parseFloat(core.getInput("threshold") || "5");
+    if (!Number.isFinite(threshold) || threshold <= 0) {
+        throw new Error(`'threshold' must be a positive number. Received '${core.getInput("threshold") || "5"}'.`);
+    }
     const failOnRegression = core.getBooleanInput("fail-on-regression");
     const commentOnPr = core.getBooleanInput("comment-on-pr");
     const token = core.getInput("github-token", { required: true });
@@ -63877,13 +63880,16 @@ function formatHeader(options) {
     }
     return lines;
 }
+function escapeMarkdownCell(value) {
+    return value.replace(/\|/g, "\\|").replace(/`/g, "\\`");
+}
 function formatTable(entries, options) {
     const lines = [
         `| Benchmark | Metric | ${options.baselineLabel} | ${options.currentLabel} | Δ% | Status |`,
         "| --- | --- | --- | --- | --- | --- |",
     ];
     for (const entry of sortEntries(entries)) {
-        lines.push(`| \`${entry.benchmark}\` | \`${entry.metric}\` | ${formatValue(entry.baseline, entry.unit)} | ${formatValue(entry.current, entry.unit)} | ${formatPercent(entry.percentChange)} | ${statusLabel(entry)} |`);
+        lines.push(`| \`${escapeMarkdownCell(entry.benchmark)}\` | \`${escapeMarkdownCell(entry.metric)}\` | ${formatValue(entry.baseline, entry.unit)} | ${formatValue(entry.current, entry.unit)} | ${formatPercent(entry.percentChange)} | ${statusLabel(entry)} |`);
     }
     return lines;
 }

@@ -13,6 +13,9 @@ async function run(): Promise<void> {
   const dataBranch = core.getInput("data-branch") || "bench-data";
   const baselineRuns = parseInt(core.getInput("baseline-runs") || "5", 10);
   const threshold = parseFloat(core.getInput("threshold") || "5");
+  if (!Number.isFinite(threshold) || threshold <= 0) {
+    throw new Error(`'threshold' must be a positive number. Received '${core.getInput("threshold") || "5"}'.`);
+  }
   const failOnRegression = core.getBooleanInput("fail-on-regression");
   const commentOnPr = core.getBooleanInput("comment-on-pr");
   const token = core.getInput("github-token", { required: true });

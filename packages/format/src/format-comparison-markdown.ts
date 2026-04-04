@@ -78,6 +78,10 @@ function formatHeader(options: FormatComparisonMarkdownOptions): string[] {
   return lines;
 }
 
+function escapeMarkdownCell(value: string): string {
+  return value.replace(/\|/g, "\\|").replace(/`/g, "\\`");
+}
+
 function formatTable(entries: ComparisonEntry[], options: Required<Pick<FormatComparisonMarkdownOptions, "currentLabel" | "baselineLabel">>): string[] {
   const lines = [
     `| Benchmark | Metric | ${options.baselineLabel} | ${options.currentLabel} | Δ% | Status |`,
@@ -86,7 +90,7 @@ function formatTable(entries: ComparisonEntry[], options: Required<Pick<FormatCo
 
   for (const entry of sortEntries(entries)) {
     lines.push(
-      `| \`${entry.benchmark}\` | \`${entry.metric}\` | ${formatValue(entry.baseline, entry.unit)} | ${formatValue(entry.current, entry.unit)} | ${formatPercent(entry.percentChange)} | ${statusLabel(entry)} |`,
+      `| \`${escapeMarkdownCell(entry.benchmark)}\` | \`${escapeMarkdownCell(entry.metric)}\` | ${formatValue(entry.baseline, entry.unit)} | ${formatValue(entry.current, entry.unit)} | ${formatPercent(entry.percentChange)} | ${statusLabel(entry)} |`,
     );
   }
 

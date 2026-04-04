@@ -59766,13 +59766,16 @@ function formatHeader(options) {
     }
     return lines;
 }
+function escapeMarkdownCell(value) {
+    return value.replace(/\|/g, "\\|").replace(/`/g, "\\`");
+}
 function formatTable(entries, options) {
     const lines = [
         `| Benchmark | Metric | ${options.baselineLabel} | ${options.currentLabel} | Δ% | Status |`,
         "| --- | --- | --- | --- | --- | --- |",
     ];
     for (const entry of sortEntries(entries)) {
-        lines.push(`| \`${entry.benchmark}\` | \`${entry.metric}\` | ${formatValue(entry.baseline, entry.unit)} | ${formatValue(entry.current, entry.unit)} | ${formatPercent(entry.percentChange)} | ${statusLabel(entry)} |`);
+        lines.push(`| \`${escapeMarkdownCell(entry.benchmark)}\` | \`${escapeMarkdownCell(entry.metric)}\` | ${formatValue(entry.baseline, entry.unit)} | ${formatValue(entry.current, entry.unit)} | ${formatPercent(entry.percentChange)} | ${statusLabel(entry)} |`);
     }
     return lines;
 }
