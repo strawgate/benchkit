@@ -1,0 +1,118 @@
+{
+  "run": {
+    "id": "test-go-23973653166-1",
+    "timestamp": "2026-04-04T06:54:02.834Z",
+    "commit": "902417e11ab4ae504b29f455b132825edad5be47",
+    "ref": "refs/heads/main",
+    "benchmarks": 3,
+    "metrics": [
+      "allocs_per_op",
+      "bytes_per_op",
+      "ns_per_op"
+    ]
+  },
+  "metricSnapshots": [
+    {
+      "metric": "allocs_per_op",
+      "unit": "allocs/op",
+      "direction": "smaller_is_better",
+      "values": [
+        {
+          "name": "BenchmarkSort [procs=4]",
+          "value": 2,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better",
+          "tags": {
+            "procs": "4"
+          }
+        },
+        {
+          "name": "BenchmarkSearch [procs=4]",
+          "value": 0,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better",
+          "tags": {
+            "procs": "4"
+          }
+        },
+        {
+          "name": "BenchmarkInsert [procs=4]",
+          "value": 3,
+          "unit": "allocs/op",
+          "direction": "smaller_is_better",
+          "tags": {
+            "procs": "4"
+          }
+        }
+      ]
+    },
+    {
+      "metric": "bytes_per_op",
+      "unit": "B/op",
+      "direction": "smaller_is_better",
+      "values": [
+        {
+          "name": "BenchmarkSort [procs=4]",
+          "value": 48,
+          "unit": "B/op",
+          "direction": "smaller_is_better",
+          "tags": {
+            "procs": "4"
+          }
+        },
+        {
+          "name": "BenchmarkSearch [procs=4]",
+          "value": 0,
+          "unit": "B/op",
+          "direction": "smaller_is_better",
+          "tags": {
+            "procs": "4"
+          }
+        },
+        {
+          "name": "BenchmarkInsert [procs=4]",
+          "value": 64,
+          "unit": "B/op",
+          "direction": "smaller_is_better",
+          "tags": {
+            "procs": "4"
+          }
+        }
+      ]
+    },
+    {
+      "metric": "ns_per_op",
+      "unit": "ns/op",
+      "direction": "smaller_is_better",
+      "values": [
+        {
+          "name": "BenchmarkSort [procs=4]",
+          "value": 320,
+          "unit": "ns/op",
+          "direction": "smaller_is_better",
+          "tags": {
+            "procs": "4"
+          }
+        },
+        {
+          "name": "BenchmarkSearch [procs=4]",
+          "value": 120,
+          "unit": "ns/op",
+          "direction": "smaller_is_better",
+          "tags": {
+            "procs": "4"
+          }
+        },
+        {
+          "name": "BenchmarkInsert [procs=4]",
+          "value": 450,
+          "unit": "ns/op",
+          "direction": "smaller_is_better",
+          "tags": {
+            "procs": "4"
+          }
+        }
+      ]
+    }
+  ]
+}
