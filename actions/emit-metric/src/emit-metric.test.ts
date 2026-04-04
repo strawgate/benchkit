@@ -167,6 +167,27 @@ describe("buildOtlpMetricPayload", () => {
       /reserved/,
     );
   });
+
+  it("rejects custom attributes with benchkit. prefix", () => {
+    assert.throws(
+      () => buildOtlpMetricPayload({
+        endpoint: "http://localhost:4318/v1/metrics",
+        name: "test_score",
+        value: 74,
+        metricKind: "gauge",
+        aggregationTemporality: "cumulative",
+        monotonic: false,
+        scenario: "search",
+        series: "baseline",
+        direction: "bigger_is_better",
+        role: "outcome",
+        attributes: { "benchkit.custom.foo": "bar" },
+        runId: "123-1",
+        benchkitKind: "hybrid",
+      }),
+      /Custom attributes must not use the 'benchkit\.' prefix/,
+    );
+  });
 });
 
 describe("emitMetricRequest", () => {

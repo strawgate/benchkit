@@ -193,6 +193,9 @@ function buildPointAttributes(options) {
         if (RESERVED_POINT_ATTRIBUTES.has(key)) {
             throw new Error(`Attribute '${key}' is reserved. Use the dedicated action inputs instead.`);
         }
+        if (key.startsWith("benchkit.")) {
+            throw new Error(`Custom attributes must not use the 'benchkit.' prefix. Got '${key}'.`);
+        }
     }
     const attributes = [
         buildAttribute("benchkit.scenario", options.scenario),
