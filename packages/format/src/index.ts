@@ -132,3 +132,5 @@ export { formatComparisonMarkdown } from "./format-comparison-markdown.js";
 export { defineMetric, defineBenchmark, buildNativeResult, stringifyNativeResult } from "./native-builder.js";
 /** Convert a RunDetailView back into a BenchmarkResult for use with compare(). */
 export { detailViewToBenchmarkResult } from "./run-detail-converter.js";
+/** Retry helpers for push operations. */
+export { computeRetryDelayMs, sleep, DEFAULT_PUSH_RETRY_COUNT, RETRY_DELAY_MIN_MS, RETRY_DELAY_MAX_MS } from "./retry.js";

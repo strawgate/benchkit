@@ -33,7 +33,7 @@ jobs:
 
       - name: Stash benchmark results
         id: stash
-        uses: strawgate/benchkit/actions/stash@main
+        uses: strawgate/benchkit/actions/stash@main-dist
         with:
           results: bench.txt
           format: go

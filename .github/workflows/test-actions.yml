@@ -8,10 +8,38 @@ permissions:
   contents: write
 
 jobs:
-  test-stash-go:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build all action bundles
+        run: npm run build
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: action-dist
+          path: actions/*/dist/
+          retention-days: 1
+
+  test-stash-go:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: actions/
 
       - name: Create fake Go bench output
         run: |
@@ -37,9 +65,15 @@ jobs:
           [[ -n "${{ steps.stash.outputs.run-id }}" ]] || exit 1
 
   test-stash-native:
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: actions/
 
       - name: Create native format results
         run: |
@@ -71,9 +105,15 @@ jobs:
           [[ -n "${{ steps.stash.outputs.run-id }}" ]] || exit 1
 
   test-stash-go-count:
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: actions/
 
       - name: Create Go bench output with -count=3 (duplicate benchmarks)
         run: |
@@ -108,10 +148,15 @@ jobs:
           [[ "$count" -eq 6 ]] || { echo "Expected 6 benchmark entries, got $count"; exit 1; }
 
   test-aggregate:
-    needs: [test-stash-go, test-stash-native, test-stash-go-count]
+    needs: [build, test-stash-go, test-stash-native, test-stash-go-count]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: actions/
 
       - name: Aggregate results
         uses: ./actions/aggregate
@@ -189,10 +234,15 @@ jobs:
           "
 
   test-aggregate-max-runs:
-    needs: [test-aggregate]
+    needs: [build, test-aggregate]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: action-dist
+          path: actions/
 
       - name: Count runs before pruning
         run: |

@@ -104,16 +104,16 @@ Replace the custom Preact dashboard in the `dashboard/` directory with a standar
     uv run beats-bench summarize --results-dir results --output-format benchkit --output bench.json
 
 - name: Stash results
-  uses: strawgate/benchkit/actions/stash@main
+  uses: strawgate/benchkit/actions/stash@main-dist
   with:
     results: bench.json
 
 - name: Aggregate
-  uses: strawgate/benchkit/actions/aggregate@main
+  uses: strawgate/benchkit/actions/aggregate@main-dist
 
 - name: Compare (PR only)
   if: github.event_name == 'pull_request'
-  uses: strawgate/benchkit/actions/compare@main
+  uses: strawgate/benchkit/actions/compare@main-dist
   with:
     results: bench.json
     fail-on-regression: true

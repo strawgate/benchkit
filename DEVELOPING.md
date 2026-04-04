@@ -83,13 +83,12 @@ This runs ESLint (flat config in `eslint.config.mjs`) and `tsc --noEmit` across 
 
 ## Working on GitHub actions
 
-Action bundles in `actions/*/dist/` are committed artifacts.
+Action bundles in `actions/*/dist/` are **not** committed to the repo.
+CI automatically builds and pushes them to the `main-dist` branch on every push to `main`.
+PR builds are pushed to `pr/{number}-dist` branches.
 
-Before opening a PR for action changes:
-
-1. Rebuild the modified action workspace.
-2. Confirm `dist/` changes are included.
-3. Run local tests and repo CI checks.
+When developing action changes locally, run `npm run build` to generate dist/ for local testing.
+Do not commit `dist/` files — they are in `.gitignore`.
 
 ## Adding features
 
@@ -104,5 +103,4 @@ Before opening a PR for action changes:
 1. `npm run build`
 2. `npm run test`
 3. `npm run lint`
-4. Verify any action `dist/` bundle updates are committed
-5. Update docs for user-visible behavior changes
+4. Update docs for user-visible behavior changes
