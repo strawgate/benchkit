@@ -1,0 +1,34 @@
+name: Validate
+
+on:
+  workflow_call:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Validate schemas
+        run: node --test schema/schema.test.mjs
+
+      - name: Build and test workspaces
+        run: npm run test
+
+      - name: Lint workspaces
+        run: npm run lint
+
+      - name: Verify action bundles are up-to-date
+        run: |
+          if [[ -n "$(git status --porcelain actions/*/dist/)" ]]; then
+            echo "::error::Action dist/ bundles are out of date. Run 'npm run build' and commit."
+            git diff --stat actions/*/dist/
+            exit 1
+          fi
