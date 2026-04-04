@@ -90,7 +90,7 @@ export function getOtlpMetricKind(metric: OtlpMetric): "gauge" | "sum" | "histog
   if (metric.gauge) return "gauge";
   if (metric.sum) return "sum";
   if (metric.histogram) return "histogram";
-  throw new Error(`Unsupported OTLP metric kind for metric '${metric.name}'.`);
+  throw new Error(`[parse-otlp] Unsupported OTLP metric kind for metric '${metric.name}'.`);
 }
 
 /**
@@ -124,7 +124,7 @@ function nanosToIso(nanos: string | undefined): string | undefined {
 function datapointNumberValue(point: OtlpGaugeDataPoint): number {
   if (typeof point.asDouble === "number") return point.asDouble;
   if (point.asInt !== undefined) return Number(point.asInt);
-  throw new Error("OTLP datapoint is missing both asDouble and asInt numeric values.");
+  throw new Error("[parse-otlp] OTLP datapoint is missing both asDouble and asInt numeric values.");
 }
 
 function benchmarkTags(pointAttributes: Record<string, string>): Record<string, string> | undefined {
@@ -204,7 +204,7 @@ function upsertMetric(
 function requiredResourceAttr(attributes: Record<string, string>, key: string, metricName: string): string {
   const value = attributes[key];
   if (!value) {
-    throw new Error(`Missing required resource attribute '${key}' for OTLP metric '${metricName}'.`);
+    throw new Error(`[parse-otlp] Missing required resource attribute '${key}' for OTLP metric '${metricName}'.`);
   }
   return value;
 }
@@ -214,7 +214,7 @@ function resolveDirection(metricName: string, unit: string | undefined, pointAtt
   if (explicit) {
     if (!isValidDirection(explicit)) {
       throw new Error(
-        `Invalid '${ATTR_METRIC_DIRECTION}' value '${explicit}' on metric '${metricName}'. ` +
+        `[parse-otlp] Invalid '${ATTR_METRIC_DIRECTION}' value '${explicit}' on metric '${metricName}'. ` +
           `Expected 'bigger_is_better' or 'smaller_is_better'.`,
       );
     }
@@ -234,12 +234,12 @@ function projectGaugeLikeMetric(
     const benchmarkName = pointAttributes[ATTR_SCENARIO]
       || (metric.name.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
     if (!benchmarkName) {
-      throw new Error(`Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP metric '${metric.name}'.`);
+      throw new Error(`[parse-otlp] Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP metric '${metric.name}'.`);
     }
 
     const series = pointAttributes[ATTR_SERIES];
     if (!series) {
-      throw new Error(`Missing required datapoint attribute '${ATTR_SERIES}' for OTLP metric '${metric.name}'.`);
+      throw new Error(`[parse-otlp] Missing required datapoint attribute '${ATTR_SERIES}' for OTLP metric '${metric.name}'.`);
     }
 
     const group = ensureGroup(groups, benchmarkName, series, {
@@ -285,12 +285,12 @@ function projectHistogramMetric(
     const benchmarkName = pointAttributes[ATTR_SCENARIO]
       || (metric.name.startsWith(MONITOR_METRIC_PREFIX) ? "diagnostic" : "");
     if (!benchmarkName) {
-      throw new Error(`Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP histogram '${metric.name}'.`);
+      throw new Error(`[parse-otlp] Missing required datapoint attribute '${ATTR_SCENARIO}' for OTLP histogram '${metric.name}'.`);
     }
 
     const series = pointAttributes[ATTR_SERIES];
     if (!series) {
-      throw new Error(`Missing required datapoint attribute '${ATTR_SERIES}' for OTLP histogram '${metric.name}'.`);
+      throw new Error(`[parse-otlp] Missing required datapoint attribute '${ATTR_SERIES}' for OTLP histogram '${metric.name}'.`);
     }
 
     const group = ensureGroup(groups, benchmarkName, series, {

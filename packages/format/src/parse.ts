@@ -33,7 +33,7 @@ export function parseBenchmarks(input: string, format: Format = "auto"): Benchma
     case "otlp":
       return projectBenchmarkResultFromOtlp(parseOtlp(input));
     default:
-      throw new Error(`Unknown format: ${format}`);
+      throw new Error(`[parseBenchmarks] Unknown format: ${format}`);
   }
 }
 
@@ -104,6 +104,6 @@ function detectFormat(input: string): Exclude<Format, "auto"> {
   }
 
   throw new Error(
-    "Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine, pytest-benchmark, otlp.",
+    "[parseBenchmarks] Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine, pytest-benchmark, otlp.",
   );
 }
