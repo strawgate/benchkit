@@ -26,14 +26,8 @@ inputs:
   monitor-results:
     description: 'Path to monitor.json produced by the monitor action. When provided, monitor benchmarks and context are merged into the stored result.'
     required: false
-  monitor:
-    description: '(Deprecated — use monitor-results instead) Path to monitor.json produced by the monitor action. When provided, monitor benchmarks and context are merged into the stored result.'
-    required: false
   commit-results:
     description: 'When false, parse and output the result JSON but do not commit it to the data branch.'
-    required: false
-  save-data-file:
-    description: '(Deprecated — use commit-results instead) When false, parse and output the result JSON but do not commit it to the data branch.'
     required: false
   summary:
     description: 'When true, write a parsed benchmark summary to GITHUB_STEP_SUMMARY.'
