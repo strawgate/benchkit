@@ -79,8 +79,8 @@ attributes are merged in before writing.
 2. **Merge** *(optional)*: if `monitor` is set, read the monitor output and
    merge its benchmarks and context into the result
 3. **Push**: checkout (or create) the data branch in a temporary git worktree,
-   write the result file, commit, and push — retrying up to three times with an
-   automatic rebase on conflict
+   write the result file, commit, and push — retrying up to five times with a
+   randomized backoff and automatic rebase on conflict
 
 ## Relationship to aggregate and monitor
 
