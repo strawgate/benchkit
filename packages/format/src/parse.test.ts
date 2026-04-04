@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parse } from "./parse.js";
+import { parseBenchmarks as parse } from "./parse.js";
 
 describe("parse (auto-detect)", () => {
   it("detects native format", () => {

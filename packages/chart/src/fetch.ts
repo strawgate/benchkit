@@ -1,5 +1,5 @@
 import type { IndexFile, SeriesFile, BenchmarkResult, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, RunDetailView, ComparisonResult, ThresholdConfig } from "@benchkit/format";
-import { compare, detailViewToBenchmarkResult } from "@benchkit/format";
+import { compareRuns as compare, detailViewToBenchmarkResult } from "@benchkit/format";
 
 export interface DataSource {
   owner?: string;
