@@ -26130,6 +26130,7 @@ function compareRuns(current, baseline, config = DEFAULT_THRESHOLD) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.formatComparisonMarkdown = formatComparisonMarkdown;
+const format_ref_js_1 = __nccwpck_require__(2364);
 const otlp_conventions_js_1 = __nccwpck_require__(1757);
 const DEFAULT_OPTIONS = {
     currentLabel: "Current",
@@ -26141,7 +26142,7 @@ const DEFAULT_OPTIONS = {
 function isMonitorEntry(entry) {
     return entry.benchmark.startsWith(otlp_conventions_js_1.MONITOR_BENCHMARK_PREFIX);
 }
-function sortEntries(entries) {
+function sortAlphabetically(entries) {
     return [...entries].sort((a, b) => {
         if (a.benchmark !== b.benchmark)
             return a.benchmark.localeCompare(b.benchmark);
@@ -26171,23 +26172,13 @@ function directionArrow(entry) {
 function statusLabel(entry) {
     return `${entry.status} ${directionArrow(entry)}`;
 }
-function formatRef(ref) {
-    const prMatch = /^refs\/pull\/(\d+)\/merge$/.exec(ref);
-    if (prMatch)
-        return `PR #${prMatch[1]}`;
-    if (ref.startsWith("refs/heads/"))
-        return ref.replace("refs/heads/", "");
-    if (ref.startsWith("refs/tags/"))
-        return `tag ${ref.replace("refs/tags/", "")}`;
-    return ref;
-}
 function formatHeader(options) {
     const lines = [];
     lines.push(`## ${options.title ?? "Benchmark Comparison"}`);
     if (options.currentCommit || options.currentRef) {
         const parts = [
             options.currentCommit ? `commit \`${options.currentCommit.slice(0, 8)}\`` : "",
-            options.currentRef ? `ref \`${formatRef(options.currentRef)}\`` : "",
+            options.currentRef ? `ref \`${(0, format_ref_js_1.formatRef)(options.currentRef)}\`` : "",
         ].filter(Boolean);
         lines.push(`Comparing results for ${parts.join(" on ")}.`);
     }
@@ -26201,7 +26192,7 @@ function formatTable(entries, options) {
         `| Benchmark | Metric | ${options.baselineLabel} | ${options.currentLabel} | Δ% | Status |`,
         "| --- | --- | --- | --- | --- | --- |",
     ];
-    for (const entry of sortEntries(entries)) {
+    for (const entry of sortAlphabetically(entries)) {
         lines.push(`| \`${escapeMarkdownCell(entry.benchmark)}\` | \`${escapeMarkdownCell(entry.metric)}\` | ${formatValue(entry.baseline, entry.unit)} | ${formatValue(entry.current, entry.unit)} | ${formatPercent(entry.percentChange)} | ${statusLabel(entry)} |`);
     }
     return lines;
@@ -26237,7 +26228,7 @@ function formatComparisonMarkdown(result, options = {}) {
     }
     const benchmarkEntries = result.entries.filter((entry) => !isMonitorEntry(entry));
     const monitorEntries = result.entries.filter((entry) => isMonitorEntry(entry));
-    const regressions = sortEntries(result.entries.filter((entry) => entry.status === "regressed"));
+    const regressions = sortAlphabetically(result.entries.filter((entry) => entry.status === "regressed"));
     if (regressions.length > 0) {
         lines.push("### Regressions");
         lines.push("");
@@ -26285,6 +26276,35 @@ function formatComparisonMarkdown(result, options = {}) {
 
 /***/ }),
 
+/***/ 2364:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.formatRef = formatRef;
+/**
+ * Format a git ref for display.
+ *
+ * Converts `refs/pull/N/merge` → `PR #N`, strips `refs/heads/` and
+ * `refs/tags/` prefixes. Returns `"—"` for undefined/empty refs.
+ */
+function formatRef(ref) {
+    if (!ref)
+        return "—";
+    const prMatch = /^refs\/pull\/(\d+)\/merge$/.exec(ref);
+    if (prMatch)
+        return `PR #${prMatch[1]}`;
+    if (ref.startsWith("refs/heads/"))
+        return ref.replace("refs/heads/", "");
+    if (ref.startsWith("refs/tags/"))
+        return `tag ${ref.replace("refs/tags/", "")}`;
+    return ref;
+}
+//# sourceMappingURL=format-ref.js.map
+
+/***/ }),
+
 /***/ 7575:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -26292,7 +26312,7 @@ function formatComparisonMarkdown(result, options = {}) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.validateDirection = exports.validateRunKind = exports.validateRequiredDatapointAttributes = exports.validateRequiredResourceAttributes = exports.MONITOR_BENCHMARK_PREFIX = exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = exports.parseOtlpMetrics = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlp = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.unitToMetricName = exports.inferDirection = exports.parse = exports.parseBenchmarks = void 0;
-exports.detailViewToBenchmarkResult = exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.compareRuns = exports.getMetricUnits = exports.getMetricTemporality = exports.extractResourceContext = exports.extractComparisonMetrics = exports.extractScenarioMetrics = exports.extractRunMetrics = exports.isMonitorMetric = exports.isValidSourceFormat = exports.isValidMetricRole = exports.isValidDirection = exports.isValidRunKind = exports.validateSourceFormat = exports.validateMetricRole = void 0;
+exports.detailViewToBenchmarkResult = exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatRef = exports.formatComparisonMarkdown = exports.compare = exports.compareRuns = exports.getMetricUnits = exports.getMetricTemporality = exports.extractResourceContext = exports.extractComparisonMetrics = exports.extractScenarioMetrics = exports.extractRunMetrics = exports.isMonitorMetric = exports.isValidSourceFormat = exports.isValidMetricRole = exports.isValidDirection = exports.isValidRunKind = exports.validateSourceFormat = exports.validateMetricRole = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
 Object.defineProperty(exports, "parseBenchmarks", ({ enumerable: true, get: function () { return parse_js_1.parseBenchmarks; } }));
@@ -26395,6 +26415,9 @@ Object.defineProperty(exports, "compare", ({ enumerable: true, get: function () 
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */
 var format_comparison_markdown_js_1 = __nccwpck_require__(1160);
 Object.defineProperty(exports, "formatComparisonMarkdown", ({ enumerable: true, get: function () { return format_comparison_markdown_js_1.formatComparisonMarkdown; } }));
+/** Format a git ref for display (e.g. `refs/pull/5/merge` → `PR #5`). */
+var format_ref_js_1 = __nccwpck_require__(2364);
+Object.defineProperty(exports, "formatRef", ({ enumerable: true, get: function () { return format_ref_js_1.formatRef; } }));
 /** Helpers for building and serializing native benchmark results. */
 var native_builder_js_1 = __nccwpck_require__(9666);
 Object.defineProperty(exports, "defineMetric", ({ enumerable: true, get: function () { return native_builder_js_1.defineMetric; } }));

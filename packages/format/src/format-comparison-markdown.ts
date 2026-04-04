@@ -1,3 +1,4 @@
+import { formatRef } from "./format-ref.js";
 import { MONITOR_BENCHMARK_PREFIX } from "./otlp-conventions.js";
 import type {
   ComparisonEntry,
@@ -55,14 +56,6 @@ function directionArrow(entry: ComparisonEntry): string {
 
 function statusLabel(entry: ComparisonEntry): string {
   return `${entry.status} ${directionArrow(entry)}`;
-}
-
-function formatRef(ref: string): string {
-  const prMatch = /^refs\/pull\/(\d+)\/merge$/.exec(ref);
-  if (prMatch) return `PR #${prMatch[1]}`;
-  if (ref.startsWith("refs/heads/")) return ref.replace("refs/heads/", "");
-  if (ref.startsWith("refs/tags/")) return `tag ${ref.replace("refs/tags/", "")}`;
-  return ref;
 }
 
 function formatHeader(options: FormatComparisonMarkdownOptions): string[] {

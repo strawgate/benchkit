@@ -33,21 +33,8 @@ export function formatFixedValue(value: number): string {
   return value.toFixed(2);
 }
 
-/**
- * Format a git ref for human-readable display.
- *
- * Strips common prefixes (`refs/heads/`, `refs/tags/`, `refs/pull/…/merge`)
- * and returns a short label. Returns `"—"` for undefined/empty refs.
- */
-export function formatRef(ref: string | undefined): string {
-  if (!ref) return "—";
-  const prMatch = /^refs\/pull\/(\d+)\/merge$/.exec(ref);
-  if (prMatch) return `PR #${prMatch[1]}`;
-  if (ref.startsWith("refs/heads/")) return ref.replace("refs/heads/", "");
-  if (ref.startsWith("refs/tags/"))
-    return `tag ${ref.replace("refs/tags/", "")}`;
-  return ref;
-}
+// Re-export formatRef from @benchkit/format so chart consumers don't need both packages.
+export { formatRef } from "@benchkit/format";
 
 /**
  * Format a percentage change with sign.

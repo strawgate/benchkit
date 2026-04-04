@@ -140,6 +140,8 @@ export { compareRuns } from "./compare.js";
 export { compareRuns as compare } from "./compare.js";
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */
 export { formatComparisonMarkdown } from "./format-comparison-markdown.js";
+/** Format a git ref for display (e.g. `refs/pull/5/merge` → `PR #5`). */
+export { formatRef } from "./format-ref.js";
 /** Helpers for building and serializing native benchmark results. */
 export { defineMetric, defineBenchmark, buildNativeResult, stringifyNativeResult } from "./native-builder.js";
 /** Convert a RunDetailView back into a BenchmarkResult for use with compareRuns(). */
