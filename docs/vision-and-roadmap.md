@@ -39,8 +39,8 @@ When benchkit is working well, users should be able to:
 
 - copy a workflow example and publish useful benchmark data without reverse
   engineering the demo repo
-- emit arbitrary native metrics like `events_per_sec`, `peak_memory_mb`,
-  `p95_latency_ms`, or page-load timings
+- emit arbitrary metrics like `events_per_sec`, `peak_memory_mb`,
+  `p95_latency_ms`, or page-load timings — all as OTLP metrics
 - attach monitor telemetry without mixing outcome metrics and diagnostics
 - open a dashboard optimized for their workflow instead of a one-size-fits-none
   dashboard
@@ -99,20 +99,30 @@ direction for this repository. It starts a single-step OTel Collector, exposes
 OTLP endpoints during the job, and stores raw telemetry sidecars under
 `data/telemetry/` in its post step.
 
-## Aggregation architecture direction
+## OTLP-everywhere architecture direction
 
-Benchkit is moving toward a more explicit OTLP-first aggregation model. See:
+**OTLP JSON is the only data format in benchkit.** There is no separate
+"native" or "benchkit" intermediate format. Every component — parsers, actions,
+storage, aggregation, charts — operates on `OtlpMetricsDocument`.
+
+See:
 
 - [`docs/otlp-aggregation-architecture.md`](otlp-aggregation-architecture.md)
 - [`docs/otlp-semantic-conventions.md`](otlp-semantic-conventions.md)
 - [`docs/artifact-layout.md`](artifact-layout.md)
 
-The direction is:
+The principles are:
 
-- OTLP as canonical raw storage
-- benchkit semantic conventions on top of OTLP
+- **OTLP in, OTLP through, OTLP out** — parsers produce `OtlpMetricsDocument`,
+  actions pass `OtlpMetricsDocument`, storage writes OTLP JSON
+- benchkit semantic conventions on top of OTLP resource and datapoint attributes
 - view-shaped derived artifacts for UI flows
 - dataset-local frontend transforms
+
+The legacy `BenchmarkResult` / "native" format is being removed. All parsers
+(Go, Rust, Hyperfine, pytest-benchmark, etc.) will produce `OtlpMetricsDocument`
+directly. The `emit-metric` action already follows this model and serves as the
+reference implementation.
 
 ## Issue audit
 
