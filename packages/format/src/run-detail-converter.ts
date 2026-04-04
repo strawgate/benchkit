@@ -1,5 +1,16 @@
 import type { Benchmark, BenchmarkResult, RunDetailView } from "./types.js";
 
+function tagsEqual(
+  a?: Record<string, string>,
+  b?: Record<string, string>,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const keysA = Object.keys(a);
+  if (keysA.length !== Object.keys(b).length) return false;
+  return keysA.every((k) => a[k] === b[k]);
+}
+
 /**
  * Convert a `RunDetailView` back into a `BenchmarkResult`.
  *
@@ -15,7 +26,7 @@ export function detailViewToBenchmarkResult(detail: RunDetailView): BenchmarkRes
       let bench = benchmarks.find(
         (b) =>
           b.name === snapshotMetric.name &&
-          JSON.stringify(b.tags) === JSON.stringify(snapshotMetric.tags),
+          tagsEqual(b.tags, snapshotMetric.tags),
       );
       if (!bench) {
         bench = {
