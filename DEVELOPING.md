@@ -13,6 +13,7 @@ Use the docs that match the audience you are working for:
 
 - [`README.md`](README.md) — user-facing product overview
 - [`docs/README.md`](docs/README.md) — documentation hub
+- [`docs/vision-and-roadmap.md`](docs/vision-and-roadmap.md) — product direction and source of truth for roadmap/shipped status
 - [`RELEASING.md`](RELEASING.md) — release process
 - [`CODE_STYLE.md`](CODE_STYLE.md) — reviewer preferences not enforced by lint
 - [`AGENTS.md`](AGENTS.md) — routing and rules for AI agents

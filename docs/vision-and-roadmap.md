@@ -1,7 +1,10 @@
 # Benchkit Vision and Roadmap
 
-This document captures the intended product direction for benchkit and maps the
-current issue backlog to the work that is still open on `main`.
+This document captures the intended product direction for benchkit and is the
+source of truth for shipped/open roadmap status on `main`.
+
+Short-lived next-agent sequencing belongs in
+[`docs/internal/agent-handoff.md`](internal/agent-handoff.md), not here.
 
 ## Product vision
 
@@ -127,14 +130,33 @@ These are done and should not be treated as upcoming roadmap items anymore:
 
 ### Current critical path
 
-The most important open architecture work is now the OTLP transition:
+The most important active cleanup/product-clarity work is:
 
-- `#89` — benchkit OTLP semantic conventions
-- `#90` — OTLP parser / traversal + projection helpers in `@benchkit/format`
+- `#159` — define current-truth docs and deprecation policy
+- `#160` — clarify the role of `packages/dashboard`
+- `#161` — add migration-readiness and example coverage matrix
+- `#162` — fix public dashboard accessibility and semantics
+- `#163` — align chart docs with shipped surfaces
+
+These issues make the public docs, dashboard positioning, and current-truth path
+match the repository as it exists today.
+
+### Open architecture and product work
+
+The main remaining open implementation work after the current docs/product
+cleanup is:
+
 - `#93` — dataset-local transform layer for chart views
+- `#83` — `CompetitiveDashboard`
+- `#79` — workflow benchmark starter kit
+- `#81` — JSON and Prometheus collector helpers
+- `#7` — integration examples and workflow benchmark recipes
+- `#63` — simplify CI workflow to use the root build command
 
-These issues define the contract and bounded transform model that later UI work
-should build on.
+Some foundations that those issues depend on are already shipped on `main`,
+including OTLP semantic conventions (`#89`), OTLP parser/projection support
+(`#90`), `RunDashboard` (`#61`), `RunDetail` (`#82`), and the initial chart IA
+refactor (`#54`).
 
 ### Workflow benchmark ergonomics
 
@@ -142,18 +164,20 @@ This backlog now exists explicitly and no longer needs to be described as a gap
 in issue coverage:
 
 - `#79` — workflow benchmark starter kit
-- `#80` — native result emitter helper
 - `#81` — JSON and Prometheus collector helpers
 - `#7` — integration examples and benchmark recipes
+
+The native-result emitter helper (`#80`) is already shipped through the builder
+APIs in `@benchkit/format`.
 
 ### Dashboard surfaces
 
 The main chart-surface work remains open:
 
-- `#61` — `RunDashboard`
-- `#82` — `RunDetail`
 - `#83` — `CompetitiveDashboard`
-- `#54` — chart refactor after the IA split settles
+
+`RunDashboard` and `RunDetail` are already shipped. Current dashboard-facing
+cleanup is tracked in `#160`, `#162`, and `#163`.
 
 ### Infra follow-up
 
@@ -172,36 +196,35 @@ Done on `main`:
 
 This phase is now complete enough that docs should describe it as shipped.
 
-### Phase 2 — Stabilize the OTLP contract
+### Phase 2 — Stabilize the shipped docs and product story
 
 Goal:
 
-- make OTLP a safe long-term raw format without introducing a universal
-  benchkit telemetry intermediate
+- make the active docs and public surfaces describe the repository truthfully
 
 Work:
 
-- finalize semantic conventions (`#89`)
-- continue typed OTLP parsing and narrowly scoped projections (`#90`)
-- keep aggregate and chart work aligned with that contract
+- land `#159`, `#160`, `#161`, `#162`, and `#163`
+- keep the docs hub, roadmap, and handoff docs from drifting into duplicate
+  status owners
 
 Exit criteria:
 
-- producers and parsers can agree on required OTLP semantics
-- downstream code can consume OTLP safely through typed helpers and
-  purpose-built projections
+- there is one active owner for roadmap/shipped status
+- users can tell what is shipped, what is demo-only, and what is still future
+  work
 
-### Phase 3 — Workflow benchmark ergonomics
+### Phase 3 — Workflow benchmark ergonomics and bounded transforms
 
 Goal:
 
-- let users benchmark arbitrary workflows without hand-rolling too much glue
+- continue the remaining implementation work on top of the already-shipped OTLP
+  and run-detail foundations without reopening docs-ownership confusion
 
 Work:
 
-- ship the starter kit and helpers (`#79`, `#80`, `#81`)
-- strengthen examples and cookbook docs (`#7`)
-- keep recipes aligned with the aggregate artifact layout already on `main`
+- continue the bounded dataset-local transform work (`#93`)
+- ship the remaining workflow benchmark ergonomics work (`#79`, `#81`, `#7`)
 
 Exit criteria:
 
@@ -210,6 +233,8 @@ Exit criteria:
   - a service exposing JSON stats
   - a service exposing Prometheus metrics
   - a browser/page-load workflow
+- dataset-local transforms are available for shipped chart surfaces without
+  requiring browser-side cross-file joins
 
 ### Phase 4 — Split the dashboard into real user journeys
 
@@ -219,26 +244,27 @@ Goal:
 
 Work:
 
-- design and ship `RunDashboard`, `RunDetail`, and `CompetitiveDashboard`
+- continue from the shipped `RunDashboard`/`RunDetail` surfaces and design the
+  remaining scenario-first experience
 - keep monitor diagnostics in run detail
 - build on the emitted aggregate artifacts instead of browser-side cross-file
   joins
-- refactor shared chart code after the target IA settles (`#54`)
 
 Exit criteria:
 
 - run / PR style projects feel natural in benchkit
 - competitive benchmarking projects feel natural in benchkit
 
-### Phase 5 — Monitor architecture follow-up
+### Phase 5 — Infra and monitor follow-up
 
 Goal:
 
-- land the collector-backed monitor cleanly and keep the OTLP telemetry story
-  aligned with the rest of the architecture
+- keep the collector-backed monitor and repo tooling aligned with the rest of
+  the architecture
 
 Work:
 
+- simplify CI usage of the root build command (`#63`)
 - review PR `#101` together with the OTLP semantic and aggregate-artifact work
 - keep monitor examples, telemetry storage docs, and aggregation plans aligned
 - avoid reintroducing stash-time monitor conversion now that telemetry is stored
