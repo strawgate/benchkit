@@ -4,6 +4,37 @@ Benchmark result types and format parsers for [benchkit](../../README.md). Parse
 
 ## Installation
 
+> **Note:** `@benchkit/format` is not yet published to the npm registry.
+> Until the first release, install from source as described below.
+
+Clone the benchkit repository, install dependencies, and build the package:
+
+```bash
+git clone https://github.com/strawgate/benchkit.git
+cd benchkit
+npm ci
+npm run build --workspace=packages/format
+```
+
+Then, from your project directory, link the local package (adjust the path
+to where you cloned benchkit):
+
+```bash
+npm link <path-to-benchkit>/packages/format
+```
+
+Or use a `file:` reference in your project's `package.json`:
+
+```jsonc
+{
+  "dependencies": {
+    "@benchkit/format": "file:<path-to-benchkit>/packages/format"
+  }
+}
+```
+
+Once published, you will be able to install directly:
+
 ```bash
 npm install @benchkit/format
 ```
