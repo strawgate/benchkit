@@ -2,12 +2,8 @@ name: 'Benchkit Compare'
 description: 'Compare benchmark results against a baseline on the data branch and report regressions.'
 inputs:
   results:
-    description: 'Path or glob pattern to benchmark result file(s) for the current run.'
+    description: 'Path or glob pattern to OTLP JSON benchmark result file(s) for the current run.'
     required: true
-  format:
-    description: 'Input format: auto, go, rust, hyperfine, pytest-benchmark, benchmark-action, native, or otlp.'
-    required: false
-    default: 'auto'
   data-branch:
     description: 'Branch used for benchmark data storage.'
     required: false

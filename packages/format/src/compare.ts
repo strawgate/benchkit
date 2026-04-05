@@ -2,11 +2,36 @@ import type {
   BenchmarkResult,
   ComparisonEntry,
   ComparisonResult,
+  OtlpMetricsDocument,
   ThresholdConfig,
 } from "./types.js";
 import { inferDirection } from "./infer-direction.js";
+import { extractComparisonMetrics } from "./otlp-projections.js";
 
 const DEFAULT_THRESHOLD: ThresholdConfig = { test: "percentage", threshold: 5 };
+
+/**
+ * Compare a current OTLP metrics document against one or more baseline
+ * OTLP documents.
+ *
+ * Internally projects each `OtlpMetricsDocument` to a `BenchmarkResult`
+ * using `extractComparisonMetrics()` (which filters out monitor and
+ * diagnostic-role metrics) then delegates to `compareBenchmarkResults()`.
+ *
+ * @param current - The OTLP metrics document from the current run.
+ * @param baseline - One or more baseline `OtlpMetricsDocument` objects to compare against.
+ * @param config - Threshold configuration controlling regression sensitivity (default: 5% percentage).
+ * @returns A `ComparisonResult` with per-metric entries and an overall regression flag.
+ */
+export function compareRuns(
+  current: OtlpMetricsDocument,
+  baseline: OtlpMetricsDocument[],
+  config: ThresholdConfig = DEFAULT_THRESHOLD,
+): ComparisonResult {
+  const currentResult = extractComparisonMetrics(current);
+  const baselineResults = baseline.map((b) => extractComparisonMetrics(b));
+  return compareBenchmarkResults(currentResult, baselineResults, config);
+}
 
 /**
  * Compare a current benchmark run against one or more baseline runs.
@@ -25,7 +50,7 @@ const DEFAULT_THRESHOLD: ThresholdConfig = { test: "percentage", threshold: 5 };
  * @param config - Threshold configuration controlling regression sensitivity (default: 5 % percentage).
  * @returns A `ComparisonResult` with per-metric entries and an overall regression flag.
  */
-export function compareRuns(
+export function compareBenchmarkResults(
   current: BenchmarkResult,
   baseline: BenchmarkResult[],
   config: ThresholdConfig = DEFAULT_THRESHOLD,

@@ -125,7 +125,7 @@ export {
   getMetricUnits,
 } from "./otlp-projections.js";
 /** Compare a current benchmark run against baseline runs to detect regressions. */
-export { compareRuns } from "./compare.js";
+export { compareRuns, compareBenchmarkResults } from "./compare.js";
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */
 export { formatComparisonMarkdown } from "./format-comparison-markdown.js";
 /** Helpers for building and serializing native benchmark results. */

@@ -5,12 +5,10 @@ import * as github from "@actions/github";
 import * as os from "node:os";
 import * as path from "node:path";
 import { runComparison } from "./compare-action.js";
-import type { Format } from "@benchkit/format";
 import { DEFAULT_DATA_BRANCH } from "@benchkit/format";
 
 async function run(): Promise<void> {
   const resultsPattern = core.getInput("results", { required: true });
-  const format = (core.getInput("format") || "auto") as Format;
   const dataBranch = core.getInput("data-branch") || DEFAULT_DATA_BRANCH;
   const baselineRuns = parseInt(core.getInput("baseline-runs") || "5", 10);
   const threshold = parseFloat(core.getInput("threshold") || "5");
@@ -38,7 +36,6 @@ async function run(): Promise<void> {
   const runsDir = path.join(worktree, "data", "runs");
   const { markdown, hasRegression } = runComparison({
     files,
-    format,
     runsDir,
     baselineRuns,
     threshold,
