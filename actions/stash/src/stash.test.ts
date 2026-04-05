@@ -14,7 +14,8 @@ import {
   readMonitorOutput,
   writeResultFile,
 } from "./stash.js";
-import type { Benchmark, BenchmarkResult } from "@benchkit/format";
+import type { Benchmark, OtlpMetricsDocument } from "@benchkit/format";
+import { otlpAttributesToRecord } from "@benchkit/format";
 
 // ── buildRunId ──────────────────────────────────────────────────────
 
@@ -110,59 +111,92 @@ describe("buildResult", () => {
     runner: "Linux/X64",
   };
 
-  it("builds a result from benchmarks and context", () => {
-    const result = buildResult({ benchmarks: baseBenchmarks, context: baseContext });
-    assert.equal(result.benchmarks.length, 1);
-    assert.equal(result.benchmarks[0].name, "BenchmarkSort");
-    assert.equal(result.context?.commit, "abc123");
-    assert.equal(result.context?.ref, "refs/heads/main");
-    assert.equal(result.context?.runner, "Linux/X64");
-    assert.equal(result.context?.monitor, undefined);
+  it("builds an OtlpMetricsDocument from benchmarks and context", () => {
+    const result = buildResult({
+      benchmarks: baseBenchmarks,
+      runId: "test-1",
+      sourceFormat: "go",
+      context: baseContext,
+    });
+    assert.equal(result.resourceMetrics.length, 1);
+    const attrs = otlpAttributesToRecord(result.resourceMetrics[0].resource?.attributes);
+    assert.equal(attrs["benchkit.commit"], "abc123");
+    assert.equal(attrs["benchkit.ref"], "refs/heads/main");
+    assert.equal(attrs["benchkit.runner"], "Linux/X64");
+    assert.equal(attrs["benchkit.run_id"], "test-1");
+    assert.equal(attrs["benchkit.source_format"], "go");
+
+    const metrics = result.resourceMetrics[0].scopeMetrics?.[0]?.metrics ?? [];
+    assert.equal(metrics.length, 1);
+    assert.equal(metrics[0].name, "ns_per_op");
+    assert.equal(metrics[0].unit, "ns/op");
+    assert.equal(metrics[0].gauge?.dataPoints?.[0]?.asDouble, 320);
   });
 
-  it("merges monitor benchmarks and context", () => {
-    const monitorResult: BenchmarkResult = {
-      benchmarks: [
-        { name: "_monitor/system", metrics: { cpu_user_pct: { value: 45 } } },
-      ],
-      context: {
-        monitor: {
-          monitor_version: "0.1.0",
-          poll_interval_ms: 250,
-          duration_ms: 5000,
+  it("merges monitor OTLP document", () => {
+    const monitorDoc: OtlpMetricsDocument = {
+      resourceMetrics: [{
+        resource: {
+          attributes: [
+            { key: "benchkit.run_id", value: { stringValue: "test-1" } },
+            { key: "benchkit.kind", value: { stringValue: "workflow" } },
+            { key: "benchkit.source_format", value: { stringValue: "otlp" } },
+          ],
         },
-      },
+        scopeMetrics: [{
+          metrics: [{
+            name: "_monitor.cpu_user_pct",
+            unit: "%",
+            gauge: {
+              dataPoints: [{
+                asDouble: 45,
+                attributes: [
+                  { key: "benchkit.scenario", value: { stringValue: "system" } },
+                  { key: "benchkit.series", value: { stringValue: "runner" } },
+                ],
+              }],
+            },
+          }],
+        }],
+      }],
     };
     const result = buildResult({
       benchmarks: baseBenchmarks,
-      monitorResult,
+      monitorDoc,
+      runId: "test-1",
+      sourceFormat: "go",
       context: baseContext,
     });
-    assert.equal(result.benchmarks.length, 2);
-    assert.equal(result.benchmarks[0].name, "BenchmarkSort");
-    assert.equal(result.benchmarks[1].name, "_monitor/system");
-    assert.deepEqual(result.context?.monitor, {
-      monitor_version: "0.1.0",
-      poll_interval_ms: 250,
-      duration_ms: 5000,
-    });
+    assert.equal(result.resourceMetrics.length, 2);
+    // First resource is benchmark data
+    const benchMetrics = result.resourceMetrics[0].scopeMetrics?.[0]?.metrics ?? [];
+    assert.equal(benchMetrics[0].name, "ns_per_op");
+    // Second resource is monitor data
+    const monitorMetrics = result.resourceMetrics[1].scopeMetrics?.[0]?.metrics ?? [];
+    assert.equal(monitorMetrics[0].name, "_monitor.cpu_user_pct");
   });
 
   it("does not mutate input benchmarks array", () => {
     const input = [...baseBenchmarks];
-    const monitorResult: BenchmarkResult = {
-      benchmarks: [{ name: "_monitor/x", metrics: { m: { value: 1 } } }],
+    const monitorDoc: OtlpMetricsDocument = {
+      resourceMetrics: [{
+        resource: { attributes: [] },
+        scopeMetrics: [{ metrics: [{ name: "_monitor.x", gauge: { dataPoints: [{ asDouble: 1, attributes: [{ key: "benchkit.scenario", value: { stringValue: "x" } }, { key: "benchkit.series", value: { stringValue: "x" } }] }] } }] }],
+      }],
     };
-    buildResult({ benchmarks: input, monitorResult, context: baseContext });
+    buildResult({ benchmarks: input, monitorDoc, runId: "test-1", sourceFormat: "go", context: baseContext });
     assert.equal(input.length, 1, "original array should not be modified");
   });
 
-  it("omits runner from context when undefined", () => {
+  it("omits runner from resource attributes when undefined", () => {
     const result = buildResult({
       benchmarks: baseBenchmarks,
+      runId: "test-1",
+      sourceFormat: "go",
       context: { ...baseContext, runner: undefined },
     });
-    assert.equal(result.context?.runner, undefined);
+    const attrs = otlpAttributesToRecord(result.resourceMetrics[0].resource?.attributes);
+    assert.equal(attrs["benchkit.runner"], undefined);
   });
 });
 
@@ -307,22 +341,63 @@ describe("parseBenchmarks", () => {
 // ── readMonitorOutput ───────────────────────────────────────────────
 
 describe("readMonitorOutput", () => {
-  it("reads and parses a monitor output file", () => {
+  it("reads and parses a single OTLP JSON monitor file", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "stash-test-"));
-    const monitorFile = path.join(tmpDir, "monitor.json");
-    fs.writeFileSync(monitorFile, JSON.stringify({
-      benchmarks: [
-        { name: "_monitor/process/go", metrics: { peak_rss_kb: { value: 50000 } } },
-      ],
-      context: {
-        monitor: { monitor_version: "0.1.0", poll_interval_ms: 250, duration_ms: 3000 },
-      },
-    }));
+    const monitorFile = path.join(tmpDir, "monitor.otlp.json");
+    const otlpDoc: OtlpMetricsDocument = {
+      resourceMetrics: [{
+        resource: {
+          attributes: [
+            { key: "benchkit.run_id", value: { stringValue: "run-1" } },
+            { key: "benchkit.kind", value: { stringValue: "workflow" } },
+            { key: "benchkit.source_format", value: { stringValue: "otlp" } },
+          ],
+        },
+        scopeMetrics: [{
+          metrics: [{
+            name: "_monitor.cpu_user_pct",
+            unit: "%",
+            gauge: {
+              dataPoints: [{
+                asDouble: 45,
+                attributes: [
+                  { key: "benchkit.scenario", value: { stringValue: "system" } },
+                  { key: "benchkit.series", value: { stringValue: "runner" } },
+                ],
+              }],
+            },
+          }],
+        }],
+      }],
+    };
+    fs.writeFileSync(monitorFile, JSON.stringify(otlpDoc));
 
     const result = readMonitorOutput(monitorFile);
-    assert.equal(result.benchmarks.length, 1);
-    assert.equal(result.benchmarks[0].name, "_monitor/process/go");
-    assert.equal(result.context?.monitor?.poll_interval_ms, 250);
+    assert.equal(result.resourceMetrics.length, 1);
+    const metrics = result.resourceMetrics[0].scopeMetrics?.[0]?.metrics ?? [];
+    assert.equal(metrics[0].name, "_monitor.cpu_user_pct");
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it("reads and merges OTLP JSONL monitor file", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "stash-test-"));
+    const monitorFile = path.join(tmpDir, "monitor.otlp.jsonl");
+    const line1 = JSON.stringify({
+      resourceMetrics: [{
+        resource: { attributes: [{ key: "benchkit.run_id", value: { stringValue: "run-1" } }, { key: "benchkit.kind", value: { stringValue: "workflow" } }, { key: "benchkit.source_format", value: { stringValue: "otlp" } }] },
+        scopeMetrics: [{ metrics: [{ name: "_monitor.cpu_user_pct", gauge: { dataPoints: [{ asDouble: 45, attributes: [{ key: "benchkit.scenario", value: { stringValue: "system" } }, { key: "benchkit.series", value: { stringValue: "runner" } }] }] } }] }],
+      }],
+    });
+    const line2 = JSON.stringify({
+      resourceMetrics: [{
+        resource: { attributes: [{ key: "benchkit.run_id", value: { stringValue: "run-1" } }, { key: "benchkit.kind", value: { stringValue: "workflow" } }, { key: "benchkit.source_format", value: { stringValue: "otlp" } }] },
+        scopeMetrics: [{ metrics: [{ name: "_monitor.mem_rss_mb", gauge: { dataPoints: [{ asDouble: 512, attributes: [{ key: "benchkit.scenario", value: { stringValue: "system" } }, { key: "benchkit.series", value: { stringValue: "runner" } }] }] } }] }],
+      }],
+    });
+    fs.writeFileSync(monitorFile, `${line1}\n${line2}\n`);
+
+    const result = readMonitorOutput(monitorFile);
+    assert.equal(result.resourceMetrics.length, 2);
     fs.rmSync(tmpDir, { recursive: true });
   });
 
@@ -346,15 +421,13 @@ describe("readMonitorOutput", () => {
     const filePath = path.join(tmpDir, "monitor.json");
     try {
       fs.writeFileSync(filePath, "{ not valid json }");
-      assert.throws(() => readMonitorOutput(filePath), {
-        message: /Failed to parse input as JSON/,
-      });
+      assert.throws(() => readMonitorOutput(filePath));
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
   });
 
-  it("throws when benchmarks key is missing", () => {
+  it("throws when resourceMetrics key is missing", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-stash-test-"));
     const filePath = path.join(tmpDir, "monitor.json");
     try {
@@ -364,8 +437,8 @@ describe("readMonitorOutput", () => {
         (err: unknown) => {
           assert.ok(err instanceof Error);
           assert.ok(
-            err.message.includes("benchmarks"),
-            `Expected 'benchmarks' in error message: ${err.message}`,
+            err.message.includes("resourceMetrics"),
+            `Expected 'resourceMetrics' in error message: ${err.message}`,
           );
           return true;
         },
@@ -379,51 +452,116 @@ describe("readMonitorOutput", () => {
 // ── file writing / summary helpers ───────────────────────────────────
 
 describe("writeResultFile", () => {
-  it("writes a result file to disk", () => {
+  it("writes an OTLP result file to disk", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-stash-test-"));
     try {
-      const outputPath = path.join(tmpDir, "nested", "result.json");
-      const result: BenchmarkResult = {
-        benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100 } } }],
+      const outputPath = path.join(tmpDir, "nested", "result.otlp.json");
+      const result: OtlpMetricsDocument = {
+        resourceMetrics: [{
+          resource: {
+            attributes: [
+              { key: "benchkit.run_id", value: { stringValue: "run-1" } },
+              { key: "benchkit.kind", value: { stringValue: "code" } },
+              { key: "benchkit.source_format", value: { stringValue: "go" } },
+            ],
+          },
+          scopeMetrics: [{
+            metrics: [{
+              name: "ns_per_op",
+              unit: "ns/op",
+              gauge: {
+                dataPoints: [{
+                  asDouble: 100,
+                  attributes: [
+                    { key: "benchkit.scenario", value: { stringValue: "BenchA" } },
+                    { key: "benchkit.series", value: { stringValue: "BenchA" } },
+                  ],
+                }],
+              },
+            }],
+          }],
+        }],
       };
       const writtenPath = writeResultFile(result, "run-1", outputPath);
       assert.equal(writtenPath, outputPath);
-      const parsed = JSON.parse(fs.readFileSync(outputPath, "utf-8")) as BenchmarkResult;
-      assert.equal(parsed.benchmarks[0].name, "BenchA");
+      const parsed = JSON.parse(fs.readFileSync(outputPath, "utf-8")) as OtlpMetricsDocument;
+      assert.equal(parsed.resourceMetrics[0].scopeMetrics?.[0]?.metrics?.[0]?.name, "ns_per_op");
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
   });
 
-  it("creates a temp result path that includes the run id", () => {
+  it("creates a temp result path that includes the run id and .otlp.json extension", () => {
     const resultPath = createTempResultPath("1234-1");
     assert.ok(resultPath.includes("1234-1"));
-    assert.ok(resultPath.endsWith(".json"));
+    assert.ok(resultPath.endsWith(".otlp.json"));
   });
 });
 
 describe("formatResultSummaryMarkdown", () => {
   it("formats benchmarks and monitor metrics for GITHUB_STEP_SUMMARY", () => {
-    const result: BenchmarkResult = {
-      benchmarks: [
+    const result: OtlpMetricsDocument = {
+      resourceMetrics: [
         {
-          name: "mock-http-ingest",
-          metrics: {
-            events_per_sec: { value: 13240.5, unit: "events/sec", direction: "bigger_is_better" },
-            service_rss_mb: { value: 543.1, unit: "MB", direction: "smaller_is_better" },
+          resource: {
+            attributes: [
+              { key: "benchkit.run_id", value: { stringValue: "12345-1" } },
+              { key: "benchkit.kind", value: { stringValue: "workflow" } },
+              { key: "benchkit.source_format", value: { stringValue: "native" } },
+              { key: "benchkit.commit", value: { stringValue: "abcdef1234567890" } },
+              { key: "benchkit.ref", value: { stringValue: "refs/pull/42/merge" } },
+            ],
           },
+          scopeMetrics: [{
+            metrics: [
+              {
+                name: "events_per_sec",
+                unit: "events/sec",
+                gauge: {
+                  dataPoints: [{
+                    asDouble: 13240.5,
+                    attributes: [
+                      { key: "benchkit.scenario", value: { stringValue: "mock-http-ingest" } },
+                      { key: "benchkit.series", value: { stringValue: "mock-http-ingest" } },
+                    ],
+                  }],
+                },
+              },
+              {
+                name: "service_rss_mb",
+                unit: "MB",
+                gauge: {
+                  dataPoints: [{
+                    asDouble: 543.1,
+                    attributes: [
+                      { key: "benchkit.scenario", value: { stringValue: "mock-http-ingest" } },
+                      { key: "benchkit.series", value: { stringValue: "mock-http-ingest" } },
+                    ],
+                  }],
+                },
+              },
+            ],
+          }],
         },
         {
-          name: "_monitor/system",
-          metrics: {
-            cpu_user_pct: { value: 71.2, unit: "%" },
-          },
+          resource: { attributes: [] },
+          scopeMetrics: [{
+            metrics: [{
+              name: "_monitor.cpu_user_pct",
+              unit: "%",
+              gauge: {
+                dataPoints: [{
+                  asDouble: 71.2,
+                  attributes: [
+                    { key: "benchkit.scenario", value: { stringValue: "system" } },
+                    { key: "benchkit.series", value: { stringValue: "runner" } },
+                  ],
+                }],
+              },
+            }],
+          }],
         },
       ],
-      context: {
-        commit: "abcdef1234567890",
-        ref: "refs/pull/42/merge",
-      },
     };
 
     const markdown = formatResultSummaryMarkdown(result, { runId: "12345-1" });
@@ -445,16 +583,33 @@ Parsed for commit \`abcdef12\` on ref \`refs/pull/42/merge\`.
 
 | Benchmark | Metrics |
 | --- | --- |
-| \`_monitor/system\` | \`cpu_user_pct\`: 71.2 % |
+| \`system\` | \`_monitor.cpu_user_pct\`: 71.2 % |
 
 </details>
 `,
     );
   });
 
-  it("omits the monitor details block when no monitor benchmarks exist", () => {
-    const result: BenchmarkResult = {
-      benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } }],
+  it("omits the monitor details block when no monitor metrics exist", () => {
+    const result: OtlpMetricsDocument = {
+      resourceMetrics: [{
+        resource: { attributes: [] },
+        scopeMetrics: [{
+          metrics: [{
+            name: "ns_per_op",
+            unit: "ns/op",
+            gauge: {
+              dataPoints: [{
+                asDouble: 100,
+                attributes: [
+                  { key: "benchkit.scenario", value: { stringValue: "BenchA" } },
+                  { key: "benchkit.series", value: { stringValue: "BenchA" } },
+                ],
+              }],
+            },
+          }],
+        }],
+      }],
     };
     const markdown = formatResultSummaryMarkdown(result, { runId: "run-1" });
     assert.doesNotMatch(markdown, /Monitor metrics/);

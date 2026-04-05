@@ -3,7 +3,7 @@
  *
  * Exercises the full data flow without GitHub or git push:
  * 1. Parse benchmark files (Go bench + native + monitor)
- * 2. Build BenchmarkResult via stash logic
+ * 2. Build OtlpMetricsDocument via stash logic, project back to BenchmarkResult for aggregate
  * 3. Write run files to a temp directory
  * 4. Aggregate: build index + series
  * 5. Validate all output against JSON schemas
@@ -18,7 +18,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import Ajv from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import { buildResult, parseBenchmarkFiles, readMonitorOutput } from "../../stash/lib/stash.js";
+import { parseBenchmarkFiles } from "../../stash/lib/stash.js";
 import {
   type ParsedRun,
   sortRuns,
@@ -146,6 +146,10 @@ function writeFixtures(tmpDir: string): { goBench1: string; goBench2: string; na
  * 3. Write run files to a temp data dir
  * 4. Read them back as ParsedRuns
  * 5. Aggregate into index + series
+ *
+ * Note: stash now produces OtlpMetricsDocument internally, but the aggregate
+ * still consumes BenchmarkResult. This test constructs BenchmarkResult
+ * directly to keep aggregate testing isolated from the stash OTLP migration.
  */
 function simulatePipeline(tmpDir: string): {
   runs: ParsedRun[];
@@ -159,17 +163,17 @@ function simulatePipeline(tmpDir: string): {
 
   // --- Run 1: Go bench + monitor ---
   const benchmarks1 = parseBenchmarkFiles([fixtures.goBench1], "go");
-  const monitor1 = readMonitorOutput(fixtures.monitorFile);
-  const result1 = buildResult({
-    benchmarks: benchmarks1,
-    monitorResult: monitor1,
+  const monitorData = JSON.parse(fs.readFileSync(fixtures.monitorFile, "utf-8")) as BenchmarkResult;
+  const result1: BenchmarkResult = {
+    benchmarks: [...benchmarks1, ...monitorData.benchmarks],
     context: {
       commit: "aaa1111",
       ref: "refs/heads/main",
       timestamp: "2026-03-30T10:00:00Z",
       runner: "Linux/X64",
+      monitor: monitorData.context?.monitor,
     },
-  });
+  };
   fs.writeFileSync(
     path.join(runsDir, "run-001.json"),
     JSON.stringify(result1, null, 2),
@@ -177,7 +181,7 @@ function simulatePipeline(tmpDir: string): {
 
   // --- Run 2: Go bench (no monitor) ---
   const benchmarks2 = parseBenchmarkFiles([fixtures.goBench2], "go");
-  const result2 = buildResult({
+  const result2: BenchmarkResult = {
     benchmarks: benchmarks2,
     context: {
       commit: "bbb2222",
@@ -185,7 +189,7 @@ function simulatePipeline(tmpDir: string): {
       timestamp: "2026-03-31T10:00:00Z",
       runner: "Linux/X64",
     },
-  });
+  };
   fs.writeFileSync(
     path.join(runsDir, "run-002.json"),
     JSON.stringify(result2, null, 2),
@@ -193,14 +197,14 @@ function simulatePipeline(tmpDir: string): {
 
   // --- Run 3: Native format ---
   const benchmarks3 = parseBenchmarkFiles([fixtures.nativeBench], "native");
-  const result3 = buildResult({
+  const result3: BenchmarkResult = {
     benchmarks: benchmarks3,
     context: {
       commit: "ccc3333",
       ref: "refs/heads/main",
       timestamp: "2026-03-31T12:00:00Z",
     },
-  });
+  };
   fs.writeFileSync(
     path.join(runsDir, "run-003.json"),
     JSON.stringify(result3, null, 2),

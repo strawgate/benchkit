@@ -134,3 +134,6 @@ export { defineMetric, defineBenchmark, buildNativeResult, stringifyNativeResult
 export { detailViewToBenchmarkResult } from "./run-detail-converter.js";
 /** Retry helpers for push operations. */
 export { computeRetryDelayMs, sleep, DEFAULT_PUSH_RETRY_COUNT, RETRY_DELAY_MIN_MS, RETRY_DELAY_MAX_MS } from "./retry.js";
+/** Convert a BenchmarkResult into an OtlpMetricsDocument. */
+export { benchmarkResultToOtlp } from "./to-otlp.js";
+export type { ToOtlpOptions } from "./to-otlp.js";
