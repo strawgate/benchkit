@@ -49,7 +49,7 @@ export function DashboardToolbar({
     : 0;
 
   return (
-    <section class="bk-toolbar">
+    <section class="bk-toolbar" aria-label="Dashboard controls">
       <div class="bk-toolbar__row">
         <div class="bk-toolbar__group">
           <span class="bk-toolbar__label">{labels.viewLabel}</span>
@@ -71,14 +71,15 @@ export function DashboardToolbar({
         </div>
       </div>
       <div class="bk-toolbar__row">
-        <div class="bk-toolbar__group">
-          <span class="bk-toolbar__label">{labels.metricsLabel}</span>
+        <div class="bk-toolbar__group" role="tablist" aria-label={labels.metricsLabel}>
+          <span class="bk-toolbar__label" id="bk-metrics-label">{labels.metricsLabel}</span>
           {metricNames.map((metric) => (
             <button
               key={metric}
               type="button"
               class="bk-tab"
-              aria-pressed={selectedMetric === metric}
+              role="tab"
+              aria-selected={selectedMetric === metric}
               onClick={() => onMetricClick(metric)}
             >
               {formatMetric(metric)}

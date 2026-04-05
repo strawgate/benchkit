@@ -77,15 +77,16 @@ export function ComparisonSummaryTable({
     <div class={["bk-table-shell", className].filter(Boolean).join(" ")}>
       <div class="bk-table-shell__scroll">
         <table class="bk-table">
+          <caption class="bk-sr-only">Comparison results</caption>
           <thead>
             <tr>
-              <th>{cols?.status ?? ""}</th>
-              <th>{cols?.name ?? "Name"}</th>
-              <th>{cols?.metric ?? "Metric"}</th>
-              <th class="bk-table__numeric">{cols?.baseline ?? "Baseline"}</th>
-              <th class="bk-table__numeric">{cols?.current ?? "Current"}</th>
-              <th class="bk-table__numeric">{cols?.change ?? "Change"}</th>
-              <th>{cols?.direction ?? "Direction"}</th>
+              <th scope="col">{cols?.status ?? ""}</th>
+              <th scope="col">{cols?.name ?? "Name"}</th>
+              <th scope="col">{cols?.metric ?? "Metric"}</th>
+              <th scope="col" class="bk-table__numeric">{cols?.baseline ?? "Baseline"}</th>
+              <th scope="col" class="bk-table__numeric">{cols?.current ?? "Current"}</th>
+              <th scope="col" class="bk-table__numeric">{cols?.change ?? "Change"}</th>
+              <th scope="col">{cols?.direction ?? "Direction"}</th>
             </tr>
           </thead>
           <tbody>

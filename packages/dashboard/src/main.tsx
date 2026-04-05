@@ -15,10 +15,10 @@ function App() {
           gap: "12px",
         }}
       >
-        <span style={{ fontSize: "1.5rem", fontWeight: 700 }}>Benchkit</span>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: 0 }}>Benchkit</h1>
         <span style={{ fontSize: "0.875rem", color: "#94a3b8" }}>Self-Benchmarks</span>
       </header>
-      <main style={{ flex: 1, padding: "24px" }}>
+      <main id="main-content" style={{ flex: 1, padding: "24px" }}>
         <Dashboard
           source={{ owner: "strawgate", repo: "benchkit" }}
           seriesNameFormatter={(name) => name.replace(/^Benchmark/, "")}

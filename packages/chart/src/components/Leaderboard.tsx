@@ -45,12 +45,13 @@ export function Leaderboard({ series, seriesNameFormatter, class: className }: L
   return (
     <div class={className}>
       <table class="bk-table">
+        <caption class="bk-sr-only">Series leaderboard for {series.metric}</caption>
         <thead>
           <tr>
-            <th>#</th>
-            <th>Series</th>
-            <th class="bk-table__numeric">Latest</th>
-            <th class="bk-table__numeric">Δ prev</th>
+            <th scope="col">#</th>
+            <th scope="col">Series</th>
+            <th scope="col" class="bk-table__numeric">Latest</th>
+            <th scope="col" class="bk-table__numeric">Δ prev</th>
           </tr>
         </thead>
         <tbody>
