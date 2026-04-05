@@ -4,7 +4,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { parseCurrentRun, readBaselineRuns, runComparison } from "./compare-action.js";
-import { buildOtlpResult, type OtlpMetricsDocument } from "@benchkit/format";
+import { buildOtlpResult } from "@benchkit/format";
+import type { OtlpMetricsDocument } from "@metrickit/core";
 
 function makeTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-compare-test-"));

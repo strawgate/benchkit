@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
 import { extractTags, filterSeriesFile } from "./components/TagFilter.js";
-import type { SeriesFile } from "@benchkit/format";
+import type { SeriesFile } from "@metrickit/core";
 
 const makeSeriesFile = (entries: Record<string, { tags?: Record<string, string> }>): SeriesFile => ({
   metric: "ns_per_op",

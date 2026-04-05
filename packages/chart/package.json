@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@benchkit/format": "*",
+    "@metrickit/core": "*",
     "chart.js": "^4.4.0",
     "chartjs-adapter-date-fns": "^3.0.0",
     "date-fns": "^4.1.0"

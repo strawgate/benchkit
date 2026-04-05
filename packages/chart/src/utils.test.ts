@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
 import { detectRegressions, regressionTooltip } from "./utils.js";
-import type { SeriesFile } from "@benchkit/format";
+import type { SeriesFile } from "@metrickit/core";
 
 function makeSeriesFile(
   values: number[],

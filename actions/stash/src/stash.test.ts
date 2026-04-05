@@ -14,7 +14,8 @@ import {
   readMonitorOutput,
   writeResultFile,
 } from "./stash.js";
-import { buildOtlpResult, MetricsBatch, type OtlpMetricsDocument } from "@benchkit/format";
+import { buildOtlpResult, MetricsBatch } from "@benchkit/format";
+import type { OtlpMetricsDocument } from "@metrickit/core";
 
 // ── buildRunId ──────────────────────────────────────────────────────
 

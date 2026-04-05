@@ -6,8 +6,8 @@ import {
   parseBenchmarks as parse,
   MetricsBatch,
   type Format,
-  type OtlpMetricsDocument,
 } from "@benchkit/format";
+import type { OtlpMetricsDocument } from "@metrickit/core";
 
 export function parseCurrentRun(files: string[], format: Format): MetricsBatch {
   if (files.length === 0) {
