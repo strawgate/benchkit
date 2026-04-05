@@ -1,6 +1,6 @@
 # Benchkit Artifact Layout
 
-This document describes the files written by the `bench-aggregate` action to the data branch.
+This document describes the files written by `actions/aggregate` to the data branch.
 
 ## Directory structure
 
@@ -8,17 +8,19 @@ This document describes the files written by the `bench-aggregate` action to the
 data/
 ├── index.json                      # Global run index (backward-compatible)
 ├── runs/
-│   └── {run-id}.json               # Raw benchmark result (written by bench-stash)
+│   └── {run-id}.json               # Raw OTLP metrics JSON (written by actions/stash)
 ├── series/
 │   └── {metric}.json               # Pre-aggregated time-series per metric
-├── index/                          # Navigation indexes (new)
+├── index/                          # Navigation indexes
 │   ├── refs.json                   # Runs grouped by git ref
 │   ├── prs.json                    # Runs grouped by pull-request number
 │   └── metrics.json                # All known metrics with latest activity
-└── views/
-    └── runs/
-        └── {run-id}/
-            └── detail.json         # All metrics for a single run
+├── views/
+│   └── runs/
+│       └── {run-id}/
+│           └── detail.json         # All metrics for a single run
+└── telemetry/
+    └── {run-id}.otlp.jsonl.gz      # Raw OTLP telemetry sidecar (written by actions/monitor)
 ```
 
 ---
@@ -29,7 +31,7 @@ data/
 
 `data/runs/{run-id}.json`
 
-Written by `bench-stash`. Contains OTLP metrics JSON for a single CI run.
+Written by `actions/stash`. Contains OTLP metrics JSON for a single CI run.
 These files are the source of truth; all derived files are rebuilt from them on every aggregate.
 
 ### Global index (backward-compatible)
@@ -151,6 +153,21 @@ alphabetically. Suitable for a run detail page without requiring the full series
 ```
 
 Schema: `schema/view-run-detail.schema.json`
+
+---
+
+## Telemetry sidecars
+
+### `data/telemetry/{run-id}.otlp.jsonl.gz`
+
+Written by `actions/monitor` at shutdown. Contains the raw OTLP metrics collected during the
+CI run — host CPU, memory, load, process stats, and any custom metrics sent to the
+collector's OTLP endpoint. The file is gzip-compressed newline-delimited JSON (one
+`ExportMetricsServiceRequest` per line).
+
+Telemetry sidecars are **not** consumed by `actions/aggregate`. They exist for offline
+analysis, debugging, and future aggregation use cases. Each sidecar is keyed to a run via
+the run ID in the filename, which matches the corresponding `data/runs/{run-id}.json` file.
 
 ---
 

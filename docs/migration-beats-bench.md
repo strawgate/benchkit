@@ -17,6 +17,11 @@ By migrating to Benchkit, you keep the specialized Python runner and Docker orch
 ## Migration Path
 
 ### 1. Update `beats-bench` CLI
+
+> **Status: Blocked upstream.** This step requires a change to the `beats-bench`
+> repository that has not been implemented yet. Until the `--output-format benchkit`
+> flag ships, the migration cannot proceed end-to-end.
+
 The `beats-bench summarize` command should be updated to emit Benchkit-native JSON.
 
 - **Add flag**: `--output-format benchkit`

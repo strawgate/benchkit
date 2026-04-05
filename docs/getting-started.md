@@ -228,6 +228,7 @@ For the full component surfaces and data-fetch helpers, see [`reference/react-co
 ## Where to go next
 
 - Action-by-action reference: [`reference/actions.md`](reference/actions.md)
+- Migration readiness and example coverage: [`migration-readiness.md`](migration-readiness.md)
 - Data contracts and schemas: [`../schema/README.md`](../schema/README.md)
 - Format APIs and parsers: [`../packages/format/README.md`](../packages/format/README.md)
 - Workflow architecture guidance: [`workflow-architecture.md`](workflow-architecture.md)
