@@ -20,7 +20,7 @@ const DEFAULT_THRESHOLD: ThresholdConfig = { test: "percentage", threshold: 5 };
  *
  * @param current - The OTLP metrics document from the current run.
  * @param baseline - One or more baseline `OtlpMetricsDocument` objects to compare against.
- * @param config - Threshold configuration controlling regression sensitivity (default: 5 % percentage).
+ * @param config - Threshold configuration controlling regression sensitivity (default: 5% percentage).
  * @returns A `ComparisonResult` with per-metric entries and an overall regression flag.
  */
 export function compareRuns(

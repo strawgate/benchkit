@@ -52,14 +52,6 @@ function makeOtlpDoc(
 }
 
 // ---------------------------------------------------------------------------
-// BenchmarkResult helper (for compareBenchmarkResults tests)
-// ---------------------------------------------------------------------------
-
-function makeResult(benchmarks: BenchmarkResult["benchmarks"]): BenchmarkResult {
-  return { benchmarks };
-}
-
-// ---------------------------------------------------------------------------
 // compareRuns (OTLP-based)
 // ---------------------------------------------------------------------------
 
@@ -349,6 +341,10 @@ describe("compare (OTLP)", () => {
 // ---------------------------------------------------------------------------
 // compareBenchmarkResults (BenchmarkResult-based, backward compat)
 // ---------------------------------------------------------------------------
+
+function makeResult(benchmarks: BenchmarkResult["benchmarks"]): BenchmarkResult {
+  return { benchmarks };
+}
 
 describe("compareBenchmarkResults", () => {
   it("returns empty result for empty baseline", () => {
