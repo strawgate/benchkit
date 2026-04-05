@@ -19,14 +19,15 @@ export function RunTable({ index, maxRows, onSelectRun, commitHref, class: class
     <div class={["bk-table-shell", className].filter(Boolean).join(" ")}>
       <div class="bk-table-shell__scroll">
         <table class="bk-table">
+          <caption class="bk-sr-only">Recent benchmark runs</caption>
           <thead>
             <tr>
-              <th>{labels?.runColumn ?? "Run"}</th>
-              <th>{labels?.timeColumn ?? "Time"}</th>
-              <th>{labels?.commitColumn ?? "Commit"}</th>
-              <th>{labels?.refColumn ?? "Ref"}</th>
-              <th class="bk-table__numeric">{labels?.benchmarksColumn ?? "Benchmarks"}</th>
-              <th>{labels?.metricsColumn ?? "Metrics"}</th>
+              <th scope="col">{labels?.runColumn ?? "Run"}</th>
+              <th scope="col">{labels?.timeColumn ?? "Time"}</th>
+              <th scope="col">{labels?.commitColumn ?? "Commit"}</th>
+              <th scope="col">{labels?.refColumn ?? "Ref"}</th>
+              <th scope="col" class="bk-table__numeric">{labels?.benchmarksColumn ?? "Benchmarks"}</th>
+              <th scope="col">{labels?.metricsColumn ?? "Metrics"}</th>
             </tr>
           </thead>
           <tbody>

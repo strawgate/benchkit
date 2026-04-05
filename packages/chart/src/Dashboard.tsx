@@ -236,10 +236,10 @@ export function Dashboard({
           />
         )}
 
-        <section class="bk-section">
+        <section class="bk-section" aria-labelledby="bk-recent-runs-title">
           <div class="bk-section__header">
             <div>
-              <h3 class="bk-section__title">{labels.recentRunsTitle}</h3>
+              <h3 class="bk-section__title" id="bk-recent-runs-title">{labels.recentRunsTitle}</h3>
               <p class="bk-section__description">{labels.recentRunsDescription}</p>
             </div>
           </div>
