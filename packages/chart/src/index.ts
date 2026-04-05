@@ -41,3 +41,15 @@ export { detectRegressions, regressionTooltip, type RegressionResult } from "./u
 export { defaultMetricLabel, defaultMonitorMetricLabel, isMonitorMetric } from "./labels.js";
 export { samplesToDataPoints, dataPointsToComparisonData } from "./comparison-transforms.js";
 export { extractSampleMetrics } from "./sample-utils.js";
+
+// Dataset-local transform layer
+export {
+  transformSeriesDataset,
+  partitionSeriesMap,
+  applyDateRangeToMap,
+  detectAllRegressions,
+  partitionSnapshots,
+  type DatasetAggregate,
+  type DatasetFilter,
+  type TransformSeriesDatasetOptions,
+} from "./dataset-transforms.js";

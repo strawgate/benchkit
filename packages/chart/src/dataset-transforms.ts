@@ -1,4 +1,7 @@
 import type { DataPoint, SeriesFile, SeriesEntry } from "@metrickit/core";
+import type { RunDetailMetricSnapshot } from "@benchkit/format";
+import { detectRegressions, type RegressionResult } from "./utils.js";
+import { filterSeriesFileByDateRange, type DateRange } from "./components/DateRangeFilter.js";
 
 export type DatasetAggregate = "sum" | "avg" | "max";
 
@@ -100,4 +103,72 @@ export function transformSeriesDataset(
     metric: options.metric ?? series.metric,
     series: Object.fromEntries(entries),
   };
+}
+
+// ── Map-level transforms ─────────────────────────────────────────────
+
+/**
+ * Split a series map into two parts using a predicate on the metric name.
+ * Returns `[matching, rest]`.
+ */
+export function partitionSeriesMap(
+  map: Map<string, SeriesFile>,
+  predicate: (metric: string) => boolean,
+): [Map<string, SeriesFile>, Map<string, SeriesFile>] {
+  const matching = new Map<string, SeriesFile>();
+  const rest = new Map<string, SeriesFile>();
+  for (const [metric, sf] of map) {
+    (predicate(metric) ? matching : rest).set(metric, sf);
+  }
+  return [matching, rest];
+}
+
+/**
+ * Apply a date range filter to every series file in the map.
+ * Returns a new map with filtered series (empty series files are preserved
+ * so metrics remain discoverable).
+ */
+export function applyDateRangeToMap(
+  map: Map<string, SeriesFile>,
+  range: DateRange,
+): Map<string, SeriesFile> {
+  if (!range.start && !range.end) return map;
+  const filtered = new Map<string, SeriesFile>();
+  for (const [metric, sf] of map) {
+    filtered.set(metric, filterSeriesFileByDateRange(sf, range));
+  }
+  return filtered;
+}
+
+/**
+ * Run regression detection across every metric in the map.
+ * Returns only metrics that have at least one regression.
+ */
+export function detectAllRegressions(
+  map: Map<string, SeriesFile>,
+  threshold = 10,
+  window = 5,
+): Map<string, RegressionResult[]> {
+  const result = new Map<string, RegressionResult[]>();
+  for (const [metric, sf] of map) {
+    const regressions = detectRegressions(sf, threshold, window);
+    if (regressions.length > 0) result.set(metric, regressions);
+  }
+  return result;
+}
+
+/**
+ * Partition metric snapshots (from a RunDetailView) into two arrays using
+ * a predicate on the metric name. Returns `[matching, rest]`.
+ */
+export function partitionSnapshots(
+  snapshots: RunDetailMetricSnapshot[],
+  predicate: (metric: string) => boolean,
+): [RunDetailMetricSnapshot[], RunDetailMetricSnapshot[]] {
+  const matching: RunDetailMetricSnapshot[] = [];
+  const rest: RunDetailMetricSnapshot[] = [];
+  for (const s of snapshots) {
+    (predicate(s.metric) ? matching : rest).push(s);
+  }
+  return [matching, rest];
 }
