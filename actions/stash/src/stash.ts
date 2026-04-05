@@ -3,7 +3,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import {
   parseBenchmarks as parse,
-  parseNative,
   buildOtlpResult,
   MetricsBatch,
   type Format,
@@ -105,9 +104,9 @@ export function readMonitorOutput(monitorPath: string): OtlpMetricsDocument {
   }
 
   // Legacy native format — convert through buildOtlpResult
-  const native = parseNative(content);
+  const legacy = parsed as { benchmarks: Array<{ name: string; metrics: Record<string, { value: number; unit?: string; direction?: "bigger_is_better" | "smaller_is_better" }> }> };
   return buildOtlpResult({
-    benchmarks: native.benchmarks.map((b) => ({
+    benchmarks: legacy.benchmarks.map((b) => ({
       name: b.name,
       metrics: Object.fromEntries(
         Object.entries(b.metrics).map(([k, m]) => [k, { value: m.value, unit: m.unit, direction: m.direction }]),

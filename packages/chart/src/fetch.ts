@@ -1,5 +1,5 @@
-import type { IndexFile, SeriesFile, BenchmarkResult, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, RunDetailView, ComparisonResult, ThresholdConfig } from "@benchkit/format";
-import { compareRuns as compare, detailViewToBenchmarkResult, buildOtlpResult, MetricsBatch, DEFAULT_DATA_BRANCH } from "@benchkit/format";
+import type { IndexFile, SeriesFile, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, RunDetailView, ComparisonResult, ThresholdConfig, OtlpMetricsDocument } from "@benchkit/format";
+import { compareRuns as compare, buildOtlpResult, MetricsBatch, DEFAULT_DATA_BRANCH } from "@benchkit/format";
 
 export interface DataSource {
   owner?: string;
@@ -39,8 +39,8 @@ export function fetchSeries(ds: DataSource, metric: string, signal?: AbortSignal
   return fetchJson<SeriesFile>(ds, `data/series/${metric}.json`, signal);
 }
 
-export function fetchRun(ds: DataSource, runId: string, signal?: AbortSignal): Promise<BenchmarkResult> {
-  return fetchJson<BenchmarkResult>(ds, `data/runs/${runId}.json`, signal);
+export function fetchRun(ds: DataSource, runId: string, signal?: AbortSignal): Promise<OtlpMetricsDocument> {
+  return fetchJson<OtlpMetricsDocument>(ds, `data/runs/${runId}.json`, signal);
 }
 
 export function fetchPrIndex(ds: DataSource, signal?: AbortSignal): Promise<PrIndexEntry[]> {
@@ -74,23 +74,23 @@ export async function compareRuns(
     fetchRunDetail(ds, currentRunId, signal),
     fetchRunDetail(ds, baselineRunId, signal),
   ]);
-  const currentResult = detailViewToBenchmarkResult(currentDetail);
-  const baselineResult = detailViewToBenchmarkResult(baselineDetail);
-  const currentBatch = benchmarkResultToBatch(currentResult);
-  const baselineBatch = benchmarkResultToBatch(baselineResult);
+  const currentBatch = detailViewToBatch(currentDetail);
+  const baselineBatch = detailViewToBatch(baselineDetail);
   const comparison = compare(currentBatch, [baselineBatch], threshold);
   return { comparison, currentDetail, baselineDetail };
 }
 
-function benchmarkResultToBatch(result: ReturnType<typeof detailViewToBenchmarkResult>): MetricsBatch {
-  const doc = buildOtlpResult({
-    benchmarks: result.benchmarks.map((b) => ({
-      name: b.name,
-      tags: b.tags,
-      metrics: Object.fromEntries(
-        Object.entries(b.metrics).map(([k, m]) => [k, { value: m.value, unit: m.unit, direction: m.direction }]),
-      ),
+/** Convert a RunDetailView directly to MetricsBatch. */
+function detailViewToBatch(detail: RunDetailView): MetricsBatch {
+  const benchmarks = detail.metricSnapshots.flatMap((snap) =>
+    snap.values.map((v) => ({
+      name: v.name,
+      tags: v.tags,
+      metrics: { [snap.metric]: { value: v.value, unit: v.unit, direction: v.direction } },
     })),
+  );
+  const doc = buildOtlpResult({
+    benchmarks,
     context: { sourceFormat: "otlp" },
   });
   return MetricsBatch.fromOtlp(doc);

@@ -5,13 +5,28 @@ import {
   buildOtlpResult,
 } from "@benchkit/format";
 import type {
-  BenchmarkResult,
   MonitorContext,
   IndexFile,
   RunEntry,
   SeriesFile,
   DataPoint,
 } from "@benchkit/format";
+
+/** Shape of legacy BenchmarkResult JSON files on the data branch. */
+interface LegacyBenchmarkResult {
+  benchmarks: Array<{
+    name: string;
+    tags?: Record<string, string>;
+    metrics: Record<string, { value: number; unit?: string; direction?: "bigger_is_better" | "smaller_is_better" }>;
+  }>;
+  context?: {
+    commit?: string;
+    ref?: string;
+    timestamp?: string;
+    runner?: string;
+    monitor?: MonitorContext;
+  };
+}
 
 /** A parsed benchmark run with its identifier. */
 export interface ParsedRun {
@@ -219,7 +234,7 @@ function parseRunFile(id: string, data: Record<string, unknown>): ParsedRun {
   }
 
   // Legacy BenchmarkResult format: has benchmarks array
-  const legacy = data as unknown as BenchmarkResult;
+  const legacy = data as unknown as LegacyBenchmarkResult;
   const doc = buildOtlpResult({
     benchmarks: (legacy.benchmarks ?? []).map((b) => ({
       name: b.name,

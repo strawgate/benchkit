@@ -1,7 +1,5 @@
 export type {
-  BenchmarkResult,
-  Benchmark,
-  Metric,
+  MetricDirection,
   BenchkitRunKind,
   OtlpAggregationTemporality,
   OtlpAttribute,
@@ -17,7 +15,6 @@ export type {
   OtlpResourceMetrics,
   OtlpMetricsDocument,
   Sample,
-  Context,
   MonitorContext,
   SeriesFile,
   SeriesEntry,
@@ -44,8 +41,6 @@ export type { Format } from "./parse.js";
 export { inferDirection } from "./infer-direction.js";
 /** Convert a benchmark unit string to a normalized metric name (e.g. "ns/op" -> "ns_per_op"). */
 export { unitToMetricName } from "./parser-utils.js";
-/** Parse a native JSON benchmark result (benchkit format). */
-export { parseNative } from "./parse-native.js";
 /** Parse Go testing/benchmark output text. */
 export { parseGoBench } from "./parse-go.js";
 /** Parse Rust cargo bench (libtest) output text. */
@@ -115,8 +110,6 @@ export {
 export { compareRuns } from "./compare.js";
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */
 export { formatComparisonMarkdown } from "./format-comparison-markdown.js";
-/** Convert a RunDetailView back into a BenchmarkResult for use with compare(). */
-export { detailViewToBenchmarkResult } from "./run-detail-converter.js";
 /** Retry helpers for push operations. */
 export { computeRetryDelayMs, sleep, DEFAULT_PUSH_RETRY_COUNT, RETRY_DELAY_MIN_MS, RETRY_DELAY_MAX_MS } from "./retry.js";
 /** Build an OtlpMetricsDocument from a simple benchmark input shape. */
