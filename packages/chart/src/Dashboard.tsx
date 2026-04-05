@@ -9,8 +9,10 @@ import { MetricDetailView } from "./components/MetricDetailView.js";
 import { RunTable } from "./components/RunTable.js";
 import { MonitorSection } from "./components/MonitorSection.js";
 import { filterSeriesFile } from "./components/TagFilter.js";
-import { presetToDateRange, filterSeriesFileByDateRange, type DateRangePreset } from "./components/DateRangeFilter.js";import { detectRegressions, type RegressionResult } from "./utils.js";
+import { presetToDateRange, type DateRangePreset } from "./components/DateRangeFilter.js";
+import { type RegressionResult } from "./utils.js";
 import { defaultMetricLabel, isMonitorMetric } from "./labels.js";
+import { partitionSeriesMap, applyDateRangeToMap, detectAllRegressions } from "./dataset-transforms.js";
 
 export interface DashboardProps {
   source: DataSource;
@@ -99,24 +101,15 @@ export function Dashboard({
   const handleOverview = useCallback(() => setView("overview"), []);
 
   // Apply date range filter to all series data.
-  const dateFilteredSeriesMap = useMemo(() => {
-    const range = presetToDateRange(dateRange);
-    if (!range.start && !range.end) return seriesMap;
-    const filtered = new Map<string, SeriesFile>();
-    for (const [metric, sf] of seriesMap.entries()) {
-      filtered.set(metric, filterSeriesFileByDateRange(sf, range));
-    }
-    return filtered;
-  }, [seriesMap, dateRange]);
+  const dateFilteredSeriesMap = useMemo(
+    () => applyDateRangeToMap(seriesMap, presetToDateRange(dateRange)),
+    [seriesMap, dateRange],
+  );
 
-  const regressionMap = useMemo<Map<string, RegressionResult[]>>(() => {
-    const map = new Map<string, RegressionResult[]>();
-    for (const [metric, sf] of dateFilteredSeriesMap.entries()) {
-      const results = detectRegressions(sf, regressionThreshold, regressionWindow);
-      if (results.length > 0) map.set(metric, results);
-    }
-    return map;
-  }, [dateFilteredSeriesMap, regressionThreshold, regressionWindow]);
+  const regressionMap = useMemo<Map<string, RegressionResult[]>>(
+    () => detectAllRegressions(dateFilteredSeriesMap, regressionThreshold, regressionWindow),
+    [dateFilteredSeriesMap, regressionThreshold, regressionWindow],
+  );
 
   const rootClassName = ["bk-dashboard", className].filter(Boolean).join(" ");
   const formatMetric = metricLabelFormatter ?? defaultMetricLabel;
@@ -154,8 +147,10 @@ export function Dashboard({
     );
   }
 
-  const userMetrics = new Map([...dateFilteredSeriesMap.entries()].filter(([m]) => !isMonitorMetric(m)));
-  const monitorSeriesMap = new Map([...dateFilteredSeriesMap.entries()].filter(([m]) => isMonitorMetric(m)));
+  const [monitorSeriesMap, userMetrics] = useMemo(
+    () => partitionSeriesMap(dateFilteredSeriesMap, isMonitorMetric),
+    [dateFilteredSeriesMap],
+  );
   const userMetricNames = (index.metrics ?? []).filter((m) => !isMonitorMetric(m));
 
   const selectedMetric = typeof view === "object" ? view.metric : null;
