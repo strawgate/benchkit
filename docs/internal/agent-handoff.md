@@ -21,9 +21,24 @@ Then read the package or action you are about to change.
 OTLP JSON is the only data format. Every component operates on
 `OtlpMetricsDocument`. See [`../otlp-semantic-conventions.md`](../otlp-semantic-conventions.md).
 
-Key types in `@benchkit/format`:
+### Package dependency graph
+
+```
+@metrickit/core (generic OTLP types, parsing, retry)
+    ↑
+@benchkit/format (benchmark types, parsers, MetricsBatch, compare)
+    ↑
+actions/* + @benchkit/chart
+```
+
+Key types in `@metrickit/core`:
 
 - `OtlpMetricsDocument` — the wire format, used everywhere
+- `parseOtlp()` — parse and validate OTLP JSON
+- `SeriesFile`, `IndexFile`, `RunEntry`, `DataPoint` — generic data view types
+
+Key types in `@benchkit/format`:
+
 - `MetricsBatch` — ergonomic wrapper with `fromOtlp()`, `filter()`, `groupBy*()`, `toOtlp()`
 - `MetricPoint` — flat tuple: `{scenario, series, metric, value, unit, direction, role, tags, timestamp}`
 - `buildOtlpResult()` — canonical helper for constructing `OtlpMetricsDocument` from parsed benchmarks
@@ -32,37 +47,25 @@ All parsers produce `OtlpMetricsDocument` via `buildOtlpResult()`.
 
 ## Current execution queue
 
-### Completed: OTLP-everywhere action migration
+### Completed: MetricsKit split (Phases 1–4)
 
-All four issues in this sequence have been completed:
+- **Phase 1** — Boundary plan and ownership matrix (PR #263)
+- **Phase 2** — Extract `@metrickit/core` with generic types, parsing, retry (PR #264)
+- **Phase 3** — Explicit `@metrickit/core` imports across actions + chart (PR #265)
+- **Phase 4** — Aggregation layering inventory and documentation (#196, #198)
 
-1. **`#251` — Migrate stash action to write OTLP JSON** ✅
-2. **`#253` — Migrate compare action to accept OTLP input** ✅
-3. **`#252` — Migrate aggregate action to read OTLP JSON** ✅
-4. **`#254` — Remove BenchmarkResult type** ✅
-   - Deleted: `parse-native.ts`, `run-detail-converter.ts`, `BenchmarkResult`/`Benchmark`/`Metric`/`Context` types, `benchmark-result.schema.json`
-   - Kept: `Sample` (used by chart), `MonitorContext` (used by aggregate/stash)
-   - Added: `MetricDirection` type alias, `LegacyBenchmarkResult` local type in aggregate for backward-compatible reading
+### Blocked: Phase 5 — release and migration
 
-### Backlog: docs and product clarity
-
-- `#159`–`#163` — docs cleanup sequence (can be delegated)
-- `#63` — simplify CI to use root build command
+- `#174` — First npm release blocked on `NPM_TOKEN` secret (maintainer action needed)
+- `#182` — Release, docs, demo migration (depends on #174)
+- `#183` — Epic umbrella (stays open until Phase 5 completes)
 
 ### Backlog: product features
 
 - `#93` — dataset-local transform layer
 - `#83` — `CompetitiveDashboard`
+- `#56` — export/embed mode for chart components
 - `#79`, `#81`, `#7` — workflow benchmark ergonomics
-
-### Future: MetricsKit split
-
-Issues `#179`–`#183`, `#189`–`#198` plan splitting benchkit into:
-
-- **MetricsKit** — generic OTLP metrics platform (MetricsBatch, parsers, OTLP conventions)
-- **BenchKit** — benchmark domain layer (compare, stash, aggregate, benchmark-specific semantics)
-
-This happens after the OTLP-everywhere migration completes.
 
 ## Cross-repo context
 
