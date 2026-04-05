@@ -1,7 +1,7 @@
 {
-  "name": "@benchkit/format",
+  "name": "@metrickit/core",
   "version": "0.1.0",
-  "description": "Benchmark result types and format parsers (Go bench, benchmark-action, OTLP, native).",
+  "description": "Generic OTLP metric types, parsing, and data structures for metric storage and visualization.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -11,12 +11,9 @@
   },
   "files": ["dist"],
   "license": "MIT",
-  "dependencies": {
-    "@metrickit/core": "*"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/strawgate/benchkit.git",
-    "directory": "packages/format"
+    "directory": "packages/core"
   }
 }
