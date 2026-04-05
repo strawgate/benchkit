@@ -2,6 +2,25 @@
 
 Benchkit's UI package is [`@benchkit/chart`](../../packages/chart/README.md). This page is a guide to the main surfaces and when to use them. For full prop tables and API details, use the package README.
 
+## Shipped-surface matrix
+
+All components below are exported from `@benchkit/chart` and are the supported public API.
+
+| Component | Category | Typical use |
+|---|---|---|
+| `Dashboard` | Ready-made surface | Metric-first overview with trend charts, regressions, and monitor panels |
+| `RunDashboard` | Ready-made surface | PR- or run-oriented entry point with baseline comparison |
+| `RunDetail` | Ready-made surface | Deep-dive page for a single run's metrics and diagnostics |
+| `TrendChart` | Chart primitive | Time-series history of one metric |
+| `ComparisonBar` | Chart primitive | Latest-value comparison across series within one metric |
+| `Leaderboard` | Chart primitive | Ranked, direction-aware latest-value comparison |
+| `RunTable` | Chart primitive | Recent-run browsing and selection |
+| `MonitorSection` | Chart primitive | `_monitor` diagnostics from benchkit monitoring flows |
+| `TagFilter` | Filter | Lightweight series filtering by tag |
+| `DateRangeFilter` | Filter | Preset or custom time-window selection |
+
+> **Note:** Some documentation (including the chart README) shows `CompetitiveDashboard` and `EvolutionDashboard` as illustrative usage patterns. These are **not** exported components — they demonstrate how to compose the primitives above into custom layouts.
+
 ## Start with the ready-made surfaces
 
 ### `Dashboard`
