@@ -4,7 +4,7 @@ import {
   getOtlpMetricKind,
   getOtlpTemporality,
   otlpAttributesToRecord,
-  parseOtlpMetrics,
+  parseOtlp as parseOtlpMetrics,
   projectBenchmarkResultFromOtlp,
 } from "./parse-otlp.js";
 

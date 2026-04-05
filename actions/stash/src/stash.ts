@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
-  parse,
+  parseBenchmarks,
   parseNative,
   type Format,
   type BenchmarkResult,
@@ -76,14 +76,14 @@ export function getEmptyBenchmarksWarning(benchmarks: Benchmark[]): string | und
  * Parse a single benchmark file's content in the given format.
  * Throws a descriptive error including the filename if parsing fails.
  */
-export function parseBenchmarks(
+export function parseBenchmarksFromFile(
   content: string,
   format: Format,
   fileName: string,
 ): Benchmark[] {
   let result: BenchmarkResult;
   try {
-    result = parse(content, format);
+    result = parseBenchmarks(content, format);
   } catch (err) {
     throw new Error(
       `Failed to parse '${path.basename(fileName)}': ${err instanceof Error ? err.message : String(err)}`,

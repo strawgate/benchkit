@@ -26025,7 +26025,7 @@ module.exports = {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.compare = compare;
+exports.compareRuns = compareRuns;
 const infer_direction_js_1 = __nccwpck_require__(5083);
 const DEFAULT_THRESHOLD = { test: "percentage", threshold: 5 };
 /**
@@ -26045,7 +26045,7 @@ const DEFAULT_THRESHOLD = { test: "percentage", threshold: 5 };
  * @param config - Threshold configuration controlling regression sensitivity (default: 5 % percentage).
  * @returns A `ComparisonResult` with per-metric entries and an overall regression flag.
  */
-function compare(current, baseline, config = DEFAULT_THRESHOLD) {
+function compareRuns(current, baseline, config = DEFAULT_THRESHOLD) {
     if (baseline.length === 0) {
         return { entries: [], hasRegression: false };
     }
@@ -26139,7 +26139,7 @@ const DEFAULT_OPTIONS = {
 function isMonitorEntry(entry) {
     return entry.benchmark.startsWith("_monitor/");
 }
-function sortEntries(entries) {
+function sortAlphabetically(entries) {
     return [...entries].sort((a, b) => {
         if (a.benchmark !== b.benchmark)
             return a.benchmark.localeCompare(b.benchmark);
@@ -26193,7 +26193,7 @@ function formatTable(entries, options) {
         `| Benchmark | Metric | ${options.baselineLabel} | ${options.currentLabel} | Δ% | Status |`,
         "| --- | --- | --- | --- | --- | --- |",
     ];
-    for (const entry of sortEntries(entries)) {
+    for (const entry of sortAlphabetically(entries)) {
         lines.push(`| \`${entry.benchmark}\` | \`${entry.metric}\` | ${formatValue(entry.baseline, entry.unit)} | ${formatValue(entry.current, entry.unit)} | ${formatPercent(entry.percentChange)} | ${statusLabel(entry)} |`);
     }
     return lines;
@@ -26223,7 +26223,7 @@ function formatComparisonMarkdown(result, options = {}) {
     }
     const benchmarkEntries = result.entries.filter((entry) => !isMonitorEntry(entry));
     const monitorEntries = result.entries.filter((entry) => isMonitorEntry(entry));
-    const regressions = sortEntries(result.entries.filter((entry) => entry.status === "regressed"));
+    const regressions = sortAlphabetically(result.entries.filter((entry) => entry.status === "regressed"));
     if (regressions.length > 0) {
         lines.push("### Regressions");
         lines.push("");
@@ -26277,11 +26277,14 @@ function formatComparisonMarkdown(result, options = {}) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.isValidRunKind = exports.validateSourceFormat = exports.validateMetricRole = exports.validateDirection = exports.validateRunKind = exports.validateRequiredDatapointAttributes = exports.validateRequiredResourceAttributes = exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlpMetrics = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.unitToMetricName = exports.inferDirection = exports.parse = void 0;
-exports.detailViewToBenchmarkResult = exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.getMetricUnits = exports.getMetricTemporality = exports.extractResourceContext = exports.extractComparisonMetrics = exports.extractScenarioMetrics = exports.extractRunMetrics = exports.isMonitorMetric = exports.isValidSourceFormat = exports.isValidMetricRole = exports.isValidDirection = void 0;
+exports.validateMetricRole = exports.validateDirection = exports.validateRunKind = exports.validateRequiredDatapointAttributes = exports.validateRequiredResourceAttributes = exports.MONITOR_METRIC_PREFIX = exports.VALID_SOURCE_FORMATS = exports.VALID_METRIC_ROLES = exports.VALID_DIRECTIONS = exports.VALID_RUN_KINDS = exports.RESERVED_DATAPOINT_ATTRIBUTES = exports.REQUIRED_RESOURCE_ATTRIBUTES = exports.ATTR_VARIANT = exports.ATTR_PIPELINE = exports.ATTR_PROCESS = exports.ATTR_BATCH_SIZE = exports.ATTR_TRANSPORT = exports.ATTR_DATASET = exports.ATTR_IMPL = exports.ATTR_METRIC_ROLE = exports.ATTR_METRIC_DIRECTION = exports.ATTR_SERIES = exports.ATTR_SCENARIO = exports.ATTR_SERVICE_VERSION = exports.ATTR_SERVICE_NAME = exports.ATTR_RUNNER = exports.ATTR_RUN_ATTEMPT = exports.ATTR_JOB = exports.ATTR_WORKFLOW = exports.ATTR_COMMIT = exports.ATTR_REF = exports.ATTR_SOURCE_FORMAT = exports.ATTR_KIND = exports.ATTR_RUN_ID = exports.parseOtlpMetrics = exports.projectBenchmarkResultFromOtlp = exports.getOtlpTemporality = exports.getOtlpMetricKind = exports.otlpAttributesToRecord = exports.parseOtlp = exports.parsePytestBenchmark = exports.parseHyperfine = exports.parseBenchmarkAction = exports.parseRustBench = exports.parseGoBench = exports.parseNative = exports.unitToMetricName = exports.inferDirection = exports.parse = exports.parseBenchmarks = void 0;
+exports.detailViewToBenchmarkResult = exports.stringifyNativeResult = exports.buildNativeResult = exports.defineBenchmark = exports.defineMetric = exports.formatComparisonMarkdown = exports.compare = exports.compareRuns = exports.getMetricUnits = exports.getMetricTemporality = exports.extractResourceContext = exports.extractComparisonMetrics = exports.extractScenarioMetrics = exports.extractRunMetrics = exports.isMonitorMetric = exports.isValidSourceFormat = exports.isValidMetricRole = exports.isValidDirection = exports.isValidRunKind = exports.validateSourceFormat = void 0;
 /** Parse benchmark output in any supported format (auto-detect, go, native, benchmark-action). */
 var parse_js_1 = __nccwpck_require__(9152);
-Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_1.parse; } }));
+Object.defineProperty(exports, "parseBenchmarks", ({ enumerable: true, get: function () { return parse_js_1.parseBenchmarks; } }));
+/** @deprecated Use parseBenchmarks instead. */
+var parse_js_2 = __nccwpck_require__(9152);
+Object.defineProperty(exports, "parse", ({ enumerable: true, get: function () { return parse_js_2.parseBenchmarks; } }));
 /** Infer the `direction` ("smaller_is_better" / "bigger_is_better") from a metric unit string. */
 var infer_direction_js_1 = __nccwpck_require__(5083);
 Object.defineProperty(exports, "inferDirection", ({ enumerable: true, get: function () { return infer_direction_js_1.inferDirection; } }));
@@ -26308,11 +26311,14 @@ var parse_pytest_benchmark_js_1 = __nccwpck_require__(3956);
 Object.defineProperty(exports, "parsePytestBenchmark", ({ enumerable: true, get: function () { return parse_pytest_benchmark_js_1.parsePytestBenchmark; } }));
 /** Parse OTLP metrics JSON and project it into benchmark-oriented structures. */
 var parse_otlp_js_1 = __nccwpck_require__(3158);
-Object.defineProperty(exports, "parseOtlpMetrics", ({ enumerable: true, get: function () { return parse_otlp_js_1.parseOtlpMetrics; } }));
+Object.defineProperty(exports, "parseOtlp", ({ enumerable: true, get: function () { return parse_otlp_js_1.parseOtlp; } }));
 Object.defineProperty(exports, "otlpAttributesToRecord", ({ enumerable: true, get: function () { return parse_otlp_js_1.otlpAttributesToRecord; } }));
 Object.defineProperty(exports, "getOtlpMetricKind", ({ enumerable: true, get: function () { return parse_otlp_js_1.getOtlpMetricKind; } }));
 Object.defineProperty(exports, "getOtlpTemporality", ({ enumerable: true, get: function () { return parse_otlp_js_1.getOtlpTemporality; } }));
 Object.defineProperty(exports, "projectBenchmarkResultFromOtlp", ({ enumerable: true, get: function () { return parse_otlp_js_1.projectBenchmarkResultFromOtlp; } }));
+/** @deprecated Use parseOtlp instead. */
+var parse_otlp_js_2 = __nccwpck_require__(3158);
+Object.defineProperty(exports, "parseOtlpMetrics", ({ enumerable: true, get: function () { return parse_otlp_js_2.parseOtlp; } }));
 /** OTLP semantic convention constants — attribute names, valid values, reserved keys. */
 var otlp_conventions_js_1 = __nccwpck_require__(1757);
 Object.defineProperty(exports, "ATTR_RUN_ID", ({ enumerable: true, get: function () { return otlp_conventions_js_1.ATTR_RUN_ID; } }));
@@ -26367,7 +26373,10 @@ Object.defineProperty(exports, "getMetricTemporality", ({ enumerable: true, get:
 Object.defineProperty(exports, "getMetricUnits", ({ enumerable: true, get: function () { return otlp_projections_js_1.getMetricUnits; } }));
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 var compare_js_1 = __nccwpck_require__(2016);
-Object.defineProperty(exports, "compare", ({ enumerable: true, get: function () { return compare_js_1.compare; } }));
+Object.defineProperty(exports, "compareRuns", ({ enumerable: true, get: function () { return compare_js_1.compareRuns; } }));
+/** @deprecated Use compareRuns instead. */
+var compare_js_2 = __nccwpck_require__(2016);
+Object.defineProperty(exports, "compare", ({ enumerable: true, get: function () { return compare_js_2.compareRuns; } }));
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */
 var format_comparison_markdown_js_1 = __nccwpck_require__(1160);
 Object.defineProperty(exports, "formatComparisonMarkdown", ({ enumerable: true, get: function () { return format_comparison_markdown_js_1.formatComparisonMarkdown; } }));
@@ -27232,7 +27241,7 @@ function parseNative(input) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.otlpAttributesToRecord = otlpAttributesToRecord;
-exports.parseOtlpMetrics = parseOtlpMetrics;
+exports.parseOtlp = parseOtlp;
 exports.getOtlpMetricKind = getOtlpMetricKind;
 exports.getOtlpTemporality = getOtlpTemporality;
 exports.projectBenchmarkResultFromOtlp = projectBenchmarkResultFromOtlp;
@@ -27278,7 +27287,7 @@ function otlpAttributesToRecord(attributes) {
  * @param input - Raw OTLP metrics JSON string.
  * @returns The parsed `OtlpMetricsDocument`.
  */
-function parseOtlpMetrics(input) {
+function parseOtlp(input) {
     const parsed = JSON.parse(input);
     if (typeof parsed !== "object" ||
         parsed === null ||
@@ -27705,7 +27714,7 @@ function parseRustBench(input) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.parse = parse;
+exports.parseBenchmarks = parseBenchmarks;
 const parse_go_js_1 = __nccwpck_require__(8303);
 const parse_rust_js_1 = __nccwpck_require__(7215);
 const parse_benchmark_action_js_1 = __nccwpck_require__(5985);
@@ -27716,7 +27725,7 @@ const parse_otlp_js_1 = __nccwpck_require__(3158);
 /**
  * Detect the input format and parse into the native BenchmarkResult.
  */
-function parse(input, format = "auto") {
+function parseBenchmarks(input, format = "auto") {
     if (format === "auto") {
         format = detectFormat(input);
     }
@@ -27734,7 +27743,7 @@ function parse(input, format = "auto") {
         case "pytest-benchmark":
             return (0, parse_pytest_benchmark_js_1.parsePytestBenchmark)(input);
         case "otlp":
-            return (0, parse_otlp_js_1.projectBenchmarkResultFromOtlp)((0, parse_otlp_js_1.parseOtlpMetrics)(input));
+            return (0, parse_otlp_js_1.projectBenchmarkResultFromOtlp)((0, parse_otlp_js_1.parseOtlp)(input));
         default:
             throw new Error(`Unknown format: ${format}`);
     }

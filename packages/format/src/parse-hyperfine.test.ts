@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { parseHyperfine } from "./parse-hyperfine.js";
-import { parse } from "./parse.js";
+import { parseBenchmarks } from "./parse.js";
 
 const HYPERFINE_OUTPUT = JSON.stringify({
   results: [
@@ -67,7 +67,7 @@ describe("parseHyperfine", () => {
   });
 
   it("auto-detects hyperfine format", () => {
-    const result = parse(HYPERFINE_OUTPUT);
+    const result = parseBenchmarks(HYPERFINE_OUTPUT);
     assert.equal(result.benchmarks.length, 2);
     assert.equal(result.benchmarks[0].name, "sort input.txt");
   });

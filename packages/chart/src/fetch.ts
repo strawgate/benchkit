@@ -1,5 +1,5 @@
 import type { IndexFile, SeriesFile, BenchmarkResult, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, RunDetailView, ComparisonResult, ThresholdConfig } from "@benchkit/format";
-import { compare, detailViewToBenchmarkResult } from "@benchkit/format";
+import { compareRuns, detailViewToBenchmarkResult } from "@benchkit/format";
 
 export interface DataSource {
   owner?: string;
@@ -76,6 +76,6 @@ export async function compareRuns(
   ]);
   const currentResult = detailViewToBenchmarkResult(currentDetail);
   const baselineResult = detailViewToBenchmarkResult(baselineDetail);
-  const comparison = compare(currentResult, [baselineResult], threshold);
+  const comparison = compareRuns(currentResult, [baselineResult], threshold);
   return { comparison, currentDetail, baselineDetail };
 }
