@@ -1,4 +1,5 @@
-import type { IndexFile, SeriesFile, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, RunDetailView, ComparisonResult, ThresholdConfig, OtlpMetricsDocument } from "@benchkit/format";
+import type { IndexFile, SeriesFile, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, OtlpMetricsDocument } from "@metrickit/core";
+import type { RunDetailView, ComparisonResult, ThresholdConfig } from "@benchkit/format";
 import { compareRuns as compare, buildOtlpResult, MetricsBatch, DEFAULT_DATA_BRANCH } from "@benchkit/format";
 
 export interface DataSource {

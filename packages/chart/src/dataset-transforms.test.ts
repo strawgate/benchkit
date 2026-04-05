@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
-import type { SeriesFile } from "@benchkit/format";
+import type { SeriesFile } from "@metrickit/core";
 import { transformSeriesDataset } from "./dataset-transforms.js";
 
 function makeSeriesFile(): SeriesFile {

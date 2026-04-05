@@ -16,11 +16,13 @@ import {
 import type { Format } from "@benchkit/format";
 import {
   MetricsBatch,
-  computeRetryDelayMs,
   DEFAULT_DATA_BRANCH,
+} from "@benchkit/format";
+import {
+  computeRetryDelayMs,
   DEFAULT_PUSH_RETRY_COUNT,
   sleep,
-} from "@benchkit/format";
+} from "@metrickit/core";
 
 async function run(): Promise<void> {
   const resultsPattern = core.getInput("results", { required: true });

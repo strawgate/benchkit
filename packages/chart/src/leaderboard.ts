@@ -1,4 +1,4 @@
-import type { SeriesFile, SeriesEntry } from "@benchkit/format";
+import type { SeriesFile, SeriesEntry } from "@metrickit/core";
 
 /** A single ranked entry in the leaderboard. */
 export interface RankedEntry {

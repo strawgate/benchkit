@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolveBaseline, autoSelectRun } from "./RunDashboard.js";
-import type { RefIndexEntry, PrIndexEntry, IndexFile } from "@benchkit/format";
+import type { RefIndexEntry, PrIndexEntry, IndexFile } from "@metrickit/core";
 
 describe("RunDashboard helpers", () => {
   describe("resolveBaseline", () => {

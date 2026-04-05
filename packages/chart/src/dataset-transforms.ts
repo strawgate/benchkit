@@ -1,4 +1,4 @@
-import type { DataPoint, SeriesFile, SeriesEntry } from "@benchkit/format";
+import type { DataPoint, SeriesFile, SeriesEntry } from "@metrickit/core";
 
 export type DatasetAggregate = "sum" | "avg" | "max";
 

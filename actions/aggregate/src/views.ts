@@ -2,11 +2,13 @@ import type {
   MetricSummaryEntry,
   PrIndexEntry,
   RefIndexEntry,
+  RunEntry,
+  SeriesFile,
+} from "@metrickit/core";
+import type {
   RunDetailMetricSnapshot,
   RunDetailView,
-  RunEntry,
   RunSnapshotMetric,
-  SeriesFile,
 } from "@benchkit/format";
 import { seriesKey as computeSeriesKey } from "@benchkit/format";
 import type { ParsedRun } from "./aggregate.js";

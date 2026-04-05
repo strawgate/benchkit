@@ -1,4 +1,4 @@
-import type { SeriesFile } from "@benchkit/format";
+import type { SeriesFile } from "@metrickit/core";
 
 /** Describes a detected regression for a single series within a metric. */
 export interface RegressionResult {

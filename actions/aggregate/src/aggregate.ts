@@ -10,7 +10,7 @@ import type {
   RunEntry,
   SeriesFile,
   DataPoint,
-} from "@benchkit/format";
+} from "@metrickit/core";
 
 /** Shape of legacy BenchmarkResult JSON files on the data branch. */
 interface LegacyBenchmarkResult {

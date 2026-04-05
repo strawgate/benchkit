@@ -1,4 +1,5 @@
-import type { Sample, DataPoint } from "@benchkit/format";
+import type { Sample } from "@benchkit/format";
+import type { DataPoint } from "@metrickit/core";
 
 /**
  * Converts an array of intra-run samples to `{x, y}` chart points for a

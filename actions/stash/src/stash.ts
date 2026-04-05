@@ -6,8 +6,8 @@ import {
   buildOtlpResult,
   MetricsBatch,
   type Format,
-  type OtlpMetricsDocument,
 } from "@benchkit/format";
+import type { OtlpMetricsDocument } from "@metrickit/core";
 
 export interface StashContext {
   commit?: string;
