@@ -3,45 +3,42 @@ import * as path from "node:path";
 import {
   compareRuns as compare,
   formatComparisonMarkdown,
-  parseBenchmarks as parse,
-  parseNative,
-  type BenchmarkResult,
-  type Format,
+  parseOtlp,
+  type OtlpMetricsDocument,
 } from "@benchkit/format";
 
-export function parseCurrentRun(files: string[], format: Format): BenchmarkResult {
+export function parseCurrentRun(files: string[]): OtlpMetricsDocument {
   if (files.length === 0) {
     throw new Error("No benchmark result files provided");
   }
 
-  const allBenchmarks = files.flatMap((file) => {
+  const allResourceMetrics = files.flatMap((file) => {
     const content = fs.readFileSync(file, "utf-8");
-    return parse(content, format).benchmarks;
+    return parseOtlp(content).resourceMetrics;
   });
 
-  return { benchmarks: allBenchmarks };
+  return { resourceMetrics: allResourceMetrics };
 }
 
-export function readBaselineRuns(runsDir: string, maxRuns: number): BenchmarkResult[] {
+export function readBaselineRuns(runsDir: string, maxRuns: number): OtlpMetricsDocument[] {
   if (!fs.existsSync(runsDir)) {
     return [];
   }
 
   const files = fs.readdirSync(runsDir)
-    .filter((file) => file.endsWith(".json"))
+    .filter((file) => file.endsWith(".otlp.json"))
     .sort()
     .reverse()
     .slice(0, maxRuns);
 
   return files.map((file) => {
     const content = fs.readFileSync(path.join(runsDir, file), "utf-8");
-    return parseNative(content);
+    return parseOtlp(content);
   });
 }
 
 export interface CompareOptions {
   files: string[];
-  format: Format;
   runsDir: string;
   baselineRuns: number;
   threshold: number;
@@ -56,7 +53,7 @@ export interface CompareOutput {
 }
 
 export function runComparison(options: CompareOptions): CompareOutput {
-  const current = parseCurrentRun(options.files, options.format);
+  const current = parseCurrentRun(options.files);
   const baseline = readBaselineRuns(options.runsDir, options.baselineRuns);
   const result = compare(current, baseline, {
     test: "percentage",

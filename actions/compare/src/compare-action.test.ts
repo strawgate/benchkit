@@ -4,48 +4,98 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { parseCurrentRun, readBaselineRuns, runComparison } from "./compare-action.js";
-import type { BenchmarkResult } from "@benchkit/format";
+import type { OtlpMetricsDocument } from "@benchkit/format";
 
 function makeTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-compare-test-"));
 }
 
-function writeResult(dir: string, name: string, result: BenchmarkResult): string {
+function makeAttribute(key: string, value: string) {
+  return { key, value: { stringValue: value } };
+}
+
+function makeGaugeDataPoint(
+  scenario: string,
+  series: string,
+  value: number,
+  direction: string = "smaller_is_better",
+) {
+  return {
+    attributes: [
+      makeAttribute("benchkit.scenario", scenario),
+      makeAttribute("benchkit.series", series),
+      makeAttribute("benchkit.metric.direction", direction),
+    ],
+    timeUnixNano: "1700000000000000000",
+    asDouble: value,
+  };
+}
+
+function makeOtlpDoc(
+  metrics: Array<{
+    name: string;
+    unit?: string;
+    gauge: { dataPoints: ReturnType<typeof makeGaugeDataPoint>[] };
+  }>,
+): OtlpMetricsDocument {
+  return {
+    resourceMetrics: [
+      {
+        resource: {
+          attributes: [
+            makeAttribute("benchkit.run_id", "test-run-1"),
+            makeAttribute("benchkit.kind", "code"),
+            makeAttribute("benchkit.source_format", "native"),
+          ],
+        },
+        scopeMetrics: [{ metrics }],
+      },
+    ],
+  };
+}
+
+function writeOtlpDoc(dir: string, name: string, doc: OtlpMetricsDocument): string {
   const file = path.join(dir, name);
-  fs.writeFileSync(file, JSON.stringify(result) + "\n");
+  fs.writeFileSync(file, JSON.stringify(doc) + "\n");
   return file;
 }
 
 describe("parseCurrentRun", () => {
-  it("parses native JSON files", () => {
+  it("parses OTLP JSON files", () => {
     const dir = makeTmpDir();
     try {
-      const file = writeResult(dir, "result.json", {
-        benchmarks: [{ name: "BenchSort", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } }],
-      });
-      const result = parseCurrentRun([file], "native");
-      assert.equal(result.benchmarks.length, 1);
-      assert.equal(result.benchmarks[0].name, "BenchSort");
+      const doc = makeOtlpDoc([
+        { name: "ns_per_op", unit: "ns/op", gauge: { dataPoints: [makeGaugeDataPoint("BenchSort", "default", 100)] } },
+      ]);
+      const file = writeOtlpDoc(dir, "result.otlp.json", doc);
+      const result = parseCurrentRun([file]);
+      assert.equal(result.resourceMetrics.length, 1);
+      assert.equal(result.resourceMetrics[0].scopeMetrics?.[0].metrics?.length, 1);
     } finally {
       fs.rmSync(dir, { recursive: true });
     }
   });
 
-  it("parses go bench files", () => {
+  it("merges multiple OTLP files", () => {
     const dir = makeTmpDir();
     try {
-      const file = path.join(dir, "bench.txt");
-      fs.writeFileSync(file, "BenchmarkSort-4  5000000  320 ns/op  48 B/op  2 allocs/op\n");
-      const result = parseCurrentRun([file], "go");
-      assert.ok(result.benchmarks.length >= 1);
-      assert.equal(result.benchmarks[0].name, "BenchmarkSort");
+      const doc1 = makeOtlpDoc([
+        { name: "ns_per_op", unit: "ns/op", gauge: { dataPoints: [makeGaugeDataPoint("BenchA", "default", 100)] } },
+      ]);
+      const doc2 = makeOtlpDoc([
+        { name: "ops_per_sec", unit: "ops/s", gauge: { dataPoints: [makeGaugeDataPoint("BenchB", "default", 500, "bigger_is_better")] } },
+      ]);
+      const file1 = writeOtlpDoc(dir, "result1.otlp.json", doc1);
+      const file2 = writeOtlpDoc(dir, "result2.otlp.json", doc2);
+      const result = parseCurrentRun([file1, file2]);
+      assert.equal(result.resourceMetrics.length, 2);
     } finally {
       fs.rmSync(dir, { recursive: true });
     }
   });
 
   it("throws when no files are provided", () => {
-    assert.throws(() => parseCurrentRun([], "native"), /No benchmark result files/);
+    assert.throws(() => parseCurrentRun([]), /No benchmark result files/);
   });
 });
 
@@ -54,22 +104,40 @@ describe("readBaselineRuns", () => {
     assert.deepEqual(readBaselineRuns("/definitely/missing/path", 5), []);
   });
 
-  it("loads the most recent json files up to maxRuns", () => {
+  it("loads the most recent .otlp.json files up to maxRuns", () => {
     const dir = makeTmpDir();
     try {
-      writeResult(dir, "100-1.json", {
-        benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100 } } }],
-      });
-      writeResult(dir, "101-1.json", {
-        benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 110 } } }],
-      });
-      writeResult(dir, "102-1.json", {
-        benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 120 } } }],
-      });
+      writeOtlpDoc(dir, "100-1.otlp.json", makeOtlpDoc([
+        { name: "ns_per_op", unit: "ns/op", gauge: { dataPoints: [makeGaugeDataPoint("BenchA", "default", 100)] } },
+      ]));
+      writeOtlpDoc(dir, "101-1.otlp.json", makeOtlpDoc([
+        { name: "ns_per_op", unit: "ns/op", gauge: { dataPoints: [makeGaugeDataPoint("BenchA", "default", 110)] } },
+      ]));
+      writeOtlpDoc(dir, "102-1.otlp.json", makeOtlpDoc([
+        { name: "ns_per_op", unit: "ns/op", gauge: { dataPoints: [makeGaugeDataPoint("BenchA", "default", 120)] } },
+      ]));
       const baseline = readBaselineRuns(dir, 2);
       assert.equal(baseline.length, 2);
-      assert.equal(baseline[0].benchmarks[0].metrics.ns_per_op.value, 120);
-      assert.equal(baseline[1].benchmarks[0].metrics.ns_per_op.value, 110);
+      // Most recent files first (reverse sort): 102, then 101
+      const firstValue = baseline[0].resourceMetrics[0].scopeMetrics?.[0].metrics?.[0].gauge?.dataPoints?.[0].asDouble;
+      const secondValue = baseline[1].resourceMetrics[0].scopeMetrics?.[0].metrics?.[0].gauge?.dataPoints?.[0].asDouble;
+      assert.equal(firstValue, 120);
+      assert.equal(secondValue, 110);
+    } finally {
+      fs.rmSync(dir, { recursive: true });
+    }
+  });
+
+  it("ignores non-.otlp.json files", () => {
+    const dir = makeTmpDir();
+    try {
+      writeOtlpDoc(dir, "100-1.otlp.json", makeOtlpDoc([
+        { name: "ns_per_op", unit: "ns/op", gauge: { dataPoints: [makeGaugeDataPoint("BenchA", "default", 100)] } },
+      ]));
+      // Write a plain .json file that should be ignored
+      fs.writeFileSync(path.join(dir, "old-format.json"), JSON.stringify({ benchmarks: [] }));
+      const baseline = readBaselineRuns(dir, 5);
+      assert.equal(baseline.length, 1);
     } finally {
       fs.rmSync(dir, { recursive: true });
     }
@@ -81,12 +149,11 @@ describe("runComparison", () => {
     const runsDir = makeTmpDir();
     const currentDir = makeTmpDir();
     try {
-      const currentFile = writeResult(currentDir, "current.json", {
-        benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100 } } }],
-      });
+      const currentFile = writeOtlpDoc(currentDir, "current.otlp.json", makeOtlpDoc([
+        { name: "ns_per_op", unit: "ns/op", gauge: { dataPoints: [makeGaugeDataPoint("BenchA", "default", 100)] } },
+      ]));
       const { markdown, hasRegression } = runComparison({
         files: [currentFile],
-        format: "native",
         runsDir: path.join(runsDir, "missing"),
         baselineRuns: 5,
         threshold: 5,
@@ -103,15 +170,14 @@ describe("runComparison", () => {
     const runsDir = makeTmpDir();
     const currentDir = makeTmpDir();
     try {
-      writeResult(runsDir, "100-1.json", {
-        benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } }],
-      });
-      const currentFile = writeResult(currentDir, "current.json", {
-        benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 120, unit: "ns/op", direction: "smaller_is_better" } } }],
-      });
+      writeOtlpDoc(runsDir, "100-1.otlp.json", makeOtlpDoc([
+        { name: "ns_per_op", unit: "ns/op", gauge: { dataPoints: [makeGaugeDataPoint("BenchA", "default", 100, "smaller_is_better")] } },
+      ]));
+      const currentFile = writeOtlpDoc(currentDir, "current.otlp.json", makeOtlpDoc([
+        { name: "ns_per_op", unit: "ns/op", gauge: { dataPoints: [makeGaugeDataPoint("BenchA", "default", 120, "smaller_is_better")] } },
+      ]));
       const { markdown, hasRegression } = runComparison({
         files: [currentFile],
-        format: "native",
         runsDir,
         baselineRuns: 5,
         threshold: 5,
