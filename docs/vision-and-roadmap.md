@@ -66,18 +66,18 @@ Semantic conventions: [`otlp-semantic-conventions.md`](otlp-semantic-conventions
 
 ## Roadmap
 
-### Phase 1 — Action migration to OTLP (current)
+### Phase 1 — Action migration to OTLP ✅
 
-Migrate all actions to operate on `OtlpMetricsDocument` end-to-end:
+All actions now operate on `OtlpMetricsDocument` end-to-end:
 
 | Issue | Task | Status |
 |---|---|---|
-| #251 | Stash: write `.otlp.json`, merge monitor OTLP | Ready |
-| #253 | Compare: accept `OtlpMetricsDocument` input | Ready |
-| #252 | Aggregate: read `.otlp.json`, build views from OTLP | Blocked on #251 |
-| #254 | Remove `BenchmarkResult` type and all legacy code | Blocked on #251–253 |
+| #251 | Stash: write `.otlp.json`, merge monitor OTLP | Done |
+| #253 | Compare: accept `OtlpMetricsDocument` input | Done |
+| #252 | Aggregate: read `.otlp.json`, build views from OTLP | Done |
+| #254 | Remove `BenchmarkResult` type and all legacy code | Done |
 
-Exit criteria: zero references to `BenchmarkResult` in the codebase.
+Exit criteria met: zero references to `BenchmarkResult` in production code.
 
 ### Phase 2 — Docs and product clarity
 

@@ -8,7 +8,7 @@ that later aggregation and comparison steps have a stable history to work with.
 - accepts benchmark results in Go, Rust, Hyperfine, pytest-benchmark,
   benchmark-action, native, OTLP, or auto-detected format
 - parses every matched file and merges the benchmarks into a single
-  `BenchmarkResult` document
+  OTLP metrics document
 - optionally merges monitor context produced by `actions/monitor` into the
   stored result
 - writes the result to `data/runs/{run-id}.json` on the data branch
@@ -70,9 +70,9 @@ Each stash call writes one JSON file to the data branch:
 data/runs/{run-id}.json
 ```
 
-The file contains the parsed `BenchmarkResult` document including benchmark
-names, values, units, and any context attributes (commit SHA, ref, runner OS,
-timestamp). When a monitor path is supplied the monitor benchmarks and resource
+The file contains OTLP metrics JSON including benchmark names, metric values,
+units, and resource attributes (commit SHA, ref, runner OS, source format).
+When a monitor path is supplied the monitor benchmarks and resource
 attributes are merged in before writing.
 
 ## How it works

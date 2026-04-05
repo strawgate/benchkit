@@ -32,32 +32,17 @@ All parsers produce `OtlpMetricsDocument` via `buildOtlpResult()`.
 
 ## Current execution queue
 
-### Active: OTLP-everywhere action migration
+### Completed: OTLP-everywhere action migration
 
-These are sequenced and ready for delegation:
+All four issues in this sequence have been completed:
 
-1. **`#251` — Migrate stash action to write OTLP JSON**
-   - `parseBenchmarks()` already returns `OtlpMetricsDocument`
-   - Stash needs to write `.otlp.json` instead of `BenchmarkResult` JSON
-   - Merge monitor OTLP output with benchmark OTLP (merge resourceMetrics arrays)
-   - Update summary markdown to traverse OTLP datapoints
-   - Can use `MetricsBatch` for summary generation
-
-2. **`#253` — Migrate compare action to accept OTLP input**
-   - Rewrite `compareRuns()` to accept `MetricsBatch` or `OtlpMetricsDocument`
-   - Read `.otlp.json` baselines from bench-data
-   - `ComparisonResult` output stays the same
-   - Can run in parallel with #251
-
-3. **`#252` — Migrate aggregate action to read OTLP JSON**
-   - Read `.otlp.json` run files
-   - Build index/series/view artifacts from OTLP traversal using `MetricsBatch`
-   - Depends on #251 (file format)
-
-4. **`#254` — Remove BenchmarkResult type**
-   - Final cleanup after #251, #252, #253
-   - Delete: `parse-native.ts`, `run-detail-converter.ts`, `BenchmarkResult`/`Benchmark`/`Metric`/`Sample`/`Context` types, `benchmark-result.schema.json`
-   - Remove `parseNative` export
+1. **`#251` — Migrate stash action to write OTLP JSON** ✅
+2. **`#253` — Migrate compare action to accept OTLP input** ✅
+3. **`#252` — Migrate aggregate action to read OTLP JSON** ✅
+4. **`#254` — Remove BenchmarkResult type** ✅
+   - Deleted: `parse-native.ts`, `run-detail-converter.ts`, `BenchmarkResult`/`Benchmark`/`Metric`/`Context` types, `benchmark-result.schema.json`
+   - Kept: `Sample` (used by chart), `MonitorContext` (used by aggregate/stash)
+   - Added: `MetricDirection` type alias, `LegacyBenchmarkResult` local type in aggregate for backward-compatible reading
 
 ### Backlog: docs and product clarity
 

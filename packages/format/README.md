@@ -1,6 +1,6 @@
 # @benchkit/format
 
-Benchmark result types and format parsers for [benchkit](../../README.md). Parses Go bench output, [Hyperfine](https://github.com/sharkdp/hyperfine) JSON, [benchmark-action](https://github.com/benchmark-action/github-action-benchmark) JSON, [pytest-benchmark](https://pytest-benchmark.readthedocs.io/) JSON, and the benchkit native format into a single normalized shape.
+Benchmark result types and format parsers for [benchkit](../../README.md). Parses Go bench output, [Hyperfine](https://github.com/sharkdp/hyperfine) JSON, [benchmark-action](https://github.com/benchmark-action/github-action-benchmark) JSON, [pytest-benchmark](https://pytest-benchmark.readthedocs.io/) JSON, and OTLP metrics JSON into a single normalized OTLP metrics document.
 
 ## Installation
 
@@ -130,27 +130,18 @@ const result = parseBenchmarks(goOutput, "go");
 const result = parseBenchmarks(unknownInput);
 ```
 
-### `parseOtlp(input)` and `projectBenchmarkResultFromOtlp(document)`
+### `parseOtlp(input)`
 
 Parses OTLP metrics JSON and provides helpers for:
 
 - reading resource and datapoint attributes
 - discriminating metric kinds (`gauge`, `sum`, `histogram`)
 - reading aggregation temporality
-- projecting one OTLP run into a benchmark-oriented `BenchmarkResult`
-
-This projection is intended as a compatibility adapter for downstream
-benchkit-specific consumers such as compareRuns, aggregation, and summaries. It is
-not a universal benchkit telemetry intermediate.
 
 ```ts
-import {
-  parseOtlp,
-  projectBenchmarkResultFromOtlp,
-} from "@benchkit/format";
+import { parseOtlp } from "@benchkit/format";
 
 const document = parseOtlp(otlpJson);
-const result = projectBenchmarkResultFromOtlp(document);
 ```
 
 ### `parseGoBench(input)`
@@ -278,59 +269,6 @@ const result = parseBenchmarkAction(input);
     }
   ]
 }
-```
-
-### `parseNative(input)`
-
-Parses the benchkit native JSON format. Validates that the input contains a
-`benchmarks` array where each entry has a string `name` and an object `metrics`
-whose values each have a numeric `value`. Direction, unit, range, tags, and
-samples are all optional. Returns the parsed object as-is after validation.
-
-**Input** (benchkit native JSON):
-
-```json
-{
-  "context": {
-    "commit": "abc123def456",
-    "ref": "main",
-    "timestamp": "2025-06-01T12:00:00Z"
-  },
-  "benchmarks": [
-    {
-      "name": "compress/gzip",
-      "tags": { "level": "6", "arch": "amd64" },
-      "metrics": {
-        "throughput": { "value": 312.5, "unit": "MB/s",   "direction": "bigger_is_better" },
-        "latency":    { "value":   3.2,  "unit": "ms",     "direction": "smaller_is_better" }
-      }
-    },
-    {
-      "name": "compress/zstd",
-      "tags": { "level": "3", "arch": "amd64" },
-      "metrics": {
-        "throughput": { "value": 498.0, "unit": "MB/s",   "direction": "bigger_is_better" },
-        "latency":    { "value":   2.1,  "unit": "ms",     "direction": "smaller_is_better" }
-      },
-      "samples": [
-        { "t": 0.0, "throughput": 490.0 },
-        { "t": 0.5, "throughput": 501.0 },
-        { "t": 1.0, "throughput": 503.0 }
-      ]
-    }
-  ]
-}
-```
-
-**Call:**
-
-```ts
-import { parseNative } from "@benchkit/format";
-import { readFileSync } from "node:fs";
-
-const result = parseNative(readFileSync("results.json", "utf-8"));
-// result.benchmarks[0].name => "compress/gzip"
-// result.benchmarks[0].metrics.throughput.value => 312.5
 ```
 
 ### `parseRustBench(input)`
@@ -471,43 +409,6 @@ if (result.hasRegression) {
 }
 ```
 
-### `BenchmarkResult`
-
-Top-level result returned by every parser.
-
-```ts
-interface BenchmarkResult {
-  benchmarks: Benchmark[];
-  context?: Context;
-}
-```
-
-### `Benchmark`
-
-A single benchmark with one or more named metrics.
-
-```ts
-interface Benchmark {
-  name: string;
-  tags?: Record<string, string>;
-  metrics: Record<string, Metric>;
-  samples?: Sample[];
-}
-```
-
-### `Metric`
-
-A single measured value with optional unit, direction, and variance.
-
-```ts
-interface Metric {
-  value: number;
-  unit?: string;
-  direction?: "bigger_is_better" | "smaller_is_better";
-  range?: number;
-}
-```
-
 ### `Sample`
 
 A time-series data point within a benchmark run. `t` is seconds since
@@ -520,30 +421,22 @@ interface Sample {
 }
 ```
 
-### `Context`
+### `MonitorContext`
 
-Optional metadata about the environment and commit that produced the results.
+Metadata about the resource monitoring context (when monitor output is merged via stash action).
 
 ```ts
-interface Context {
-  commit?: string;   // Full commit SHA
-  ref?: string;      // Git ref, e.g. "main"
-  timestamp?: string; // ISO 8601 datetime, e.g. "2025-01-15T10:30:00Z"
-  runner?: string;   // Runner label or machine description
-  monitor?: MonitorContext; // Present when monitor output is merged via stash action
-}
-
 interface MonitorContext {
-  monitor_version: string;  // Version of the monitor action
-  poll_interval_ms: number; // Polling interval in milliseconds
-  duration_ms: number;      // Total monitoring duration in milliseconds
-  runner_os?: string;       // Operating system of the runner
-  runner_arch?: string;     // Architecture of the runner
-  poll_count?: number;      // Number of polling cycles performed
-  kernel?: string;          // Kernel version string
-  cpu_model?: string;       // CPU model name
-  cpu_count?: number;       // Number of logical CPU cores
-  total_memory_mb?: number; // Total system memory in megabytes
+  monitor_version: string;
+  poll_interval_ms: number;
+  duration_ms: number;
+  runner_os?: string;
+  runner_arch?: string;
+  poll_count?: number;
+  kernel?: string;
+  cpu_model?: string;
+  cpu_count?: number;
+  total_memory_mb?: number;
 }
 ```
 
@@ -576,9 +469,6 @@ General algorithm: replace every `/` with `_per_`, replace spaces with `_`,
 then lowercase. Specific aliases (`B/op` → `bytes_per_op`, `MB/s` → `mb_per_s`, `ns/iter` → `ns_per_iter`)
 take precedence.
 
-In the native format, metric names are passed through unchanged — the keys of
-the `metrics` object become the metric names.
-
 ## Direction semantics
 
 Every metric may declare whether higher or lower values represent improvement.
@@ -604,7 +494,7 @@ on a dedicated Git branch (default `bench-data`). The branch layout is:
 data/
 ├── index.json              # All runs (IndexFile)
 ├── runs/
-│   ├── {runId}.json        # Full results for one run (BenchmarkResult)
+│   ├── {runId}.json        # OTLP metrics JSON for one run
 │   └── ...
 └── series/
     ├── {metricName}.json   # Time-series for one metric (SeriesFile)
@@ -614,21 +504,16 @@ data/
 | File | Schema | Written by |
 |---|---|---|
 | `data/index.json` | [`index.schema.json`](../../schema/index.schema.json) | `bench-aggregate` |
-| `data/runs/{id}.json` | [`benchmark-result.schema.json`](../../schema/benchmark-result.schema.json) | `bench-stash` |
+| `data/runs/{id}.json` | OTLP metrics JSON | `bench-stash` |
 | `data/series/{metric}.json` | [`series.schema.json`](../../schema/series.schema.json) | `bench-aggregate` |
 
 ## Validating your own output
 
-To check that a file matches the benchkit native format without reading source,
-validate it against `benchmark-result.schema.json`:
+Validate aggregated output against the JSON schemas:
 
 ```bash
-# Using ajv-cli
-npx ajv validate -s schema/benchmark-result.schema.json -d my-results.json
-
-# Or in code
-import { parseNative } from "@benchkit/format";
-parseNative(fs.readFileSync("my-results.json", "utf-8")); // throws on invalid input
+npx ajv validate -s schema/index.schema.json -d data/index.json
+npx ajv validate -s schema/series.schema.json -d data/series/ns_per_op.json
 ```
 
 ## License
