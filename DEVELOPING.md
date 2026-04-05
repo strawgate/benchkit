@@ -20,7 +20,8 @@ Use the docs that match the audience you are working for:
 
 ## Repository layout
 
-- `packages/format/`: benchmark types, parsers, OTLP helpers, compare helpers
+- `packages/core/`: generic OTLP types, parsing, and retry helpers (`@metrickit/core`)
+- `packages/format/`: benchmark types, parsers, OTLP helpers, compare helpers (re-exports generic types from `@metrickit/core`)
 - `packages/chart/`: Preact dashboard components, chart primitives, fetch helpers
 - `packages/dashboard/`: private dogfood app deployed to [GitHub Pages](https://strawgate.github.io/benchkit/) — not a template (build from `@benchkit/chart` instead)
 - `actions/stash/`: GitHub Action to parse and store run data
@@ -48,6 +49,7 @@ npm run build
 Build a specific workspace:
 
 ```bash
+npm run build --workspace=packages/core
 npm run build --workspace=packages/format
 npm run build --workspace=packages/chart
 npm run build --workspace=packages/dashboard

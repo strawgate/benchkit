@@ -7,6 +7,7 @@ Read files in this order before making code changes:
 4. `docs/README.md`
 
 Then read files for the area you will edit:
+- Core package: `packages/core/src/**`
 - Format package: `packages/format/README.md` and `packages/format/src/**`
 - Chart package: `packages/chart/README.md` and `packages/chart/src/**`
 - Stash action: `actions/stash/README.md`, `actions/stash/src/main.ts`, and `actions/stash/action.yml`
