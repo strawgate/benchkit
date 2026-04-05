@@ -10,6 +10,10 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./embed": {
+      "import": "./dist/embed.js",
+      "types": "./dist/embed.d.ts"
+    },
     "./css": "./dist/style.css"
   },
   "scripts": {

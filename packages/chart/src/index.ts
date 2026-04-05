@@ -53,3 +53,6 @@ export {
   type DatasetFilter,
   type TransformSeriesDatasetOptions,
 } from "./dataset-transforms.js";
+
+// Embed API (also available via @benchkit/chart/embed)
+export { mount, type EmbedOptions, type EmbedMode } from "./embed.js";
