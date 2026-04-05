@@ -5,7 +5,7 @@ import {
   filterSeriesFileByDateRange,
   type DateRange,
 } from "./components/DateRangeFilter.js";
-import type { SeriesFile } from "@benchkit/format";
+import type { SeriesFile } from "@metrickit/core";
 
 function makeSeries(timestamps: string[]): SeriesFile {
   return {

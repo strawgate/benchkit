@@ -24,7 +24,7 @@ import {
   computeRetryDelayMs,
   DEFAULT_PUSH_RETRY_COUNT,
   sleep,
-} from "@benchkit/format";
+} from "@metrickit/core";
 
 interface AggregateOutputs {
   runCount: number;

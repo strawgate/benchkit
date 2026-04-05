@@ -32,7 +32,7 @@ import {
   buildMetricSummaryViews,
 } from "./views.js";
 import { buildOtlpResult } from "@benchkit/format";
-import type { IndexFile, SeriesFile } from "@benchkit/format";
+import type { IndexFile, SeriesFile } from "@metrickit/core";
 
 // ── Schema validation ───────────────────────────────────────────────
 

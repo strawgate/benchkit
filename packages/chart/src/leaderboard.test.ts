@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
 import { rankSeries, getWinner } from "./leaderboard.js";
-import type { SeriesFile } from "@benchkit/format";
+import type { SeriesFile } from "@metrickit/core";
 
 function makeSeriesFile(
   direction: SeriesFile["direction"],

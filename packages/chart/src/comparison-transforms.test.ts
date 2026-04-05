@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
-import type { Sample, DataPoint } from "@benchkit/format";
+import type { Sample } from "@benchkit/format";
+import type { DataPoint } from "@metrickit/core";
 import {
   samplesToDataPoints,
   dataPointsToComparisonData,
