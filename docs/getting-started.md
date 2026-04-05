@@ -214,7 +214,16 @@ export function App() {
 }
 ```
 
-For the component surfaces and data-fetch helpers, see [`reference/react-components.md`](reference/react-components.md) and [`../packages/chart/README.md`](../packages/chart/README.md).
+`Dashboard` is ideal for a metrics-first overview. If your use case is more
+run- or PR-oriented, the chart package also exports two alternative surfaces:
+
+- **`RunDashboard`** — auto-selects the latest run, resolves a baseline from
+  the default branch, and renders run selectors with a comparison verdict.
+  Good for PR dashboards and run-browsing homepages.
+- **`RunDetail`** — deep-dive view of a single run's metrics and diagnostics.
+  Good for linking from a run table or PR into a focused drilldown page.
+
+For the full component surfaces and data-fetch helpers, see [`reference/react-components.md`](reference/react-components.md) and [`../packages/chart/README.md`](../packages/chart/README.md).
 
 ## Where to go next
 

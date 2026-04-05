@@ -22,7 +22,7 @@ Use the docs that match the audience you are working for:
 
 - `packages/format/`: benchmark types, parsers, OTLP helpers, compare helpers
 - `packages/chart/`: Preact dashboard components, chart primitives, fetch helpers
-- `packages/dashboard/`: self-benchmark dashboard deployed to GitHub Pages
+- `packages/dashboard/`: private dogfood app deployed to [GitHub Pages](https://strawgate.github.io/benchkit/) — not a template (build from `@benchkit/chart` instead)
 - `actions/stash/`: GitHub Action to parse and store run data
 - `actions/aggregate/`: GitHub Action to build indexes and views
 - `actions/compare/`: GitHub Action to compare results against a baseline
