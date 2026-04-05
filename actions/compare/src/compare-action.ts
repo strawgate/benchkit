@@ -4,25 +4,25 @@ import {
   compareRuns as compare,
   formatComparisonMarkdown,
   parseBenchmarks as parse,
-  parseNative,
-  type BenchmarkResult,
+  MetricsBatch,
   type Format,
+  type OtlpMetricsDocument,
 } from "@benchkit/format";
 
-export function parseCurrentRun(files: string[], format: Format): BenchmarkResult {
+export function parseCurrentRun(files: string[], format: Format): MetricsBatch {
   if (files.length === 0) {
     throw new Error("No benchmark result files provided");
   }
 
-  const allBenchmarks = files.flatMap((file) => {
+  const batches = files.map((file) => {
     const content = fs.readFileSync(file, "utf-8");
-    return parse(content, format).benchmarks;
+    return MetricsBatch.fromOtlp(parse(content, format));
   });
 
-  return { benchmarks: allBenchmarks };
+  return MetricsBatch.merge(...batches);
 }
 
-export function readBaselineRuns(runsDir: string, maxRuns: number): BenchmarkResult[] {
+export function readBaselineRuns(runsDir: string, maxRuns: number): MetricsBatch[] {
   if (!fs.existsSync(runsDir)) {
     return [];
   }
@@ -35,7 +35,8 @@ export function readBaselineRuns(runsDir: string, maxRuns: number): BenchmarkRes
 
   return files.map((file) => {
     const content = fs.readFileSync(path.join(runsDir, file), "utf-8");
-    return parseNative(content);
+    const doc = JSON.parse(content) as OtlpMetricsDocument;
+    return MetricsBatch.fromOtlp(doc);
   });
 }
 

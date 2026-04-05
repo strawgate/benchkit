@@ -15,6 +15,7 @@ import {
 } from "./stash.js";
 import type { Format } from "@benchkit/format";
 import {
+  MetricsBatch,
   computeRetryDelayMs,
   DEFAULT_DATA_BRANCH,
   DEFAULT_PUSH_RETRY_COUNT,
@@ -52,18 +53,18 @@ async function run(): Promise<void> {
     throw new Error(`No files matched pattern: ${resultsPattern}`);
   }
   core.info(`Found ${files.length} result file(s)`);
-  const benchmarks = parseBenchmarkFiles(files, format);
-  const emptyBenchmarksWarning = getEmptyBenchmarksWarning(benchmarks);
+  const benchmarkDoc = parseBenchmarkFiles(files, format);
+  const emptyBenchmarksWarning = getEmptyBenchmarksWarning(benchmarkDoc);
   if (emptyBenchmarksWarning) {
     core.warning(emptyBenchmarksWarning);
   }
 
   // Merge monitor output if provided
-  const monitorResult = monitorPath ? readMonitorOutput(monitorPath) : undefined;
+  const monitorDoc = monitorPath ? readMonitorOutput(monitorPath) : undefined;
 
   const result = buildResult({
-    benchmarks,
-    monitorResult,
+    benchmarkDoc,
+    monitorDoc,
     context: {
       commit: process.env.GITHUB_SHA,
       ref: process.env.GITHUB_REF,
@@ -74,7 +75,11 @@ async function run(): Promise<void> {
     },
   });
 
-  core.info(`Parsed ${benchmarks.length} benchmark(s)${monitorResult ? ` + ${monitorResult.benchmarks.length} monitor benchmark(s)` : ""}`);
+  const batch = MetricsBatch.fromOtlp(result);
+  const monitorCount = monitorDoc
+    ? MetricsBatch.fromOtlp(monitorDoc).size
+    : 0;
+  core.info(`Parsed ${batch.withoutMonitor().size} benchmark metric(s)${monitorCount ? ` + ${monitorCount} monitor metric(s)` : ""}`);
 
   const tempResultPath = createTempResultPath(runId);
   writeResultFile(result, runId, tempResultPath);

@@ -1,5 +1,5 @@
 import type { IndexFile, SeriesFile, BenchmarkResult, PrIndexEntry, RefIndexEntry, MetricSummaryEntry, RunDetailView, ComparisonResult, ThresholdConfig } from "@benchkit/format";
-import { compareRuns as compare, detailViewToBenchmarkResult, DEFAULT_DATA_BRANCH } from "@benchkit/format";
+import { compareRuns as compare, detailViewToBenchmarkResult, buildOtlpResult, MetricsBatch, DEFAULT_DATA_BRANCH } from "@benchkit/format";
 
 export interface DataSource {
   owner?: string;
@@ -76,6 +76,22 @@ export async function compareRuns(
   ]);
   const currentResult = detailViewToBenchmarkResult(currentDetail);
   const baselineResult = detailViewToBenchmarkResult(baselineDetail);
-  const comparison = compare(currentResult, [baselineResult], threshold);
+  const currentBatch = benchmarkResultToBatch(currentResult);
+  const baselineBatch = benchmarkResultToBatch(baselineResult);
+  const comparison = compare(currentBatch, [baselineBatch], threshold);
   return { comparison, currentDetail, baselineDetail };
+}
+
+function benchmarkResultToBatch(result: ReturnType<typeof detailViewToBenchmarkResult>): MetricsBatch {
+  const doc = buildOtlpResult({
+    benchmarks: result.benchmarks.map((b) => ({
+      name: b.name,
+      tags: b.tags,
+      metrics: Object.fromEntries(
+        Object.entries(b.metrics).map(([k, m]) => [k, { value: m.value, unit: m.unit, direction: m.direction }]),
+      ),
+    })),
+    context: { sourceFormat: "otlp" },
+  });
+  return MetricsBatch.fromOtlp(doc);
 }

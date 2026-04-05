@@ -1,12 +1,13 @@
 /**
- * Local integration test: stash → aggregate pipeline.
+ * Local integration test: aggregate pipeline.
  *
- * Exercises the full data flow without GitHub or git push:
- * 1. Parse benchmark files (Go bench + native + monitor)
- * 2. Build BenchmarkResult via stash logic
- * 3. Write run files to a temp directory
- * 4. Aggregate: build index + series
- * 5. Validate all output against JSON schemas
+ * Exercises the aggregate data flow without GitHub or git push:
+ * 1. Create BenchmarkResult run files (Go bench, custom, monitor)
+ * 2. Aggregate: build index + series
+ * 3. Validate all output against JSON schemas
+ *
+ * Stash logic is tested separately in actions/stash/src/stash.test.ts.
+ * The aggregate migration to OTLP input is tracked in issue #252.
  *
  * Run: node --test actions/aggregate/lib/integration.test.js
  */
@@ -18,7 +19,6 @@ import * as path from "node:path";
 import * as os from "node:os";
 import Ajv from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import { buildResult, parseBenchmarkFiles, readMonitorOutput } from "../../stash/lib/stash.js";
 import {
   type ParsedRun,
   sortRuns,
@@ -61,33 +61,26 @@ const validateRunDetail = ajv.compile(
   JSON.parse(fs.readFileSync(path.join(schemaDir, "view-run-detail.schema.json"), "utf-8")),
 );
 
-// ── Test fixtures ───────────────────────────────────────────────────
+// ── Test fixtures (BenchmarkResult format — aggregate still reads this) ──
 
-const GO_BENCH_1 = [
-  "BenchmarkSort-4  5000000  320 ns/op  48 B/op  2 allocs/op",
-  "BenchmarkSearch-4  10000000  120 ns/op  0 B/op  0 allocs/op",
-].join("\n");
-
-const GO_BENCH_2 = [
-  "BenchmarkSort-4  5100000  310 ns/op  48 B/op  2 allocs/op",
-  "BenchmarkSearch-4  10200000  115 ns/op  0 B/op  0 allocs/op",
-].join("\n");
-
-const NATIVE_BENCH: BenchmarkResult = {
+const RUN_1_RESULT: BenchmarkResult = {
   benchmarks: [
     {
-      name: "http-throughput",
-      tags: { env: "staging" },
+      name: "BenchmarkSort",
       metrics: {
-        requests_per_sec: { value: 15230, unit: "req/s", direction: "bigger_is_better" },
-        p99_latency_ms: { value: 12.4, unit: "ms", direction: "smaller_is_better" },
+        ns_per_op: { value: 320, unit: "ns/op", direction: "smaller_is_better" },
+        bytes_per_op: { value: 48, unit: "B/op", direction: "smaller_is_better" },
+        allocs_per_op: { value: 2, unit: "allocs/op", direction: "smaller_is_better" },
       },
     },
-  ],
-};
-
-const MONITOR_OUTPUT: BenchmarkResult = {
-  benchmarks: [
+    {
+      name: "BenchmarkSearch",
+      metrics: {
+        ns_per_op: { value: 120, unit: "ns/op", direction: "smaller_is_better" },
+        bytes_per_op: { value: 0, unit: "B/op", direction: "smaller_is_better" },
+        allocs_per_op: { value: 0, unit: "allocs/op", direction: "smaller_is_better" },
+      },
+    },
     {
       name: "_monitor/process/go",
       metrics: {
@@ -105,6 +98,10 @@ const MONITOR_OUTPUT: BenchmarkResult = {
     },
   ],
   context: {
+    commit: "aaa1111",
+    ref: "refs/heads/main",
+    timestamp: "2026-03-30T10:00:00Z",
+    runner: "Linux/X64",
     monitor: {
       monitor_version: "0.1.0",
       poll_interval_ms: 250,
@@ -119,33 +116,62 @@ const MONITOR_OUTPUT: BenchmarkResult = {
   },
 };
 
+const RUN_2_RESULT: BenchmarkResult = {
+  benchmarks: [
+    {
+      name: "BenchmarkSort",
+      metrics: {
+        ns_per_op: { value: 310, unit: "ns/op", direction: "smaller_is_better" },
+        bytes_per_op: { value: 48, unit: "B/op", direction: "smaller_is_better" },
+        allocs_per_op: { value: 2, unit: "allocs/op", direction: "smaller_is_better" },
+      },
+    },
+    {
+      name: "BenchmarkSearch",
+      metrics: {
+        ns_per_op: { value: 115, unit: "ns/op", direction: "smaller_is_better" },
+        bytes_per_op: { value: 0, unit: "B/op", direction: "smaller_is_better" },
+        allocs_per_op: { value: 0, unit: "allocs/op", direction: "smaller_is_better" },
+      },
+    },
+  ],
+  context: {
+    commit: "bbb2222",
+    ref: "refs/heads/main",
+    timestamp: "2026-03-31T10:00:00Z",
+    runner: "Linux/X64",
+  },
+};
+
+const RUN_3_RESULT: BenchmarkResult = {
+  benchmarks: [
+    {
+      name: "http-throughput",
+      tags: { env: "staging" },
+      metrics: {
+        requests_per_sec: { value: 15230, unit: "req/s", direction: "bigger_is_better" },
+        p99_latency_ms: { value: 12.4, unit: "ms", direction: "smaller_is_better" },
+      },
+    },
+  ],
+  context: {
+    commit: "ccc3333",
+    ref: "refs/heads/main",
+    timestamp: "2026-03-31T12:00:00Z",
+  },
+};
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function createTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-e2e-"));
 }
 
-function writeFixtures(tmpDir: string): { goBench1: string; goBench2: string; nativeBench: string; monitorFile: string } {
-  const goBench1 = path.join(tmpDir, "bench1.txt");
-  const goBench2 = path.join(tmpDir, "bench2.txt");
-  const nativeBench = path.join(tmpDir, "native.json");
-  const monitorFile = path.join(tmpDir, "monitor.json");
-
-  fs.writeFileSync(goBench1, GO_BENCH_1);
-  fs.writeFileSync(goBench2, GO_BENCH_2);
-  fs.writeFileSync(nativeBench, JSON.stringify(NATIVE_BENCH));
-  fs.writeFileSync(monitorFile, JSON.stringify(MONITOR_OUTPUT));
-
-  return { goBench1, goBench2, nativeBench, monitorFile };
-}
-
 /**
- * Simulate the stash → aggregate pipeline locally:
- * 1. Parse benchmark files using stash logic
- * 2. Build BenchmarkResult for each "run"
- * 3. Write run files to a temp data dir
- * 4. Read them back as ParsedRuns
- * 5. Aggregate into index + series
+ * Simulate the aggregate pipeline locally:
+ * 1. Write pre-built BenchmarkResult run files to a temp directory
+ * 2. Read them back as ParsedRuns
+ * 3. Aggregate into index + series
  */
 function simulatePipeline(tmpDir: string): {
   runs: ParsedRun[];
@@ -153,57 +179,21 @@ function simulatePipeline(tmpDir: string): {
   seriesMap: Map<string, SeriesFile>;
   runsDir: string;
 } {
-  const fixtures = writeFixtures(tmpDir);
   const runsDir = path.join(tmpDir, "data", "runs");
   fs.mkdirSync(runsDir, { recursive: true });
 
-  // --- Run 1: Go bench + monitor ---
-  const benchmarks1 = parseBenchmarkFiles([fixtures.goBench1], "go");
-  const monitor1 = readMonitorOutput(fixtures.monitorFile);
-  const result1 = buildResult({
-    benchmarks: benchmarks1,
-    monitorResult: monitor1,
-    context: {
-      commit: "aaa1111",
-      ref: "refs/heads/main",
-      timestamp: "2026-03-30T10:00:00Z",
-      runner: "Linux/X64",
-    },
-  });
+  // Write run files
   fs.writeFileSync(
     path.join(runsDir, "run-001.json"),
-    JSON.stringify(result1, null, 2),
+    JSON.stringify(RUN_1_RESULT, null, 2),
   );
-
-  // --- Run 2: Go bench (no monitor) ---
-  const benchmarks2 = parseBenchmarkFiles([fixtures.goBench2], "go");
-  const result2 = buildResult({
-    benchmarks: benchmarks2,
-    context: {
-      commit: "bbb2222",
-      ref: "refs/heads/main",
-      timestamp: "2026-03-31T10:00:00Z",
-      runner: "Linux/X64",
-    },
-  });
   fs.writeFileSync(
     path.join(runsDir, "run-002.json"),
-    JSON.stringify(result2, null, 2),
+    JSON.stringify(RUN_2_RESULT, null, 2),
   );
-
-  // --- Run 3: Native format ---
-  const benchmarks3 = parseBenchmarkFiles([fixtures.nativeBench], "native");
-  const result3 = buildResult({
-    benchmarks: benchmarks3,
-    context: {
-      commit: "ccc3333",
-      ref: "refs/heads/main",
-      timestamp: "2026-03-31T12:00:00Z",
-    },
-  });
   fs.writeFileSync(
     path.join(runsDir, "run-003.json"),
-    JSON.stringify(result3, null, 2),
+    JSON.stringify(RUN_3_RESULT, null, 2),
   );
 
   // --- Aggregate ---
@@ -222,7 +212,7 @@ function simulatePipeline(tmpDir: string): {
 
 // ── Tests ───────────────────────────────────────────────────────────
 
-describe("integration: stash → aggregate pipeline", () => {
+describe("integration: aggregate pipeline", () => {
   let tmpDir: string;
   let pipeline: ReturnType<typeof simulatePipeline>;
 
