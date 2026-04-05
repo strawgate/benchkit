@@ -58,12 +58,14 @@ async function run(): Promise<void> {
     core.warning(emptyBenchmarksWarning);
   }
 
-  // Merge monitor output if provided
-  const monitorResult = monitorPath ? readMonitorOutput(monitorPath) : undefined;
+  // Merge monitor OTLP output if provided
+  const monitorDoc = monitorPath ? readMonitorOutput(monitorPath) : undefined;
 
   const result = buildResult({
     benchmarks,
-    monitorResult,
+    monitorDoc,
+    runId,
+    sourceFormat: format === "auto" ? "native" : format,
     context: {
       commit: process.env.GITHUB_SHA,
       ref: process.env.GITHUB_REF,
@@ -74,7 +76,8 @@ async function run(): Promise<void> {
     },
   });
 
-  core.info(`Parsed ${benchmarks.length} benchmark(s)${monitorResult ? ` + ${monitorResult.benchmarks.length} monitor benchmark(s)` : ""}`);
+  const monitorRmCount = monitorDoc?.resourceMetrics.length ?? 0;
+  core.info(`Parsed ${benchmarks.length} benchmark(s)${monitorRmCount > 0 ? ` + ${monitorRmCount} monitor resource(s)` : ""}`);
 
   const tempResultPath = createTempResultPath(runId);
   writeResultFile(result, runId, tempResultPath);
@@ -94,7 +97,7 @@ async function run(): Promise<void> {
     const worktree = await checkoutDataBranch(dataBranch);
 
     const runsDir = path.join(worktree, "data", "runs");
-    const resultPath = path.join(runsDir, `${runId}.json`);
+    const resultPath = path.join(runsDir, `${runId}.otlp.json`);
     writeResultFile(result, runId, resultPath);
     core.info(`Wrote ${resultPath}`);
 
@@ -102,7 +105,7 @@ async function run(): Promise<void> {
     await exec.exec("git", ["-C", worktree, "commit", "-m", `bench: add run ${runId}`]);
     await pushWithRetry(worktree, dataBranch, DEFAULT_PUSH_RETRY_COUNT);
     await exec.exec("git", ["worktree", "remove", worktree, "--force"]);
-    filePathOutput = `data/runs/${runId}.json`;
+    filePathOutput = `data/runs/${runId}.otlp.json`;
   } else {
     core.info(`${commitInputName}=false; skipping data branch commit`);
   }
