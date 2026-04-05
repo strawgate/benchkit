@@ -3,6 +3,7 @@
 ## Start here
 
 - [`getting-started.md`](getting-started.md) — end-to-end setup for stash, aggregate, compare, monitor, and charts
+- [`migration-readiness.md`](migration-readiness.md) — what is supported today versus in-progress or blocked
 - [`reference/actions.md`](reference/actions.md) — overview of all GitHub Actions
 - [`reference/react-components.md`](reference/react-components.md) — React/Preact dashboard surfaces and chart primitives
 

@@ -10,6 +10,7 @@ export default tseslint.config(
       "**/dist-test/**",
       "**/lib/**",
       "**/node_modules/**",
+      ".work/**",
     ],
   },
   {
