@@ -16,9 +16,6 @@ export type {
   OtlpResource,
   OtlpResourceMetrics,
   OtlpMetricsDocument,
-  NativeMetricInit,
-  NativeBenchmarkInit,
-  NativeResultInit,
   Sample,
   Context,
   MonitorContext,
@@ -59,13 +56,12 @@ export { parseBenchmarkAction } from "./parse-benchmark-action.js";
 export { parseHyperfine } from "./parse-hyperfine.js";
 /** Parse pytest-benchmark JSON format. */
 export { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
-/** Parse OTLP metrics JSON and project it into benchmark-oriented structures. */
+/** Parse OTLP metrics JSON. */
 export {
   parseOtlp,
   otlpAttributesToRecord,
   getOtlpMetricKind,
   getOtlpTemporality,
-  projectBenchmarkResultFromOtlp,
 } from "./parse-otlp.js";
 /** OTLP semantic convention constants — attribute names, valid values, reserved keys. */
 export {
@@ -115,22 +111,17 @@ export {
   isValidSourceFormat,
   isMonitorMetric,
 } from "./otlp-validation.js";
-/** Higher-level projection helpers for specific consumer use cases. */
-export {
-  extractRunMetrics,
-  extractScenarioMetrics,
-  extractComparisonMetrics,
-  extractResourceContext,
-  getMetricTemporality,
-  getMetricUnits,
-} from "./otlp-projections.js";
 /** Compare a current benchmark run against baseline runs to detect regressions. */
 export { compareRuns } from "./compare.js";
 /** Format a ComparisonResult as markdown for job summaries and PR comments. */
 export { formatComparisonMarkdown } from "./format-comparison-markdown.js";
-/** Helpers for building and serializing native benchmark results. */
-export { defineMetric, defineBenchmark, buildNativeResult, stringifyNativeResult } from "./native-builder.js";
 /** Convert a RunDetailView back into a BenchmarkResult for use with compare(). */
 export { detailViewToBenchmarkResult } from "./run-detail-converter.js";
 /** Retry helpers for push operations. */
 export { computeRetryDelayMs, sleep, DEFAULT_PUSH_RETRY_COUNT, RETRY_DELAY_MIN_MS, RETRY_DELAY_MAX_MS } from "./retry.js";
+/** Build an OtlpMetricsDocument from a simple benchmark input shape. */
+export { buildOtlpResult } from "./build-otlp-result.js";
+export type { OtlpResultMetric, OtlpResultBenchmark, OtlpResultContext, BuildOtlpResultOptions } from "./build-otlp-result.js";
+/** Ergonomic batch wrapper over OtlpMetricsDocument. */
+export { MetricsBatch, seriesKey } from "./metrics-batch.js";
+export type { MetricPoint, ResourceContext } from "./metrics-batch.js";

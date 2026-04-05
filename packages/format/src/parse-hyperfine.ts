@@ -1,8 +1,10 @@
-import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import type { OtlpMetricsDocument } from "./types.js";
+import type { OtlpResultBenchmark, OtlpResultMetric } from "./build-otlp-result.js";
+import { buildOtlpResult } from "./build-otlp-result.js";
 import { inferDirection } from "./infer-direction.js";
 
 /**
- * Parse Hyperfine JSON output into BenchmarkResult.
+ * Parse Hyperfine JSON output into an OtlpMetricsDocument.
  *
  * Input format (hyperfine --export-json):
  * {
@@ -30,7 +32,7 @@ interface HyperfineResult {
   times?: number[];
 }
 
-export function parseHyperfine(input: string): BenchmarkResult {
+export function parseHyperfine(input: string): OtlpMetricsDocument {
   let parsed;
   try {
     parsed = JSON.parse(input);
@@ -45,19 +47,18 @@ export function parseHyperfine(input: string): BenchmarkResult {
     throw new Error("[parse-hyperfine] Hyperfine format must have a 'results' array.");
   }
 
-  const benchmarks: Benchmark[] = (parsed.results as HyperfineResult[]).map(
+  const benchmarks: OtlpResultBenchmark[] = (parsed.results as HyperfineResult[]).map(
     (result) => {
       if (typeof result.command !== "string") {
         throw new Error("[parse-hyperfine] Each Hyperfine result must have a 'command' string.");
       }
 
       const timeDirection = inferDirection("s");
-      const metrics: Record<string, Metric> = {
+      const metrics: Record<string, OtlpResultMetric> = {
         mean: {
           value: result.mean,
           unit: "s",
           direction: timeDirection,
-          range: result.stddev,
         },
         stddev: {
           value: result.stddev,
@@ -88,5 +89,8 @@ export function parseHyperfine(input: string): BenchmarkResult {
     },
   );
 
-  return { benchmarks };
+  return buildOtlpResult({
+    benchmarks,
+    context: { sourceFormat: "hyperfine" },
+  });
 }

@@ -1,8 +1,10 @@
-import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import type { OtlpMetricsDocument } from "./types.js";
+import type { OtlpResultBenchmark, OtlpResultMetric } from "./build-otlp-result.js";
+import { buildOtlpResult } from "./build-otlp-result.js";
 import { inferDirection } from "./infer-direction.js";
 
 /**
- * Parse pytest-benchmark JSON output into BenchmarkResult.
+ * Parse pytest-benchmark JSON output into an OtlpMetricsDocument.
  *
  * Input format (pytest-benchmark --benchmark-json):
  * {
@@ -44,7 +46,7 @@ interface PytestBenchmarkOutput {
   benchmarks: PytestBenchmarkEntry[];
 }
 
-export function parsePytestBenchmark(input: string): BenchmarkResult {
+export function parsePytestBenchmark(input: string): OtlpMetricsDocument {
   let parsed;
   try {
     parsed = JSON.parse(input) as PytestBenchmarkOutput;
@@ -59,7 +61,7 @@ export function parsePytestBenchmark(input: string): BenchmarkResult {
     throw new Error("[parse-pytest-benchmark] pytest-benchmark format must have a 'benchmarks' array.");
   }
 
-  const benchmarks: Benchmark[] = parsed.benchmarks.map((entry) => {
+  const benchmarks: OtlpResultBenchmark[] = parsed.benchmarks.map((entry) => {
     if (typeof entry.name !== "string") {
       throw new Error("[parse-pytest-benchmark] Each pytest-benchmark entry must have a 'name' string.");
     }
@@ -71,12 +73,11 @@ export function parsePytestBenchmark(input: string): BenchmarkResult {
 
     const stats = entry.stats;
     const timeDirection = inferDirection("s");
-    const metrics: Record<string, Metric> = {
+    const metrics: Record<string, OtlpResultMetric> = {
       mean: {
         value: stats.mean,
         unit: "s",
         direction: timeDirection,
-        range: stats.stddev,
       },
       median: {
         value: stats.median,
@@ -115,5 +116,8 @@ export function parsePytestBenchmark(input: string): BenchmarkResult {
     };
   });
 
-  return { benchmarks };
+  return buildOtlpResult({
+    benchmarks,
+    context: { sourceFormat: "pytest-benchmark" },
+  });
 }

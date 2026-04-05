@@ -1,44 +1,35 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { parseBenchmarks as parse } from "./parse.js";
+import { MetricsBatch } from "./metrics-batch.js";
 
 describe("parse (auto-detect)", () => {
-  it("detects native format", () => {
-    const input = JSON.stringify({
-      benchmarks: [
-        { name: "test", metrics: { eps: { value: 100 } } },
-      ],
-    });
-    const result = parse(input);
-    assert.equal(result.benchmarks[0].name, "test");
-  });
-
   it("detects benchmark-action format", () => {
     const input = JSON.stringify([
       { name: "Bench", value: 42, unit: "ns/op" },
     ]);
-    const result = parse(input);
-    assert.equal(result.benchmarks[0].name, "Bench");
+    const batch = MetricsBatch.fromOtlp(parse(input));
+    assert.equal(batch.scenarios[0], "Bench");
   });
 
   it("detects Go bench format", () => {
     const input = `BenchmarkFoo-8    10000    1234 ns/op`;
-    const result = parse(input);
-    assert.equal(result.benchmarks[0].name, "BenchmarkFoo");
+    const batch = MetricsBatch.fromOtlp(parse(input));
+    assert.equal(batch.scenarios[0], "BenchmarkFoo");
   });
 
   it("detects Rust bench format", () => {
     const input = `test sort::bench_sort   ... bench:         320 ns/iter (+/- 42)`;
-    const result = parse(input);
-    assert.equal(result.benchmarks[0].name, "sort::bench_sort");
+    const batch = MetricsBatch.fromOtlp(parse(input));
+    assert.equal(batch.scenarios[0], "sort::bench_sort");
   });
 
   it("detects Hyperfine format", () => {
     const input = JSON.stringify({
       results: [{ command: "sleep 1", mean: 1.0 }],
     });
-    const result = parse(input);
-    assert.equal(result.benchmarks[0].name, "sleep 1");
+    const batch = MetricsBatch.fromOtlp(parse(input));
+    assert.equal(batch.scenarios[0], "sleep 1");
   });
 
   it("detects OTLP metrics format", () => {
@@ -78,8 +69,8 @@ describe("parse (auto-detect)", () => {
         },
       ],
     });
-    const result = parse(input);
-    assert.equal(result.benchmarks[0].name, "json-ingest");
+    const batch = MetricsBatch.fromOtlp(parse(input));
+    assert.equal(batch.scenarios[0], "json-ingest");
   });
 
   it("throws on unrecognized input", () => {
@@ -90,8 +81,8 @@ describe("parse (auto-detect)", () => {
 
   it("respects explicit format override", () => {
     const input = `BenchmarkBar-4    5000    999 ns/op`;
-    const result = parse(input, "go");
-    assert.equal(result.benchmarks[0].name, "BenchmarkBar");
+    const batch = MetricsBatch.fromOtlp(parse(input, "go"));
+    assert.equal(batch.scenarios[0], "BenchmarkBar");
   });
 
   it("supports explicit otlp format override", () => {
@@ -131,8 +122,8 @@ describe("parse (auto-detect)", () => {
         },
       ],
     });
-    const result = parse(input, "otlp");
-    assert.equal(result.benchmarks[0].metrics.service_rss_mb.value, 543.1);
+    const batch = MetricsBatch.fromOtlp(parse(input, "otlp"));
+    assert.equal(batch.forMetric("service_rss_mb").points[0].value, 543.1);
   });
 
   it("throws on empty input", () => {
@@ -162,8 +153,8 @@ describe("parse (auto-detect)", () => {
       "BenchmarkFoo-8    10000    1234 ns/op",
       "ok      github.com/example/pkg  1.234s",
     ].join("\n");
-    const result = parse(input);
-    assert.equal(result.benchmarks[0].name, "BenchmarkFoo");
+    const batch = MetricsBatch.fromOtlp(parse(input));
+    assert.equal(batch.scenarios[0], "BenchmarkFoo");
   });
 
   it("throws on JSON with unexpected shape", () => {
@@ -176,16 +167,8 @@ describe("parse (auto-detect)", () => {
     const input = JSON.stringify([
       { name: "Sort", value: 100, unit: "ns/op", group: "Group1", extra: "ignored" },
     ]);
-    const result = parse(input);
-    assert.equal(result.benchmarks[0].name, "Sort");
-  });
-
-  it("detects native format with minimal valid structure", () => {
-    const input = JSON.stringify({
-      benchmarks: [{ name: "min", metrics: { value: { value: 1 } } }],
-    });
-    const result = parse(input);
-    assert.equal(result.benchmarks[0].name, "min");
+    const batch = MetricsBatch.fromOtlp(parse(input));
+    assert.equal(batch.scenarios[0], "Sort");
   });
 
   it("throws when JSON is embedded in surrounding plain text", () => {

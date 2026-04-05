@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { parseBenchmarkAction } from "./parse-benchmark-action.js";
+import { MetricsBatch } from "./metrics-batch.js";
 
 describe("parseBenchmarkAction", () => {
   it("parses a simple array of results", () => {
@@ -9,15 +10,13 @@ describe("parseBenchmarkAction", () => {
       { name: "Memory", unit: "bytes", value: 1024, range: "± 50" },
     ]);
 
-    const result = parseBenchmarkAction(input);
-    assert.equal(result.benchmarks.length, 2);
-    assert.equal(result.benchmarks[0].name, "My Bench");
-    assert.equal(result.benchmarks[0].metrics.value.value, 42000);
-    assert.equal(
-      result.benchmarks[0].metrics.value.direction,
-      "bigger_is_better",
-    );
-    assert.equal(result.benchmarks[1].metrics.value.range, 50);
+    const batch = MetricsBatch.fromOtlp(parseBenchmarkAction(input));
+    assert.equal(batch.scenarios.length, 2);
+    assert.equal(batch.scenarios[0], "Memory");
+    assert.equal(batch.scenarios[1], "My Bench");
+    const myBench = batch.forScenario("My Bench").forMetric("value").points[0];
+    assert.equal(myBench.value, 42000);
+    assert.equal(myBench.direction, "bigger_is_better");
   });
 
   it("infers smaller_is_better for ns-like units", () => {
@@ -25,11 +24,8 @@ describe("parseBenchmarkAction", () => {
       { name: "Latency", unit: "ns/iter", value: 150 },
     ]);
 
-    const result = parseBenchmarkAction(input);
-    assert.equal(
-      result.benchmarks[0].metrics.value.direction,
-      "smaller_is_better",
-    );
+    const batch = MetricsBatch.fromOtlp(parseBenchmarkAction(input));
+    assert.equal(batch.points[0].direction, "smaller_is_better");
   });
 
   it("throws on non-array input", () => {
