@@ -1,19 +1,19 @@
 [
   {
     "metric": "allocs_per_op",
-    "latestSeriesCount": 3,
+    "latestSeriesCount": 2,
     "latestRunId": "test-count-23993876527-1",
     "latestTimestamp": "2026-04-05T04:03:32.737Z"
   },
   {
     "metric": "bytes_per_op",
-    "latestSeriesCount": 3,
+    "latestSeriesCount": 2,
     "latestRunId": "test-count-23993876527-1",
     "latestTimestamp": "2026-04-05T04:03:32.737Z"
   },
   {
     "metric": "ns_per_op",
-    "latestSeriesCount": 3,
+    "latestSeriesCount": 2,
     "latestRunId": "test-count-23993876527-1",
     "latestTimestamp": "2026-04-05T04:03:32.737Z"
   },
