@@ -1,47 +1,8 @@
 # benchkit JSON schemas
 
-This directory contains [JSON Schema (2020-12)](https://json-schema.org/draft/2020-12/schema) definitions for the benchkit-native files produced by benchkit. Normalized run files and derived aggregate views conform to these schemas. Raw OTLP telemetry sidecars written by `actions/monitor` live under `data/telemetry/*.otlp.json` and follow the OTLP JSON format instead.
+This directory contains [JSON Schema (2020-12)](https://json-schema.org/draft/2020-12/schema) definitions for the benchkit data-branch files produced by benchkit actions. Run files are written in OTLP JSON format by `bench-stash`, and derived aggregate views conform to these schemas.
 
 ## Schemas
-
-### `benchmark-result.schema.json`
-
-Defines the **native benchmark result** format. All input formats (Go bench,
-benchmark-action, etc.) are normalized to this shape by the
-[`@benchkit/format`](../packages/format/README.md) parsers.
-
-Top-level structure:
-
-```jsonc
-{
-  "benchmarks": [
-    {
-      "name": "BenchmarkScanner",
-      "tags": { "procs": "8" },            // optional grouping dimensions
-      "metrics": {
-        "ns_per_op": {
-          "value": 41653,
-          "unit": "ns/op",
-          "direction": "smaller_is_better", // or "bigger_is_better"
-          "range": 120                      // optional ± variance
-        }
-      },
-      "samples": [                          // optional time-series
-        { "t": 0, "ns_per_op": 42000 },
-        { "t": 1, "ns_per_op": 41300 }
-      ]
-    }
-  ],
-  "context": {                              // optional run metadata
-    "commit": "abc123...",
-    "ref": "main",
-    "timestamp": "2025-01-15T10:30:00Z",
-    "runner": "ubuntu-latest"
-  }
-}
-```
-
-Written to `data/runs/{runId}.json` by `bench-stash`.
 
 ### `index.schema.json`
 
@@ -164,23 +125,12 @@ When direction is absent, consumers should default to `smaller_is_better`.
 ### CLI (with ajv-cli)
 
 ```bash
-npx ajv validate -s schema/benchmark-result.schema.json -d my-results.json
 npx ajv validate -s schema/index.schema.json -d data/index.json
 npx ajv validate -s schema/index-refs.schema.json -d data/index/refs.json
 npx ajv validate -s schema/index-prs.schema.json -d data/index/prs.json
 npx ajv validate -s schema/index-metrics.schema.json -d data/index/metrics.json
 npx ajv validate -s schema/series.schema.json -d data/series/ns_per_op.json
 npx ajv validate -s schema/view-run-detail.schema.json -d data/views/runs/my-run/detail.json
-```
-
-### Programmatic (with @benchkit/format)
-
-```ts
-import { parseNative } from "@benchkit/format";
-import fs from "node:fs";
-
-// Throws with a descriptive message if the file is invalid
-const result = parseNative(fs.readFileSync("my-results.json", "utf-8"));
 ```
 
 ## Relationship between files
@@ -190,7 +140,7 @@ bench-stash                      bench-aggregate
     │                                  │
     ▼                                  ▼
 data/runs/{id}.json ───────► data/index.json
-  (benchmark-result)           data/index/refs.json
+  (OTLP metrics JSON)         data/index/refs.json
                                data/index/prs.json
                                data/index/metrics.json
                                data/series/{metric}.json

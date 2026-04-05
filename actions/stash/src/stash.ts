@@ -3,12 +3,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import {
   parseBenchmarks as parse,
-  parseNative,
+  buildOtlpResult,
+  MetricsBatch,
   type Format,
-  type BenchmarkResult,
-  type Benchmark,
-  type Context,
-  type MonitorContext,
+  type OtlpMetricsDocument,
 } from "@benchkit/format";
 
 export interface StashContext {
@@ -19,8 +17,8 @@ export interface StashContext {
 }
 
 export interface BuildResultOptions {
-  benchmarks: Benchmark[];
-  monitorResult?: BenchmarkResult;
+  benchmarkDoc: OtlpMetricsDocument;
+  monitorDoc?: OtlpMetricsDocument;
   context: StashContext;
 }
 
@@ -28,42 +26,40 @@ export interface SummaryOptions {
   runId: string;
 }
 
-/** Assemble a BenchmarkResult from parsed benchmarks, optional monitor data, and CI context. */
-export function buildResult(opts: BuildResultOptions): BenchmarkResult {
-  const benchmarks = [...opts.benchmarks];
-  let monitor: MonitorContext | undefined;
-
-  if (opts.monitorResult) {
-    benchmarks.push(...opts.monitorResult.benchmarks);
-    monitor = opts.monitorResult.context?.monitor;
+/** Assemble an OtlpMetricsDocument from parsed benchmarks, optional monitor data, and CI context. */
+export function buildResult(opts: BuildResultOptions): OtlpMetricsDocument {
+  let batch = MetricsBatch.fromOtlp(opts.benchmarkDoc);
+  if (opts.monitorDoc) {
+    batch = MetricsBatch.merge(batch, MetricsBatch.fromOtlp(opts.monitorDoc));
   }
 
-  const context: Context = {
-    commit: opts.context.commit,
-    ref: opts.context.ref,
-    timestamp: opts.context.timestamp,
-    runner: opts.context.runner || undefined,
-    monitor,
+  // Override resource context with stash-provided CI context
+  const ctx = {
+    ...batch.context,
+    commit: opts.context.commit ?? batch.context.commit,
+    ref: opts.context.ref ?? batch.context.ref,
+    runner: opts.context.runner ?? batch.context.runner,
   };
-
-  return { benchmarks, context };
+  return MetricsBatch.fromPoints([...batch.points], ctx).toOtlp();
 }
 
 /** Parse all benchmark files (synchronous file reads). Throws if the list is empty. */
-export function parseBenchmarkFiles(files: string[], format: Format): Benchmark[] {
+export function parseBenchmarkFiles(files: string[], format: Format): OtlpMetricsDocument {
   if (files.length === 0) {
     throw new Error("No benchmark result files provided");
   }
-  const benchmarks: Benchmark[] = [];
+  const docs: OtlpMetricsDocument[] = [];
   for (const file of files) {
     const content = fs.readFileSync(file, "utf-8");
-    benchmarks.push(...parseBenchmarks(content, format, file));
+    docs.push(parseBenchmarks(content, format, file));
   }
-  return benchmarks;
+  const batches = docs.map((d) => MetricsBatch.fromOtlp(d));
+  return MetricsBatch.merge(...batches).toOtlp();
 }
 
-export function getEmptyBenchmarksWarning(benchmarks: Benchmark[]): string | undefined {
-  if (benchmarks.length !== 0) {
+export function getEmptyBenchmarksWarning(doc: OtlpMetricsDocument): string | undefined {
+  const batch = MetricsBatch.fromOtlp(doc);
+  if (batch.size !== 0) {
     return undefined;
   }
   return (
@@ -80,26 +76,44 @@ export function parseBenchmarks(
   content: string,
   format: Format,
   fileName: string,
-): Benchmark[] {
-  let result: BenchmarkResult;
+): OtlpMetricsDocument {
   try {
-    result = parse(content, format);
+    return parse(content, format);
   } catch (err) {
     throw new Error(
       `Failed to parse '${path.basename(fileName)}': ${err instanceof Error ? err.message : String(err)}`,
       { cause: err },
     );
   }
-  return result.benchmarks;
 }
 
-/** Read and parse a monitor output file. */
-export function readMonitorOutput(monitorPath: string): BenchmarkResult {
+/**
+ * Read and parse a monitor output file.
+ * Supports both OTLP JSON and legacy native format (auto-detected).
+ */
+export function readMonitorOutput(monitorPath: string): OtlpMetricsDocument {
   if (!fs.existsSync(monitorPath)) {
     throw new Error(`Monitor file not found: ${monitorPath}`);
   }
   const content = fs.readFileSync(monitorPath, "utf-8");
-  return parseNative(content);
+  const parsed = JSON.parse(content);
+
+  // Already OTLP format
+  if (parsed.resourceMetrics) {
+    return parsed as OtlpMetricsDocument;
+  }
+
+  // Legacy native format — convert through buildOtlpResult
+  const legacy = parsed as { benchmarks: Array<{ name: string; metrics: Record<string, { value: number; unit?: string; direction?: "bigger_is_better" | "smaller_is_better" }> }> };
+  return buildOtlpResult({
+    benchmarks: legacy.benchmarks.map((b) => ({
+      name: b.name,
+      metrics: Object.fromEntries(
+        Object.entries(b.metrics).map(([k, m]) => [k, { value: m.value, unit: m.unit, direction: m.direction }]),
+      ),
+    })),
+    context: { sourceFormat: "native" },
+  });
 }
 
 /**
@@ -134,7 +148,7 @@ export function buildRunId(options: {
   return base;
 }
 
-export function writeResultFile(result: BenchmarkResult, runId: string, outputPath: string): string {
+export function writeResultFile(result: OtlpMetricsDocument, runId: string, outputPath: string): string {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(result, null, 2) + "\n");
   return outputPath;
@@ -144,65 +158,64 @@ export function createTempResultPath(runId: string): string {
   return path.join(os.tmpdir(), `benchkit-run-${runId}.json`);
 }
 
-function isMonitorBenchmark(benchmark: Benchmark): boolean {
-  return benchmark.name.startsWith("_monitor/");
-}
+export function formatResultSummaryMarkdown(result: OtlpMetricsDocument, options: SummaryOptions): string {
+  const batch = MetricsBatch.fromOtlp(result);
+  // Detect monitor points by scenario name (legacy: _monitor/) or metric name (OTLP: _monitor.)
+  const isMonitor = (p: { scenario: string; metric: string }): boolean =>
+    p.scenario.startsWith("_monitor/") || p.metric.startsWith("_monitor.");
+  const benchmarkPoints = batch.filter((p) => !isMonitor(p));
+  const monitorPoints = batch.filter(isMonitor);
 
-function formatMetricValue(metric: Benchmark["metrics"][string]): string {
-  const parts = [String(metric.value)];
-  if (metric.range !== undefined) {
-    parts.push(`±${metric.range}`);
-  }
-  if (metric.unit) {
-    parts.push(metric.unit);
-  }
-  return parts.join(" ");
-}
-
-export function formatResultSummaryMarkdown(result: BenchmarkResult, options: SummaryOptions): string {
-  const benchmarkRows = result.benchmarks.filter((benchmark) => !isMonitorBenchmark(benchmark));
-  const monitorRows = result.benchmarks.filter((benchmark) => isMonitorBenchmark(benchmark));
   const lines: string[] = [
     `## Benchkit Stash`,
     "",
     `Run ID: \`${options.runId}\``,
   ];
 
-  if (result.context?.commit || result.context?.ref) {
+  const ctx = batch.context;
+  if (ctx.commit || ctx.ref) {
     const parts = [
-      result.context.commit ? `commit \`${result.context.commit.slice(0, 8)}\`` : "",
-      result.context.ref ? `ref \`${result.context.ref}\`` : "",
+      ctx.commit ? `commit \`${ctx.commit.slice(0, 8)}\`` : "",
+      ctx.ref ? `ref \`${ctx.ref}\`` : "",
     ].filter(Boolean);
     lines.push(`Parsed for ${parts.join(" on ")}.`);
   }
 
   lines.push("");
 
-  if (benchmarkRows.length > 0) {
+  if (benchmarkPoints.size > 0) {
     lines.push("### Benchmarks");
     lines.push("");
     lines.push("| Benchmark | Metrics |");
     lines.push("| --- | --- |");
-    for (const benchmark of benchmarkRows) {
-      const metrics = Object.entries(benchmark.metrics)
-        .map(([name, metric]) => `\`${name}\`: ${formatMetricValue(metric)}`)
+    for (const [scenario, scenarioBatch] of benchmarkPoints.groupByScenario()) {
+      const metrics = scenarioBatch.points
+        .map((p) => {
+          const parts = [String(p.value)];
+          if (p.unit) parts.push(p.unit);
+          return `\`${p.metric}\`: ${parts.join(" ")}`;
+        })
         .join("<br>");
-      lines.push(`| \`${benchmark.name}\` | ${metrics} |`);
+      lines.push(`| \`${scenario}\` | ${metrics} |`);
     }
     lines.push("");
   }
 
-  if (monitorRows.length > 0) {
+  if (monitorPoints.size > 0) {
     lines.push("<details>");
     lines.push("<summary>Monitor metrics</summary>");
     lines.push("");
     lines.push("| Benchmark | Metrics |");
     lines.push("| --- | --- |");
-    for (const benchmark of monitorRows) {
-      const metrics = Object.entries(benchmark.metrics)
-        .map(([name, metric]) => `\`${name}\`: ${formatMetricValue(metric)}`)
+    for (const [scenario, scenarioBatch] of monitorPoints.groupByScenario()) {
+      const metrics = scenarioBatch.points
+        .map((p) => {
+          const parts = [String(p.value)];
+          if (p.unit) parts.push(p.unit);
+          return `\`${p.metric}\`: ${parts.join(" ")}`;
+        })
         .join("<br>");
-      lines.push(`| \`${benchmark.name}\` | ${metrics} |`);
+      lines.push(`| \`${scenario}\` | ${metrics} |`);
     }
     lines.push("");
     lines.push("</details>");

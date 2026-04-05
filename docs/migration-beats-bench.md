@@ -7,7 +7,7 @@ This guide documents how to migrate an existing `beats-bench` setup to use **Ben
 `beats-bench` (strawgate/beats-bench) is the original project that inspired Benchkit. While `beats-bench` provides a robust Docker orchestration layer for Filebeat benchmarking, its data pipeline is custom-built for one repo.
 
 By migrating to Benchkit, you keep the specialized Python runner and Docker orchestration while gaining:
-- **Standardized data format**: Compatibility with the `BenchmarkResult` schema.
+- **Standardized data format**: Compatibility with the OTLP metrics schema.
 - **Improved CI performance**: Offload data aggregation and stashing to optimized GitHub Actions.
 - **Modern visualization**: Use the `@benchkit/chart` Preact components for a faster, more interactive dashboard.
 - **PR-Native feedback**: Automatic regression detection and PR comments.
@@ -20,7 +20,7 @@ By migrating to Benchkit, you keep the specialized Python runner and Docker orch
 The `beats-bench summarize` command should be updated to emit Benchkit-native JSON.
 
 - **Add flag**: `--output-format benchkit`
-- **Action**: When this flag is used, `beats-bench` should map its internal `RunResult` objects to a Benchkit `BenchmarkResult` JSON file.
+- **Action**: When this flag is used, `beats-bench` should map its internal `RunResult` objects to an OTLP metrics JSON file using `buildOtlpResult()` from `@benchkit/format`.
 
 ### 2. Replace Custom Data Pipeline
 `beats-bench` originally used custom git commands to push data to a `bench-data` branch. This is replaced by two Benchkit actions:
@@ -41,7 +41,7 @@ Replace the custom Preact dashboard in the `dashboard/` directory with a standar
 
 ## Field Mapping
 
-### Mapping `RunResult` to `BenchmarkResult`
+### Mapping `RunResult` to OTLP metrics
 
 | beats-bench Field | Benchkit Field | Notes |
 |-------------------|----------------|-------|

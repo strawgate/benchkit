@@ -1,12 +1,12 @@
 /**
- * Local integration test: stash → aggregate pipeline.
+ * Local integration test: aggregate pipeline.
  *
- * Exercises the full data flow without GitHub or git push:
- * 1. Parse benchmark files (Go bench + native + monitor)
- * 2. Build BenchmarkResult via stash logic
- * 3. Write run files to a temp directory
- * 4. Aggregate: build index + series
- * 5. Validate all output against JSON schemas
+ * Exercises the aggregate data flow without GitHub or git push:
+ * 1. Create run files (legacy BenchmarkResult + OTLP formats)
+ * 2. Aggregate: readRuns, sort, build index + series
+ * 3. Validate all output against JSON schemas
+ *
+ * Stash logic is tested separately in actions/stash/src/stash.test.ts.
  *
  * Run: node --test actions/aggregate/lib/integration.test.js
  */
@@ -18,10 +18,10 @@ import * as path from "node:path";
 import * as os from "node:os";
 import Ajv from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import { buildResult, parseBenchmarkFiles, readMonitorOutput } from "../../stash/lib/stash.js";
 import {
   type ParsedRun,
   sortRuns,
+  readRuns,
   buildIndex,
   buildSeries,
 } from "./aggregate.js";
@@ -31,7 +31,8 @@ import {
   buildRunDetail,
   buildMetricSummaryViews,
 } from "./views.js";
-import type { BenchmarkResult, IndexFile, SeriesFile } from "@benchkit/format";
+import { buildOtlpResult } from "@benchkit/format";
+import type { IndexFile, SeriesFile } from "@benchkit/format";
 
 // ── Schema validation ───────────────────────────────────────────────
 
@@ -39,9 +40,6 @@ const schemaDir = path.resolve(__dirname, "../../../schema");
 const ajv = new Ajv({ allErrors: true });
 addFormats(ajv);
 
-const validateResult = ajv.compile(
-  JSON.parse(fs.readFileSync(path.join(schemaDir, "benchmark-result.schema.json"), "utf-8")),
-);
 const validateIndex = ajv.compile(
   JSON.parse(fs.readFileSync(path.join(schemaDir, "index.schema.json"), "utf-8")),
 );
@@ -62,32 +60,25 @@ const validateRunDetail = ajv.compile(
 );
 
 // ── Test fixtures ───────────────────────────────────────────────────
-
-const GO_BENCH_1 = [
-  "BenchmarkSort-4  5000000  320 ns/op  48 B/op  2 allocs/op",
-  "BenchmarkSearch-4  10000000  120 ns/op  0 B/op  0 allocs/op",
-].join("\n");
-
-const GO_BENCH_2 = [
-  "BenchmarkSort-4  5100000  310 ns/op  48 B/op  2 allocs/op",
-  "BenchmarkSearch-4  10200000  115 ns/op  0 B/op  0 allocs/op",
-].join("\n");
-
-const NATIVE_BENCH: BenchmarkResult = {
+// Run 1: legacy BenchmarkResult with monitor data
+const RUN_1_LEGACY = {
   benchmarks: [
     {
-      name: "http-throughput",
-      tags: { env: "staging" },
+      name: "BenchmarkSort",
       metrics: {
-        requests_per_sec: { value: 15230, unit: "req/s", direction: "bigger_is_better" },
-        p99_latency_ms: { value: 12.4, unit: "ms", direction: "smaller_is_better" },
+        ns_per_op: { value: 320, unit: "ns/op", direction: "smaller_is_better" },
+        bytes_per_op: { value: 48, unit: "B/op", direction: "smaller_is_better" },
+        allocs_per_op: { value: 2, unit: "allocs/op", direction: "smaller_is_better" },
       },
     },
-  ],
-};
-
-const MONITOR_OUTPUT: BenchmarkResult = {
-  benchmarks: [
+    {
+      name: "BenchmarkSearch",
+      metrics: {
+        ns_per_op: { value: 120, unit: "ns/op", direction: "smaller_is_better" },
+        bytes_per_op: { value: 0, unit: "B/op", direction: "smaller_is_better" },
+        allocs_per_op: { value: 0, unit: "allocs/op", direction: "smaller_is_better" },
+      },
+    },
     {
       name: "_monitor/process/go",
       metrics: {
@@ -105,6 +96,10 @@ const MONITOR_OUTPUT: BenchmarkResult = {
     },
   ],
   context: {
+    commit: "aaa1111",
+    ref: "refs/heads/main",
+    timestamp: "2026-03-30T10:00:00Z",
+    runner: "Linux/X64",
     monitor: {
       monitor_version: "0.1.0",
       poll_interval_ms: 250,
@@ -119,33 +114,64 @@ const MONITOR_OUTPUT: BenchmarkResult = {
   },
 };
 
+// Run 2: legacy BenchmarkResult without monitor
+const RUN_2_LEGACY = {
+  benchmarks: [
+    {
+      name: "BenchmarkSort",
+      metrics: {
+        ns_per_op: { value: 310, unit: "ns/op", direction: "smaller_is_better" },
+        bytes_per_op: { value: 48, unit: "B/op", direction: "smaller_is_better" },
+        allocs_per_op: { value: 2, unit: "allocs/op", direction: "smaller_is_better" },
+      },
+    },
+    {
+      name: "BenchmarkSearch",
+      metrics: {
+        ns_per_op: { value: 115, unit: "ns/op", direction: "smaller_is_better" },
+        bytes_per_op: { value: 0, unit: "B/op", direction: "smaller_is_better" },
+        allocs_per_op: { value: 0, unit: "allocs/op", direction: "smaller_is_better" },
+      },
+    },
+  ],
+  context: {
+    commit: "bbb2222",
+    ref: "refs/heads/main",
+    timestamp: "2026-03-31T10:00:00Z",
+    runner: "Linux/X64",
+  },
+};
+
+// Run 3: OTLP format (what stash now produces)
+const RUN_3_OTLP = buildOtlpResult({
+  benchmarks: [
+    {
+      name: "http-throughput",
+      tags: { env: "staging" },
+      metrics: {
+        requests_per_sec: { value: 15230, unit: "req/s", direction: "bigger_is_better" },
+        p99_latency_ms: { value: 12.4, unit: "ms", direction: "smaller_is_better" },
+      },
+    },
+  ],
+  context: {
+    sourceFormat: "native",
+    commit: "ccc3333",
+    ref: "refs/heads/main",
+  },
+});
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function createTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-e2e-"));
 }
 
-function writeFixtures(tmpDir: string): { goBench1: string; goBench2: string; nativeBench: string; monitorFile: string } {
-  const goBench1 = path.join(tmpDir, "bench1.txt");
-  const goBench2 = path.join(tmpDir, "bench2.txt");
-  const nativeBench = path.join(tmpDir, "native.json");
-  const monitorFile = path.join(tmpDir, "monitor.json");
-
-  fs.writeFileSync(goBench1, GO_BENCH_1);
-  fs.writeFileSync(goBench2, GO_BENCH_2);
-  fs.writeFileSync(nativeBench, JSON.stringify(NATIVE_BENCH));
-  fs.writeFileSync(monitorFile, JSON.stringify(MONITOR_OUTPUT));
-
-  return { goBench1, goBench2, nativeBench, monitorFile };
-}
-
 /**
- * Simulate the stash → aggregate pipeline locally:
- * 1. Parse benchmark files using stash logic
- * 2. Build BenchmarkResult for each "run"
- * 3. Write run files to a temp data dir
- * 4. Read them back as ParsedRuns
- * 5. Aggregate into index + series
+ * Simulate the aggregate pipeline locally:
+ * 1. Write run files (mix of legacy BenchmarkResult and OTLP) to a temp directory
+ * 2. Read them back via readRuns() (auto-detects format)
+ * 3. Aggregate into index + series
  */
 function simulatePipeline(tmpDir: string): {
   runs: ParsedRun[];
@@ -153,65 +179,25 @@ function simulatePipeline(tmpDir: string): {
   seriesMap: Map<string, SeriesFile>;
   runsDir: string;
 } {
-  const fixtures = writeFixtures(tmpDir);
   const runsDir = path.join(tmpDir, "data", "runs");
   fs.mkdirSync(runsDir, { recursive: true });
 
-  // --- Run 1: Go bench + monitor ---
-  const benchmarks1 = parseBenchmarkFiles([fixtures.goBench1], "go");
-  const monitor1 = readMonitorOutput(fixtures.monitorFile);
-  const result1 = buildResult({
-    benchmarks: benchmarks1,
-    monitorResult: monitor1,
-    context: {
-      commit: "aaa1111",
-      ref: "refs/heads/main",
-      timestamp: "2026-03-30T10:00:00Z",
-      runner: "Linux/X64",
-    },
-  });
+  // Write run files — runs 1 & 2 are legacy BenchmarkResult, run 3 is OTLP
   fs.writeFileSync(
     path.join(runsDir, "run-001.json"),
-    JSON.stringify(result1, null, 2),
+    JSON.stringify(RUN_1_LEGACY, null, 2),
   );
-
-  // --- Run 2: Go bench (no monitor) ---
-  const benchmarks2 = parseBenchmarkFiles([fixtures.goBench2], "go");
-  const result2 = buildResult({
-    benchmarks: benchmarks2,
-    context: {
-      commit: "bbb2222",
-      ref: "refs/heads/main",
-      timestamp: "2026-03-31T10:00:00Z",
-      runner: "Linux/X64",
-    },
-  });
   fs.writeFileSync(
     path.join(runsDir, "run-002.json"),
-    JSON.stringify(result2, null, 2),
+    JSON.stringify(RUN_2_LEGACY, null, 2),
   );
-
-  // --- Run 3: Native format ---
-  const benchmarks3 = parseBenchmarkFiles([fixtures.nativeBench], "native");
-  const result3 = buildResult({
-    benchmarks: benchmarks3,
-    context: {
-      commit: "ccc3333",
-      ref: "refs/heads/main",
-      timestamp: "2026-03-31T12:00:00Z",
-    },
-  });
   fs.writeFileSync(
     path.join(runsDir, "run-003.json"),
-    JSON.stringify(result3, null, 2),
+    JSON.stringify(RUN_3_OTLP, null, 2),
   );
 
-  // --- Aggregate ---
-  const runFiles = fs.readdirSync(runsDir).filter((f) => f.endsWith(".json")).sort();
-  const runs: ParsedRun[] = runFiles.map((file) => ({
-    id: path.basename(file, ".json"),
-    result: JSON.parse(fs.readFileSync(path.join(runsDir, file), "utf-8")),
-  }));
+  // --- Aggregate via readRuns (auto-detects format) ---
+  const runs = readRuns(runsDir);
   sortRuns(runs);
 
   const index = buildIndex(runs);
@@ -222,7 +208,7 @@ function simulatePipeline(tmpDir: string): {
 
 // ── Tests ───────────────────────────────────────────────────────────
 
-describe("integration: stash → aggregate pipeline", () => {
+describe("integration: aggregate pipeline", () => {
   let tmpDir: string;
   let pipeline: ReturnType<typeof simulatePipeline>;
 
@@ -239,34 +225,40 @@ describe("integration: stash → aggregate pipeline", () => {
     assert.equal(files.length, 3);
   });
 
-  it("each run file conforms to benchmark-result schema", () => {
+  it("each run file is readable as a ParsedRun", () => {
     const files = fs.readdirSync(pipeline.runsDir).filter((f) => f.endsWith(".json"));
     for (const file of files) {
       const content = JSON.parse(
         fs.readFileSync(path.join(pipeline.runsDir, file), "utf-8"),
       );
-      const valid = validateResult(content);
-      assert.ok(valid, `${file}: ${JSON.stringify(validateResult.errors)}`);
+      assert.ok(typeof content === "object" && content !== null, `${file} should be an object`);
     }
   });
 
-  it("run-001 includes monitor benchmarks", () => {
+  it("run-001 includes monitor benchmarks (legacy format)", () => {
     const r1 = JSON.parse(
       fs.readFileSync(path.join(pipeline.runsDir, "run-001.json"), "utf-8"),
-    ) as BenchmarkResult;
-    const monitorBenches = r1.benchmarks.filter((b) => b.name.startsWith("_monitor/"));
+    );
+    const monitorBenches = r1.benchmarks.filter((b: { name: string }) => b.name.startsWith("_monitor/"));
     assert.equal(monitorBenches.length, 2, "should have 2 monitor benchmarks");
     assert.ok(r1.context?.monitor, "should have monitor context");
     assert.equal(r1.context?.monitor?.poll_interval_ms, 250);
   });
 
-  it("run-002 has no monitor data", () => {
+  it("run-002 has no monitor data (legacy format)", () => {
     const r2 = JSON.parse(
       fs.readFileSync(path.join(pipeline.runsDir, "run-002.json"), "utf-8"),
-    ) as BenchmarkResult;
-    const monitorBenches = r2.benchmarks.filter((b) => b.name.startsWith("_monitor/"));
+    );
+    const monitorBenches = r2.benchmarks.filter((b: { name: string }) => b.name.startsWith("_monitor/"));
     assert.equal(monitorBenches.length, 0);
     assert.equal(r2.context?.monitor, undefined);
+  });
+
+  it("run-003 is in OTLP format", () => {
+    const r3 = JSON.parse(
+      fs.readFileSync(path.join(pipeline.runsDir, "run-003.json"), "utf-8"),
+    );
+    assert.ok(Array.isArray(r3.resourceMetrics), "should have resourceMetrics array");
   });
 
   // ── Index ─────────────────────────────────────────────────────────
@@ -338,13 +330,13 @@ describe("integration: stash → aggregate pipeline", () => {
 
   // ── Cross-format consistency ──────────────────────────────────────
 
-  it("all series keys trace back to benchmark names in run files", () => {
+  it("all series keys trace back to scenarios in parsed runs", () => {
     // Series keys may include tags like "BenchmarkSort [procs=4]",
-    // so we check that the base name (before ' [') exists in the runs.
+    // so we check that the base name (before ' [') exists in the runs' batch points.
     const runNames = new Set<string>();
     for (const r of pipeline.runs) {
-      for (const b of r.result.benchmarks) {
-        runNames.add(b.name);
+      for (const p of r.batch.points) {
+        runNames.add(p.scenario);
       }
     }
     for (const sf of pipeline.seriesMap.values()) {

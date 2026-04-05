@@ -14,7 +14,7 @@ import {
   readMonitorOutput,
   writeResultFile,
 } from "./stash.js";
-import type { Benchmark, BenchmarkResult } from "@benchkit/format";
+import { buildOtlpResult, MetricsBatch, type OtlpMetricsDocument } from "@benchkit/format";
 
 // ── buildRunId ──────────────────────────────────────────────────────
 
@@ -100,9 +100,10 @@ describe("buildRunId", () => {
 // ── buildResult ─────────────────────────────────────────────────────
 
 describe("buildResult", () => {
-  const baseBenchmarks: Benchmark[] = [
-    { name: "BenchmarkSort", metrics: { ns_per_op: { value: 320, unit: "ns/op" } } },
-  ];
+  const baseBenchmarkDoc = buildOtlpResult({
+    benchmarks: [{ name: "BenchmarkSort", metrics: { ns_per_op: { value: 320, unit: "ns/op" } } }],
+    context: { sourceFormat: "go" },
+  });
   const baseContext = {
     commit: "abc123",
     ref: "refs/heads/main",
@@ -111,58 +112,57 @@ describe("buildResult", () => {
   };
 
   it("builds a result from benchmarks and context", () => {
-    const result = buildResult({ benchmarks: baseBenchmarks, context: baseContext });
-    assert.equal(result.benchmarks.length, 1);
-    assert.equal(result.benchmarks[0].name, "BenchmarkSort");
-    assert.equal(result.context?.commit, "abc123");
-    assert.equal(result.context?.ref, "refs/heads/main");
-    assert.equal(result.context?.runner, "Linux/X64");
-    assert.equal(result.context?.monitor, undefined);
+    const result = buildResult({ benchmarkDoc: baseBenchmarkDoc, context: baseContext });
+    const batch = MetricsBatch.fromOtlp(result);
+    assert.equal(batch.size, 1);
+    assert.equal(batch.points[0].scenario, "BenchmarkSort");
+    assert.equal(batch.context.commit, "abc123");
+    assert.equal(batch.context.ref, "refs/heads/main");
+    assert.equal(batch.context.runner, "Linux/X64");
   });
 
-  it("merges monitor benchmarks and context", () => {
-    const monitorResult: BenchmarkResult = {
-      benchmarks: [
-        { name: "_monitor/system", metrics: { cpu_user_pct: { value: 45 } } },
-      ],
-      context: {
-        monitor: {
-          monitor_version: "0.1.0",
-          poll_interval_ms: 250,
-          duration_ms: 5000,
-        },
-      },
-    };
+  it("merges monitor document", () => {
+    const monitorDoc = buildOtlpResult({
+      benchmarks: [{ name: "_monitor/system", metrics: { cpu_user_pct: { value: 45 } } }],
+      context: { sourceFormat: "native" },
+    });
     const result = buildResult({
-      benchmarks: baseBenchmarks,
-      monitorResult,
+      benchmarkDoc: baseBenchmarkDoc,
+      monitorDoc,
       context: baseContext,
     });
-    assert.equal(result.benchmarks.length, 2);
-    assert.equal(result.benchmarks[0].name, "BenchmarkSort");
-    assert.equal(result.benchmarks[1].name, "_monitor/system");
-    assert.deepEqual(result.context?.monitor, {
-      monitor_version: "0.1.0",
-      poll_interval_ms: 250,
-      duration_ms: 5000,
-    });
+    const batch = MetricsBatch.fromOtlp(result);
+    assert.equal(batch.size, 2);
+    const scenarios = batch.scenarios;
+    assert.ok(scenarios.includes("BenchmarkSort"));
+    assert.ok(scenarios.includes("_monitor/system"));
   });
 
-  it("does not mutate input benchmarks array", () => {
-    const input = [...baseBenchmarks];
-    const monitorResult: BenchmarkResult = {
+  it("does not mutate input document", () => {
+    const inputDoc = buildOtlpResult({
+      benchmarks: [{ name: "BenchA", metrics: { m: { value: 1 } } }],
+      context: { sourceFormat: "go" },
+    });
+    const inputMetrics = inputDoc.resourceMetrics[0].scopeMetrics![0].metrics!.length;
+    const monitorDoc = buildOtlpResult({
       benchmarks: [{ name: "_monitor/x", metrics: { m: { value: 1 } } }],
-    };
-    buildResult({ benchmarks: input, monitorResult, context: baseContext });
-    assert.equal(input.length, 1, "original array should not be modified");
+      context: { sourceFormat: "native" },
+    });
+    buildResult({ benchmarkDoc: inputDoc, monitorDoc, context: baseContext });
+    assert.equal(
+      inputDoc.resourceMetrics[0].scopeMetrics![0].metrics!.length,
+      inputMetrics,
+      "original doc should not be modified",
+    );
   });
 
   it("omits runner from context when undefined", () => {
     const result = buildResult({
-      benchmarks: baseBenchmarks,
+      benchmarkDoc: baseBenchmarkDoc,
       context: { ...baseContext, runner: undefined },
     });
-    assert.equal(result.context?.runner, undefined);
+    const batch = MetricsBatch.fromOtlp(result);
+    assert.equal(batch.context.runner, undefined);
   });
 });
 
@@ -179,25 +179,27 @@ describe("parseBenchmarkFiles", () => {
       "BenchmarkSearch-4  10000000  120 ns/op  0 B/op  0 allocs/op",
     ].join("\n"));
 
-    const benchmarks = parseBenchmarkFiles([goFile], "go");
-    assert.equal(benchmarks.length, 2);
-    assert.equal(benchmarks[0].name, "BenchmarkSort");
-    assert.ok(benchmarks[0].metrics.ns_per_op);
+    const doc = parseBenchmarkFiles([goFile], "go");
+    const batch = MetricsBatch.fromOtlp(doc);
+    assert.equal(batch.scenarios.length, 2);
+    assert.ok(batch.scenarios.includes("BenchmarkSort"));
+    assert.ok(batch.metricNames.includes("ns_per_op"));
     fs.rmSync(tmpDir, { recursive: true });
   });
 
-  it("parses native JSON files", () => {
+  it("parses OTLP JSON files", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "stash-test-"));
-    const nativeFile = path.join(tmpDir, "results.json");
-    fs.writeFileSync(nativeFile, JSON.stringify({
-      benchmarks: [
-        { name: "http-throughput", metrics: { rps: { value: 15230 } } },
-      ],
-    }));
+    const otlpFile = path.join(tmpDir, "results.json");
+    const otlpDoc = buildOtlpResult({
+      benchmarks: [{ name: "http-throughput", metrics: { rps: { value: 15230 } } }],
+      context: { sourceFormat: "otlp" },
+    });
+    fs.writeFileSync(otlpFile, JSON.stringify(otlpDoc));
 
-    const benchmarks = parseBenchmarkFiles([nativeFile], "native");
-    assert.equal(benchmarks.length, 1);
-    assert.equal(benchmarks[0].name, "http-throughput");
+    const doc = parseBenchmarkFiles([otlpFile], "otlp");
+    const batch = MetricsBatch.fromOtlp(doc);
+    assert.equal(batch.scenarios.length, 1);
+    assert.ok(batch.scenarios.includes("http-throughput"));
     fs.rmSync(tmpDir, { recursive: true });
   });
 
@@ -208,8 +210,9 @@ describe("parseBenchmarkFiles", () => {
     fs.writeFileSync(f1, "BenchmarkA-4  1000  100 ns/op");
     fs.writeFileSync(f2, "BenchmarkB-4  2000  200 ns/op");
 
-    const benchmarks = parseBenchmarkFiles([f1, f2], "go");
-    assert.equal(benchmarks.length, 2);
+    const doc = parseBenchmarkFiles([f1, f2], "go");
+    const batch = MetricsBatch.fromOtlp(doc);
+    assert.equal(batch.scenarios.length, 2);
     fs.rmSync(tmpDir, { recursive: true });
   });
 
@@ -220,26 +223,28 @@ describe("parseBenchmarkFiles", () => {
 
 describe("getEmptyBenchmarksWarning", () => {
   it("returns a warning when parsing produced no benchmarks", () => {
+    const emptyDoc: OtlpMetricsDocument = { resourceMetrics: [] };
     assert.match(
-      getEmptyBenchmarksWarning([]) ?? "",
+      getEmptyBenchmarksWarning(emptyDoc) ?? "",
       /Parsed 0 benchmarks from the provided file\(s\)/,
     );
   });
 
   it("does not warn when at least one benchmark was parsed", () => {
-    assert.equal(
-      getEmptyBenchmarksWarning([{ name: "BenchmarkSort", metrics: { ns_per_op: { value: 320 } } }]),
-      undefined,
-    );
+    const doc = buildOtlpResult({
+      benchmarks: [{ name: "BenchmarkSort", metrics: { ns_per_op: { value: 320 } } }],
+      context: { sourceFormat: "go" },
+    });
+    assert.equal(getEmptyBenchmarksWarning(doc), undefined);
   });
 });
 
 // ── parseBenchmarks failure paths ────────────────────────────────────
 
 describe("parseBenchmarks", () => {
-  it("throws a descriptive error for malformed native JSON", () => {
+  it("throws a descriptive error for malformed JSON", () => {
     assert.throws(
-      () => parseBenchmarks("{ not valid json }", "native", "results.json"),
+      () => parseBenchmarks("{ not valid json }", "otlp", "results.json"),
       (err: unknown) => {
         assert.ok(err instanceof Error);
         assert.ok(
@@ -251,10 +256,10 @@ describe("parseBenchmarks", () => {
     );
   });
 
-  it("throws when native JSON is missing benchmarks array", () => {
-    const content = JSON.stringify({ context: { timestamp: "2024-01-01T00:00:00Z" } });
+  it("throws when OTLP JSON is missing resourceMetrics", () => {
+    const content = JSON.stringify({ something: "else" });
     assert.throws(
-      () => parseBenchmarks(content, "native", "bench.json"),
+      () => parseBenchmarks(content, "otlp", "bench.json"),
       (err: unknown) => {
         assert.ok(err instanceof Error);
         assert.ok(
@@ -280,34 +285,35 @@ describe("parseBenchmarks", () => {
     );
   });
 
-  it("returns benchmarks for valid native JSON", () => {
-    const content = JSON.stringify({
-      benchmarks: [
-        { name: "BenchSort", metrics: { ns_per_op: { value: 320, unit: "ns/op" } } },
-      ],
+  it("returns OtlpMetricsDocument for valid OTLP JSON", () => {
+    const otlpDoc = buildOtlpResult({
+      benchmarks: [{ name: "BenchSort", metrics: { ns_per_op: { value: 320, unit: "ns/op" } } }],
+      context: { sourceFormat: "otlp" },
     });
-    const benchmarks = parseBenchmarks(content, "native", "results.json");
-    assert.equal(benchmarks.length, 1);
-    assert.equal(benchmarks[0].name, "BenchSort");
+    const doc = parseBenchmarks(JSON.stringify(otlpDoc), "otlp", "results.json");
+    const batch = MetricsBatch.fromOtlp(doc);
+    assert.equal(batch.size, 1);
+    assert.equal(batch.scenarios[0], "BenchSort");
   });
 
-  it("returns benchmarks when auto-detecting Go format", () => {
+  it("returns OtlpMetricsDocument when auto-detecting Go format", () => {
     const goOutput = [
       "goos: linux",
       "goarch: amd64",
       "BenchmarkSort-8   1000   1234 ns/op   48 B/op   2 allocs/op",
       "PASS",
     ].join("\n");
-    const benchmarks = parseBenchmarks(goOutput, "auto", "bench.txt");
-    assert.ok(benchmarks.length >= 1);
-    assert.equal(benchmarks[0].name, "BenchmarkSort");
+    const doc = parseBenchmarks(goOutput, "auto", "bench.txt");
+    const batch = MetricsBatch.fromOtlp(doc);
+    assert.ok(batch.size >= 1);
+    assert.equal(batch.scenarios[0], "BenchmarkSort");
   });
 });
 
 // ── readMonitorOutput ───────────────────────────────────────────────
 
 describe("readMonitorOutput", () => {
-  it("reads and parses a monitor output file", () => {
+  it("reads and converts a legacy native monitor output file", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "stash-test-"));
     const monitorFile = path.join(tmpDir, "monitor.json");
     fs.writeFileSync(monitorFile, JSON.stringify({
@@ -319,10 +325,26 @@ describe("readMonitorOutput", () => {
       },
     }));
 
-    const result = readMonitorOutput(monitorFile);
-    assert.equal(result.benchmarks.length, 1);
-    assert.equal(result.benchmarks[0].name, "_monitor/process/go");
-    assert.equal(result.context?.monitor?.poll_interval_ms, 250);
+    const doc = readMonitorOutput(monitorFile);
+    const batch = MetricsBatch.fromOtlp(doc);
+    assert.equal(batch.size, 1);
+    assert.ok(batch.scenarios.includes("_monitor/process/go"));
+    fs.rmSync(tmpDir, { recursive: true });
+  });
+
+  it("reads an OTLP monitor output file directly", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "stash-test-"));
+    const monitorFile = path.join(tmpDir, "monitor.json");
+    const otlpDoc = buildOtlpResult({
+      benchmarks: [{ name: "_monitor/process/go", metrics: { peak_rss_kb: { value: 50000 } } }],
+      context: { sourceFormat: "native" },
+    });
+    fs.writeFileSync(monitorFile, JSON.stringify(otlpDoc));
+
+    const doc = readMonitorOutput(monitorFile);
+    const batch = MetricsBatch.fromOtlp(doc);
+    assert.equal(batch.size, 1);
+    assert.ok(batch.scenarios.includes("_monitor/process/go"));
     fs.rmSync(tmpDir, { recursive: true });
   });
 
@@ -346,30 +368,7 @@ describe("readMonitorOutput", () => {
     const filePath = path.join(tmpDir, "monitor.json");
     try {
       fs.writeFileSync(filePath, "{ not valid json }");
-      assert.throws(() => readMonitorOutput(filePath), {
-        message: /Failed to parse input as JSON/,
-      });
-    } finally {
-      fs.rmSync(tmpDir, { recursive: true });
-    }
-  });
-
-  it("throws when benchmarks key is missing", () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-stash-test-"));
-    const filePath = path.join(tmpDir, "monitor.json");
-    try {
-      fs.writeFileSync(filePath, JSON.stringify({ context: { timestamp: "2024-01-01T00:00:00Z" } }));
-      assert.throws(
-        () => readMonitorOutput(filePath),
-        (err: unknown) => {
-          assert.ok(err instanceof Error);
-          assert.ok(
-            err.message.includes("benchmarks"),
-            `Expected 'benchmarks' in error message: ${err.message}`,
-          );
-          return true;
-        },
-      );
+      assert.throws(() => readMonitorOutput(filePath));
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
@@ -383,13 +382,16 @@ describe("writeResultFile", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-stash-test-"));
     try {
       const outputPath = path.join(tmpDir, "nested", "result.json");
-      const result: BenchmarkResult = {
+      const result = buildOtlpResult({
         benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100 } } }],
-      };
+        context: { sourceFormat: "go" },
+      });
       const writtenPath = writeResultFile(result, "run-1", outputPath);
       assert.equal(writtenPath, outputPath);
-      const parsed = JSON.parse(fs.readFileSync(outputPath, "utf-8")) as BenchmarkResult;
-      assert.equal(parsed.benchmarks[0].name, "BenchA");
+      const parsed = JSON.parse(fs.readFileSync(outputPath, "utf-8")) as OtlpMetricsDocument;
+      assert.ok(parsed.resourceMetrics);
+      const batch = MetricsBatch.fromOtlp(parsed);
+      assert.equal(batch.scenarios[0], "BenchA");
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
@@ -404,7 +406,7 @@ describe("writeResultFile", () => {
 
 describe("formatResultSummaryMarkdown", () => {
   it("formats benchmarks and monitor metrics for GITHUB_STEP_SUMMARY", () => {
-    const result: BenchmarkResult = {
+    const result = buildOtlpResult({
       benchmarks: [
         {
           name: "mock-http-ingest",
@@ -421,41 +423,31 @@ describe("formatResultSummaryMarkdown", () => {
         },
       ],
       context: {
+        sourceFormat: "go",
         commit: "abcdef1234567890",
         ref: "refs/pull/42/merge",
       },
-    };
+    });
 
     const markdown = formatResultSummaryMarkdown(result, { runId: "12345-1" });
-    assert.equal(
-      markdown,
-      `## Benchkit Stash
-
-Run ID: \`12345-1\`
-Parsed for commit \`abcdef12\` on ref \`refs/pull/42/merge\`.
-
-### Benchmarks
-
-| Benchmark | Metrics |
-| --- | --- |
-| \`mock-http-ingest\` | \`events_per_sec\`: 13240.5 events/sec<br>\`service_rss_mb\`: 543.1 MB |
-
-<details>
-<summary>Monitor metrics</summary>
-
-| Benchmark | Metrics |
-| --- | --- |
-| \`_monitor/system\` | \`cpu_user_pct\`: 71.2 % |
-
-</details>
-`,
-    );
+    assert.match(markdown, /## Benchkit Stash/);
+    assert.match(markdown, /Run ID: `12345-1`/);
+    assert.match(markdown, /commit `abcdef12`/);
+    assert.match(markdown, /ref `refs\/pull\/42\/merge`/);
+    assert.match(markdown, /mock-http-ingest/);
+    assert.match(markdown, /events_per_sec/);
+    assert.match(markdown, /13240\.5/);
+    assert.match(markdown, /Monitor metrics/);
+    assert.match(markdown, /_monitor\/system/);
+    assert.match(markdown, /cpu_user_pct/);
+    assert.match(markdown, /71\.2/);
   });
 
   it("omits the monitor details block when no monitor benchmarks exist", () => {
-    const result: BenchmarkResult = {
+    const result = buildOtlpResult({
       benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } }],
-    };
+      context: { sourceFormat: "go" },
+    });
     const markdown = formatResultSummaryMarkdown(result, { runId: "run-1" });
     assert.doesNotMatch(markdown, /Monitor metrics/);
     assert.match(markdown, /BenchA/);

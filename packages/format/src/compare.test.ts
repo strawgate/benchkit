@@ -1,16 +1,38 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { compareRuns as compare } from "./compare.js";
-import type { BenchmarkResult } from "./types.js";
+import { MetricsBatch } from "./metrics-batch.js";
+import type { MetricPoint } from "./metrics-batch.js";
+import type { Direction } from "./otlp-conventions.js";
 
-function makeResult(benchmarks: BenchmarkResult["benchmarks"]): BenchmarkResult {
-  return { benchmarks };
+/** Shorthand for building a MetricsBatch from simple entries. */
+function makeBatch(
+  entries: Array<{
+    scenario: string;
+    metric: string;
+    value: number;
+    unit?: string;
+    direction?: Direction;
+  }>,
+): MetricsBatch {
+  const points: MetricPoint[] = entries.map((e) => ({
+    scenario: e.scenario,
+    series: "default",
+    metric: e.metric,
+    value: e.value,
+    unit: e.unit ?? "",
+    direction: e.direction,
+    role: undefined,
+    tags: {},
+    timestamp: undefined,
+  }));
+  return MetricsBatch.fromPoints(points);
 }
 
 describe("compare", () => {
   it("returns empty result for empty baseline", () => {
-    const current = makeResult([
-      { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op" },
     ]);
     const result = compare(current, []);
     assert.deepEqual(result.entries, []);
@@ -19,12 +41,12 @@ describe("compare", () => {
 
   it("detects regression for smaller_is_better metric", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op", direction: "smaller_is_better" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { ns_per_op: { value: 120, unit: "ns/op", direction: "smaller_is_better" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ns_per_op", value: 120, unit: "ns/op", direction: "smaller_is_better" },
     ]);
 
     const result = compare(current, baseline);
@@ -36,12 +58,12 @@ describe("compare", () => {
 
   it("detects improvement for smaller_is_better metric", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op", direction: "smaller_is_better" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { ns_per_op: { value: 80, unit: "ns/op", direction: "smaller_is_better" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ns_per_op", value: 80, unit: "ns/op", direction: "smaller_is_better" },
     ]);
 
     const result = compare(current, baseline);
@@ -52,12 +74,12 @@ describe("compare", () => {
 
   it("detects regression for bigger_is_better metric", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { ops_per_sec: { value: 1000, unit: "ops/s", direction: "bigger_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ops_per_sec", value: 1000, unit: "ops/s", direction: "bigger_is_better" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { ops_per_sec: { value: 800, unit: "ops/s", direction: "bigger_is_better" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ops_per_sec", value: 800, unit: "ops/s", direction: "bigger_is_better" },
     ]);
 
     const result = compare(current, baseline);
@@ -68,12 +90,12 @@ describe("compare", () => {
 
   it("detects improvement for bigger_is_better metric", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { ops_per_sec: { value: 1000, unit: "ops/s", direction: "bigger_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ops_per_sec", value: 1000, unit: "ops/s", direction: "bigger_is_better" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { ops_per_sec: { value: 1200, unit: "ops/s", direction: "bigger_is_better" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ops_per_sec", value: 1200, unit: "ops/s", direction: "bigger_is_better" },
     ]);
 
     const result = compare(current, baseline);
@@ -84,12 +106,12 @@ describe("compare", () => {
 
   it("classifies within threshold as stable", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op", direction: "smaller_is_better" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { ns_per_op: { value: 103, unit: "ns/op", direction: "smaller_is_better" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ns_per_op", value: 103, unit: "ns/op", direction: "smaller_is_better" },
     ]);
 
     const result = compare(current, baseline, { test: "percentage", threshold: 5 });
@@ -100,13 +122,13 @@ describe("compare", () => {
 
   it("skips new benchmarks with no baseline", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } },
-      { name: "BenchNew", metrics: { ns_per_op: { value: 200, unit: "ns/op" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op" },
+      { scenario: "BenchNew", metric: "ns_per_op", value: 200, unit: "ns/op" },
     ]);
 
     const result = compare(current, baseline);
@@ -116,15 +138,15 @@ describe("compare", () => {
 
   it("averages across multiple baseline runs", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { ns_per_op: { value: 90, unit: "ns/op", direction: "smaller_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ns_per_op", value: 90, unit: "ns/op", direction: "smaller_is_better" },
       ]),
-      makeResult([
-        { name: "BenchA", metrics: { ns_per_op: { value: 110, unit: "ns/op", direction: "smaller_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ns_per_op", value: 110, unit: "ns/op", direction: "smaller_is_better" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op", direction: "smaller_is_better" },
     ]);
 
     // baseline avg = 100, current = 100, change = 0%
@@ -136,12 +158,12 @@ describe("compare", () => {
 
   it("infers direction from unit when not explicit", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { throughput: { value: 1000, unit: "ops/s" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "throughput", value: 1000, unit: "ops/s" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { throughput: { value: 800, unit: "ops/s" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "throughput", value: 800, unit: "ops/s" },
     ]);
 
     const result = compare(current, baseline);
@@ -152,36 +174,16 @@ describe("compare", () => {
 
   it("handles multiple benchmarks and metrics", () => {
     const baseline = [
-      makeResult([
-        {
-          name: "BenchA",
-          metrics: {
-            ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" },
-            bytes_per_op: { value: 200, unit: "B/op", direction: "smaller_is_better" },
-          },
-        },
-        {
-          name: "BenchB",
-          metrics: {
-            ns_per_op: { value: 500, unit: "ns/op", direction: "smaller_is_better" },
-          },
-        },
+      makeBatch([
+        { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op", direction: "smaller_is_better" },
+        { scenario: "BenchA", metric: "bytes_per_op", value: 200, unit: "B/op", direction: "smaller_is_better" },
+        { scenario: "BenchB", metric: "ns_per_op", value: 500, unit: "ns/op", direction: "smaller_is_better" },
       ]),
     ];
-    const current = makeResult([
-      {
-        name: "BenchA",
-        metrics: {
-          ns_per_op: { value: 90, unit: "ns/op", direction: "smaller_is_better" },
-          bytes_per_op: { value: 250, unit: "B/op", direction: "smaller_is_better" },
-        },
-      },
-      {
-        name: "BenchB",
-        metrics: {
-          ns_per_op: { value: 550, unit: "ns/op", direction: "smaller_is_better" },
-        },
-      },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ns_per_op", value: 90, unit: "ns/op", direction: "smaller_is_better" },
+      { scenario: "BenchA", metric: "bytes_per_op", value: 250, unit: "B/op", direction: "smaller_is_better" },
+      { scenario: "BenchB", metric: "ns_per_op", value: 550, unit: "ns/op", direction: "smaller_is_better" },
     ]);
 
     const result = compare(current, baseline);
@@ -201,12 +203,12 @@ describe("compare", () => {
 
   it("uses custom threshold", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op", direction: "smaller_is_better" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { ns_per_op: { value: 115, unit: "ns/op", direction: "smaller_is_better" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ns_per_op", value: 115, unit: "ns/op", direction: "smaller_is_better" },
     ]);
 
     // 15% change, 20% threshold → stable
@@ -220,12 +222,12 @@ describe("compare", () => {
 
   it("skips metrics with zero baseline and returns warnings", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { allocs: { value: 0, unit: "allocs/op", direction: "smaller_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "allocs", value: 0, unit: "allocs/op", direction: "smaller_is_better" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { allocs: { value: 5, unit: "allocs/op", direction: "smaller_is_better" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "allocs", value: 5, unit: "allocs/op", direction: "smaller_is_better" },
     ]);
 
     const result = compare(current, baseline);
@@ -239,12 +241,12 @@ describe("compare", () => {
 
   it("omits warnings key when no metrics are skipped", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op", direction: "smaller_is_better" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { ns_per_op: { value: 105, unit: "ns/op", direction: "smaller_is_better" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ns_per_op", value: 105, unit: "ns/op", direction: "smaller_is_better" },
     ]);
 
     const result = compare(current, baseline);
@@ -253,12 +255,12 @@ describe("compare", () => {
 
   it("boundary: exactly at threshold is stable", () => {
     const baseline = [
-      makeResult([
-        { name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op", direction: "smaller_is_better" } } },
+      makeBatch([
+        { scenario: "BenchA", metric: "ns_per_op", value: 100, unit: "ns/op", direction: "smaller_is_better" },
       ]),
     ];
-    const current = makeResult([
-      { name: "BenchA", metrics: { ns_per_op: { value: 105, unit: "ns/op", direction: "smaller_is_better" } } },
+    const current = makeBatch([
+      { scenario: "BenchA", metric: "ns_per_op", value: 105, unit: "ns/op", direction: "smaller_is_better" },
     ]);
 
     // 5% change with 5% threshold → stable (<=)

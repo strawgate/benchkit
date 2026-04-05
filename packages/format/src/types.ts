@@ -1,42 +1,5 @@
-/** Core types for the benchkit native format. */
-
-export interface BenchmarkResult {
-  benchmarks: Benchmark[];
-  context?: Context;
-}
-
-export interface Benchmark {
-  name: string;
-  tags?: Record<string, string>;
-  metrics: Record<string, Metric>;
-  samples?: Sample[];
-}
-
-export interface Metric {
-  value: number;
-  unit?: string;
-  direction?: "bigger_is_better" | "smaller_is_better";
-  range?: number;
-}
-
-export interface NativeMetricInit {
-  value: number;
-  unit?: string;
-  direction?: "bigger_is_better" | "smaller_is_better";
-  range?: number;
-}
-
-export interface NativeBenchmarkInit {
-  name: string;
-  tags?: Record<string, string>;
-  metrics: Record<string, NativeMetricInit | number>;
-  samples?: Sample[];
-}
-
-export interface NativeResultInit {
-  benchmarks: NativeBenchmarkInit[];
-  context?: Context;
-}
+/** Direction hint for a metric — smaller or bigger is better. */
+export type MetricDirection = "bigger_is_better" | "smaller_is_better";
 
 export type BenchkitRunKind = "code" | "workflow" | "hybrid";
 export type OtlpAggregationTemporality = "unspecified" | "delta" | "cumulative";
@@ -126,14 +89,6 @@ export interface MonitorContext {
   cpu_model?: string;
   cpu_count?: number;
   total_memory_mb?: number;
-}
-
-export interface Context {
-  commit?: string;
-  ref?: string;
-  timestamp?: string;
-  runner?: string;
-  monitor?: MonitorContext;
 }
 
 /** Series format — pre-aggregated data produced by bench-aggregate. */
@@ -235,7 +190,7 @@ export interface RunSnapshotMetric {
   name: string;
   value: number;
   unit?: string;
-  direction?: Metric["direction"];
+  direction?: MetricDirection;
   range?: number;
   tags?: Record<string, string>;
 }
@@ -243,7 +198,7 @@ export interface RunSnapshotMetric {
 export interface RunDetailMetricSnapshot {
   metric: string;
   unit?: string;
-  direction?: Metric["direction"];
+  direction?: MetricDirection;
   values: RunSnapshotMetric[];
 }
 
