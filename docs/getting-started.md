@@ -157,10 +157,37 @@ The monitor action stores raw OTLP telemetry at `data/telemetry/{run-id}.otlp.js
 
 ## 5. Render a dashboard
 
-Install the chart package:
+> **Note:** `@benchkit/chart` and `@benchkit/format` are not yet published to
+> the npm registry. Until the first release, install from source as shown below.
+> Once published, you will be able to run `npm install @benchkit/chart preact`.
+
+Clone the benchkit repository, install dependencies, and build the packages:
 
 ```bash
-npm install @benchkit/chart preact
+git clone https://github.com/strawgate/benchkit.git
+cd benchkit
+npm ci
+npm run build
+```
+
+Then, from your project directory, link the local packages (adjust the path
+to where you cloned benchkit):
+
+```bash
+npm link <path-to-benchkit>/packages/chart <path-to-benchkit>/packages/format
+npm install preact
+```
+
+Or use `file:` references in your project's `package.json`:
+
+```jsonc
+{
+  "dependencies": {
+    "@benchkit/chart": "file:<path-to-benchkit>/packages/chart",
+    "@benchkit/format": "file:<path-to-benchkit>/packages/format",
+    "preact": "^10.0.0"
+  }
+}
 ```
 
 Mount the default dashboard:
