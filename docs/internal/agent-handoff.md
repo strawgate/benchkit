@@ -1,15 +1,11 @@
 # Agent Handoff
 
-This is the current operational handoff for agents working in `benchkit`.
+Current operational handoff for agents working in `benchkit`.
 
-Keep this file short and execution-focused. Product direction and roadmap truth
-belong in [`../vision-and-roadmap.md`](../vision-and-roadmap.md), not here.
-
-Matching GitHub issue: `strawgate/benchkit#164`.
+Keep this file short and execution-focused. Product direction lives in
+[`../vision-and-roadmap.md`](../vision-and-roadmap.md).
 
 ## Read order
-
-When picking up work, read these files in this order:
 
 1. [`../../AGENTS.md`](../../AGENTS.md)
 2. [`../../README.md`](../../README.md)
@@ -18,49 +14,80 @@ When picking up work, read these files in this order:
 5. [`../README.md`](../README.md)
 6. [`../vision-and-roadmap.md`](../vision-and-roadmap.md)
 
-Then read the package, action, or workflow you are about to change.
+Then read the package or action you are about to change.
 
-If you work on dashboard accessibility, also read
-[`../research/copilot-playwright-audit.md`](../research/copilot-playwright-audit.md).
+## Architecture context
+
+OTLP JSON is the only data format. Every component operates on
+`OtlpMetricsDocument`. See [`../otlp-semantic-conventions.md`](../otlp-semantic-conventions.md).
+
+Key types in `@benchkit/format`:
+
+- `OtlpMetricsDocument` — the wire format, used everywhere
+- `MetricsBatch` — ergonomic wrapper with `fromOtlp()`, `filter()`, `groupBy*()`, `toOtlp()`
+- `MetricPoint` — flat tuple: `{scenario, series, metric, value, unit, direction, role, tags, timestamp}`
+- `buildOtlpResult()` — canonical helper for constructing `OtlpMetricsDocument` from parsed benchmarks
+
+All parsers produce `OtlpMetricsDocument` via `buildOtlpResult()`.
 
 ## Current execution queue
 
-- Active cleanup/documentation sequence:
-  - `#159` define current-truth docs and deprecation policy
-  - `#160` clarify the role of `packages/dashboard`
-  - `#161` add the migration-readiness and example-coverage matrix
-  - `#162` fix public dashboard accessibility and semantics
-  - `#163` align chart docs with the shipped component surfaces
-- Follow-on format work:
-  - `#153` fix unsafe `JSON.stringify` equality in run-detail conversion
-  - `#152` wrap parser `JSON.parse` failures with contextual errors
-  - `#137` reduce OTLP projection duplication
-- Historical handoff issue `#71` is no longer the active queue.
+### Active: OTLP-everywhere action migration
 
-## Recommended next-agent sequence
+These are sequenced and ready for delegation:
 
-1. Start with `#159` so docs ownership is clear and this file stays
-   operational-only.
-2. Then land `#160` and `#161` to make the public package/demo story and
-   example inventory truthful.
-3. After that, land `#162` and `#163` to improve the public dashboard surface
-   and align shipped docs with shipped exports.
-4. Parallel or follow-on work can then pick up `#153`, `#152`, and `#137`.
+1. **`#251` — Migrate stash action to write OTLP JSON**
+   - `parseBenchmarks()` already returns `OtlpMetricsDocument`
+   - Stash needs to write `.otlp.json` instead of `BenchmarkResult` JSON
+   - Merge monitor OTLP output with benchmark OTLP (merge resourceMetrics arrays)
+   - Update summary markdown to traverse OTLP datapoints
+   - Can use `MetricsBatch` for summary generation
+
+2. **`#253` — Migrate compare action to accept OTLP input**
+   - Rewrite `compareRuns()` to accept `MetricsBatch` or `OtlpMetricsDocument`
+   - Read `.otlp.json` baselines from bench-data
+   - `ComparisonResult` output stays the same
+   - Can run in parallel with #251
+
+3. **`#252` — Migrate aggregate action to read OTLP JSON**
+   - Read `.otlp.json` run files
+   - Build index/series/view artifacts from OTLP traversal using `MetricsBatch`
+   - Depends on #251 (file format)
+
+4. **`#254` — Remove BenchmarkResult type**
+   - Final cleanup after #251, #252, #253
+   - Delete: `parse-native.ts`, `run-detail-converter.ts`, `BenchmarkResult`/`Benchmark`/`Metric`/`Sample`/`Context` types, `benchmark-result.schema.json`
+   - Remove `parseNative` export
+
+### Backlog: docs and product clarity
+
+- `#159`–`#163` — docs cleanup sequence (can be delegated)
+- `#63` — simplify CI to use root build command
+
+### Backlog: product features
+
+- `#93` — dataset-local transform layer
+- `#83` — `CompetitiveDashboard`
+- `#79`, `#81`, `#7` — workflow benchmark ergonomics
+
+### Future: MetricsKit split
+
+Issues `#179`–`#183`, `#189`–`#198` plan splitting benchkit into:
+
+- **MetricsKit** — generic OTLP metrics platform (MetricsBatch, parsers, OTLP conventions)
+- **BenchKit** — benchmark domain layer (compare, stash, aggregate, benchmark-specific semantics)
+
+This happens after the OTLP-everywhere migration completes.
 
 ## Cross-repo context
 
-- `strawgate/benchkit-demo` now has a baseline cleanup PR open as `#16`.
-- Demo PR `#15` should not be merged until it is rebased or recreated on top of
-  that cleaned-up baseline.
-- Demo issue `#4` still tracks the switch from sibling `file:` dependencies to
-  published `benchkit` packages.
+- `strawgate/benchkit-demo` uses `@benchkit/chart` and `@benchkit/format`
+- Demo repo CI clones benchkit, builds packages, then builds dashboard
+- Demo issue `#4` tracks switching from `file:` deps to published npm packages
 
 ## Guardrails
 
-1. Do not duplicate roadmap or shipped-status content in this file.
-2. Do not change committed action `dist/` bundles unless the corresponding
-   action source changed and you rebuilt intentionally.
-3. `packages/dashboard` is a real public Pages surface today, but its exact role
-   is still being clarified in `#160`.
-4. Do not assume old issue references, PR dependency notes, or pre-OTLP monitor
-   behavior are still current without checking the code and GitHub state first.
+1. Do not commit `dist/` bundles. CI builds and pushes them to `main-dist`.
+2. All parsers must produce `OtlpMetricsDocument`. Do not reintroduce `BenchmarkResult` in new code.
+3. Use `MetricsBatch` for data traversal in actions, not raw OTLP iteration.
+4. Add tests for behavior changes.

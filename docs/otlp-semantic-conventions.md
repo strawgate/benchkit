@@ -1,14 +1,9 @@
 # Benchkit OTLP Semantic Conventions
 
-This document defines the benchkit-specific semantic conventions that sit on top
-of OTLP metrics.
+Benchkit-specific semantic conventions layered on top of OTLP metrics.
 
-The purpose of this contract is to make sure that benchmark data emitted from
-different producers can still be aggregated, compared, and rendered
-consistently.
-
-OTLP is the transport and raw storage format. These conventions define the
-benchmark meaning.
+This contract ensures that benchmark data from different producers can be
+aggregated, compared, and rendered consistently.
 
 ## Goals
 
