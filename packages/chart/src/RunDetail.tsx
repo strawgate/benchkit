@@ -10,6 +10,7 @@ import { formatRef, formatTimestamp, formatValue } from "./format-utils.js";
 import { VerdictBanner } from "./components/VerdictBanner.js";
 import { ComparisonSummaryTable } from "./components/ComparisonSummaryTable.js";
 import { defaultMetricLabel, isMonitorMetric } from "./labels.js";
+import { partitionSnapshots } from "./dataset-transforms.js";
 
 /* ------------------------------------------------------------------ */
 /*  Public types                                                       */
@@ -196,15 +197,10 @@ export function RunDetail({
   const formatMetric = metricLabelFormatter ?? defaultMetricLabel;
 
   // Partition metric snapshots into user metrics and monitor metrics.
-  const { userSnapshots, monitorSnapshots } = useMemo(() => {
-    if (!detail) return { userSnapshots: [], monitorSnapshots: [] };
-    const user: RunDetailMetricSnapshot[] = [];
-    const monitor: RunDetailMetricSnapshot[] = [];
-    for (const s of detail.metricSnapshots) {
-      (isMonitorMetric(s.metric) ? monitor : user).push(s);
-    }
-    return { userSnapshots: user, monitorSnapshots: monitor };
-  }, [detail]);
+  const [monitorSnapshots, userSnapshots] = useMemo(
+    () => detail ? partitionSnapshots(detail.metricSnapshots, isMonitorMetric) : [[], []],
+    [detail],
+  );
 
   const rootClassName = ["bk-run-detail", className].filter(Boolean).join(" ");
 
