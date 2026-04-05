@@ -13,6 +13,7 @@ import {
   buildSeries,
   readRuns,
 } from "./aggregate.js";
+import { buildOtlpResult, MetricsBatch } from "@benchkit/format";
 
 // ── Schema helpers ──────────────────────────────────────────────────
 const schemaDir = path.resolve(__dirname, "../../../schema");
@@ -22,16 +23,12 @@ const indexSchema = JSON.parse(
 const seriesSchema = JSON.parse(
   fs.readFileSync(path.join(schemaDir, "series.schema.json"), "utf-8"),
 );
-const resultSchema = JSON.parse(
-  fs.readFileSync(path.join(schemaDir, "benchmark-result.schema.json"), "utf-8"),
-);
 
 const ajv = new Ajv({ allErrors: true });
 addFormats(ajv);
 
 const validateIndex = ajv.compile(indexSchema);
 const validateSeries = ajv.compile(seriesSchema);
-const validateResult = ajv.compile(resultSchema);
 
 function assertValidIndex(data: unknown): void {
   if (!validateIndex(data)) {
@@ -56,20 +53,24 @@ function makeRun(
   benchmarks: { name: string; tags?: Record<string, string>; metrics: Record<string, { value: number; unit?: string; direction?: "bigger_is_better" | "smaller_is_better" }> }[],
   commit?: string,
 ): ParsedRun {
+  const doc = buildOtlpResult({
+    benchmarks: benchmarks.map((b) => ({
+      name: b.name,
+      tags: b.tags,
+      metrics: Object.fromEntries(
+        Object.entries(b.metrics).map(([k, m]) => [k, { value: m.value, unit: m.unit, direction: m.direction }]),
+      ),
+    })),
+    context: {
+      sourceFormat: "go",
+      commit,
+      ref: "refs/heads/main",
+    },
+  });
   return {
     id,
-    result: {
-      benchmarks: benchmarks.map((b) => ({
-        name: b.name,
-        tags: b.tags,
-        metrics: b.metrics,
-      })),
-      context: {
-        timestamp,
-        commit,
-        ref: "refs/heads/main",
-      },
-    },
+    batch: MetricsBatch.fromOtlp(doc),
+    timestamp,
   };
 }
 
@@ -90,7 +91,7 @@ describe("sortRuns", () => {
 
   it("handles runs without timestamps", () => {
     const runs: ParsedRun[] = [
-      { id: "x", result: { benchmarks: [{ name: "B", metrics: { m: { value: 1 } } }] } },
+      { id: "x", batch: MetricsBatch.fromOtlp(buildOtlpResult({ benchmarks: [{ name: "B", metrics: { m: 1 } }], context: { sourceFormat: "go" } })), timestamp: "" },
       makeRun("y", "2024-01-01T00:00:00Z", [{ name: "B", metrics: { m: { value: 1 } } }]),
     ];
     sortRuns(runs);
@@ -198,7 +199,7 @@ describe("buildIndex", () => {
 
   it("handles runs with no benchmarks gracefully", () => {
     const runs: ParsedRun[] = [
-      { id: "empty", result: { benchmarks: [], context: { timestamp: "2024-01-01T00:00:00Z" } } },
+      { id: "empty", batch: MetricsBatch.fromOtlp({ resourceMetrics: [] }), timestamp: "2024-01-01T00:00:00Z" },
     ];
     const index = buildIndex(runs);
     assert.equal(index.runs.length, 1);
@@ -221,15 +222,12 @@ describe("buildIndex", () => {
     const runs: ParsedRun[] = [
       {
         id: "run-with-monitor",
-        result: {
-          benchmarks: [
-            { name: "_monitor/system", metrics: { cpu_user_pct: { value: 12.5, unit: "%" } } },
-          ],
-          context: {
-            timestamp: "2024-06-01T00:00:00Z",
-            monitor: monitorCtx,
-          },
-        },
+        batch: MetricsBatch.fromOtlp(buildOtlpResult({
+          benchmarks: [{ name: "_monitor/system", metrics: { cpu_user_pct: { value: 12.5, unit: "%" } } }],
+          context: { sourceFormat: "native" },
+        })),
+        timestamp: "2024-06-01T00:00:00Z",
+        monitor: monitorCtx,
       },
     ];
 
@@ -395,17 +393,17 @@ describe("buildSeries", () => {
 
   it("produces empty series map for runs with no benchmarks", () => {
     const runs: ParsedRun[] = [
-      { id: "empty", result: { benchmarks: [], context: { timestamp: "2024-01-01T00:00:00Z" } } },
+      { id: "empty", batch: MetricsBatch.fromOtlp({ resourceMetrics: [] }), timestamp: "2024-01-01T00:00:00Z" },
     ];
     const seriesMap = buildSeries(runs);
     assert.equal(seriesMap.size, 0);
   });
 });
 
-// ── Schema validation of stash output ───────────────────────────────
-describe("schema: benchmark-result", () => {
-  it("validates a well-formed stash output", () => {
-    const result = {
+// ── Schema validation of OTLP round-trip ────────────────────────────
+describe("schema: OTLP round-trip", () => {
+  it("builds OTLP document from benchmarks and reads it back as MetricsBatch", () => {
+    const doc = buildOtlpResult({
       benchmarks: [
         {
           name: "BenchmarkSort",
@@ -425,30 +423,23 @@ describe("schema: benchmark-result", () => {
       context: {
         commit: "abc123",
         ref: "refs/heads/main",
-        timestamp: "2024-06-15T12:00:00Z",
-        runner: "Linux/X64",
+        sourceFormat: "go",
       },
-    };
-    assert.ok(validateResult(result), JSON.stringify(validateResult.errors));
+    });
+
+    const batch = MetricsBatch.fromOtlp(doc);
+    assert.ok(batch.points.length > 0);
+    assert.ok(batch.points.some((p) => p.scenario === "BenchmarkSort" && p.metric === "ns_per_op"));
+    assert.ok(batch.points.some((p) => p.scenario === "BenchmarkSearch" && p.metric === "ns_per_op"));
   });
 
-  it("rejects a result with empty benchmarks array", () => {
-    const result = { benchmarks: [] };
-    assert.equal(validateResult(result), false);
-  });
-
-  it("rejects a benchmark with empty metrics", () => {
-    const result = {
-      benchmarks: [{ name: "B", metrics: {} }],
-    };
-    assert.equal(validateResult(result), false);
-  });
-
-  it("rejects a benchmark missing name", () => {
-    const result = {
-      benchmarks: [{ metrics: { m: { value: 1 } } }],
-    };
-    assert.equal(validateResult(result), false);
+  it("produces empty batch from document with no metrics", () => {
+    const doc = buildOtlpResult({
+      benchmarks: [],
+      context: { sourceFormat: "go" },
+    });
+    const batch = MetricsBatch.fromOtlp(doc);
+    assert.equal(batch.points.length, 0);
   });
 });
 
@@ -619,7 +610,7 @@ describe("readRuns", () => {
     }
   });
 
-  it("reads valid run files correctly", () => {
+  it("reads legacy BenchmarkResult files correctly", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-agg-test-"));
     try {
       const result = {
@@ -630,7 +621,26 @@ describe("readRuns", () => {
       const runs = readRuns(tmpDir);
       assert.equal(runs.length, 1);
       assert.equal(runs[0].id, "run-001");
-      assert.equal(runs[0].result.benchmarks.length, 1);
+      assert.equal(runs[0].batch.points.length, 1);
+      assert.equal(runs[0].timestamp, "2024-01-01T00:00:00Z");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  it("reads OTLP format files correctly", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "benchkit-agg-test-"));
+    try {
+      const doc = buildOtlpResult({
+        benchmarks: [{ name: "BenchA", metrics: { ns_per_op: { value: 100, unit: "ns/op" } } }],
+        context: { sourceFormat: "go", commit: "abc" },
+      });
+      fs.writeFileSync(path.join(tmpDir, "run-001.json"), JSON.stringify(doc));
+      const runs = readRuns(tmpDir);
+      assert.equal(runs.length, 1);
+      assert.equal(runs[0].id, "run-001");
+      assert.equal(runs[0].batch.points.length, 1);
+      assert.ok(runs[0].batch.points[0].scenario === "BenchA");
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }

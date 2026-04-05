@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { parseHyperfine } from "./parse-hyperfine.js";
 import { parseBenchmarks as parse } from "./parse.js";
+import { MetricsBatch } from "./metrics-batch.js";
 
 const HYPERFINE_OUTPUT = JSON.stringify({
   results: [
@@ -28,48 +29,27 @@ const HYPERFINE_OUTPUT = JSON.stringify({
 
 describe("parseHyperfine", () => {
   it("parses hyperfine JSON output", () => {
-    const result = parseHyperfine(HYPERFINE_OUTPUT);
+    const batch = MetricsBatch.fromOtlp(parseHyperfine(HYPERFINE_OUTPUT));
 
-    assert.equal(result.benchmarks.length, 2);
+    assert.equal(batch.scenarios.length, 2);
 
-    const sortBench = result.benchmarks.find((b) => b.name === "sort input.txt");
-    assert.ok(sortBench);
-    assert.deepEqual(sortBench?.metrics.mean, {
-      value: 0.123,
-      unit: "s",
-      direction: "smaller_is_better",
-      range: 0.005,
-    });
-    assert.deepEqual(sortBench?.metrics.stddev, {
-      value: 0.005,
-      unit: "s",
-      direction: "smaller_is_better",
-    });
-    assert.deepEqual(sortBench?.metrics.median, {
-      value: 0.121,
-      unit: "s",
-      direction: "smaller_is_better",
-    });
-    assert.deepEqual(sortBench?.metrics.min, {
-      value: 0.115,
-      unit: "s",
-      direction: "smaller_is_better",
-    });
-    assert.deepEqual(sortBench?.metrics.max, {
-      value: 0.135,
-      unit: "s",
-      direction: "smaller_is_better",
-    });
+    const sortBatch = batch.forScenario("sort input.txt");
+    assert.equal(sortBatch.forMetric("mean").points[0].value, 0.123);
+    assert.equal(sortBatch.forMetric("mean").points[0].unit, "s");
+    assert.equal(sortBatch.forMetric("mean").points[0].direction, "smaller_is_better");
+    assert.equal(sortBatch.forMetric("stddev").points[0].value, 0.005);
+    assert.equal(sortBatch.forMetric("median").points[0].value, 0.121);
+    assert.equal(sortBatch.forMetric("min").points[0].value, 0.115);
+    assert.equal(sortBatch.forMetric("max").points[0].value, 0.135);
 
-    const lsBench = result.benchmarks.find((b) => b.name === "ls -l");
-    assert.ok(lsBench);
-    assert.equal(lsBench?.metrics.mean.value, 0.01);
+    const lsBatch = batch.forScenario("ls -l");
+    assert.equal(lsBatch.forMetric("mean").points[0].value, 0.01);
   });
 
   it("auto-detects hyperfine format", () => {
-    const result = parse(HYPERFINE_OUTPUT);
-    assert.equal(result.benchmarks.length, 2);
-    assert.equal(result.benchmarks[0].name, "sort input.txt");
+    const batch = MetricsBatch.fromOtlp(parse(HYPERFINE_OUTPUT));
+    assert.equal(batch.scenarios.length, 2);
+    assert.ok(batch.scenarios.includes("sort input.txt"));
   });
 
   it("throws on invalid hyperfine JSON", () => {

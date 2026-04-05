@@ -1,5 +1,4 @@
 import type {
-  Benchmark,
   MetricSummaryEntry,
   PrIndexEntry,
   RefIndexEntry,
@@ -9,6 +8,7 @@ import type {
   RunSnapshotMetric,
   SeriesFile,
 } from "@benchkit/format";
+import { seriesKey as computeSeriesKey } from "@benchkit/format";
 import type { ParsedRun } from "./aggregate.js";
 import { resolveMetricName } from "./aggregate.js";
 
@@ -20,16 +20,6 @@ export type {
   RunDetailView,
   MetricSummaryEntry,
 };
-
-function benchmarkSeriesKey(benchmark: Benchmark): string {
-  const tags = benchmark.tags
-    ? Object.entries(benchmark.tags)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, value]) => `${key}=${value}`)
-      .join(",")
-    : "";
-  return tags ? `${benchmark.name} [${tags}]` : benchmark.name;
-}
 
 export function extractPrNumber(ref: string | undefined): number | null {
   if (!ref) return null;
@@ -91,54 +81,54 @@ export function buildRunDetail(runId: string, runs: ParsedRun[]): RunDetailView 
   const match = runs.find((run) => run.id === runId);
   if (!match) return null;
 
+  const metricNames = new Set<string>();
+  const scenarioNames = new Set<string>();
+  for (const p of match.batch.points) {
+    scenarioNames.add(p.scenario);
+    metricNames.add(resolveMetricName(p.scenario, p.metric));
+  }
+
   const runEntry: RunEntry = {
     id: match.id,
-    timestamp: match.result.context?.timestamp ?? new Date().toISOString(),
-    commit: match.result.context?.commit,
-    ref: match.result.context?.ref,
-    benchmarks: match.result.benchmarks.length,
-    metrics: Array.from(
-      new Set(
-        match.result.benchmarks.flatMap((benchmark) =>
-          Object.keys(benchmark.metrics).map((m) => resolveMetricName(benchmark.name, m)),
-        ),
-      ),
-    ).sort(),
-    monitor: match.result.context?.monitor,
+    timestamp: match.timestamp,
+    commit: match.batch.context.commit,
+    ref: match.batch.context.ref,
+    benchmarks: scenarioNames.size,
+    metrics: Array.from(metricNames).sort(),
+    monitor: match.monitor,
   };
 
   const groupedMetrics = new Map<string, RunDetailMetricSnapshot>();
-  for (const benchmark of match.result.benchmarks) {
-    const seriesKey = benchmarkSeriesKey(benchmark);
-    for (const [rawMetricName, metric] of Object.entries(benchmark.metrics)) {
-      const resolvedMetricName = resolveMetricName(benchmark.name, rawMetricName);
-      const existing = groupedMetrics.get(resolvedMetricName);
-      if (existing) {
-        existing.values.push({
-          name: seriesKey,
-          value: metric.value,
-          unit: metric.unit,
-          direction: metric.direction,
-          range: metric.range,
-          tags: benchmark.tags,
-        });
-      } else {
-        groupedMetrics.set(resolvedMetricName, {
-          metric: resolvedMetricName,
-          unit: metric.unit,
-          direction: metric.direction,
-          values: [
-            {
-              name: seriesKey,
-              value: metric.value,
-              unit: metric.unit,
-              direction: metric.direction,
-              range: metric.range,
-              tags: benchmark.tags,
-            },
-          ],
-        });
-      }
+  for (const p of match.batch.points) {
+    const key = computeSeriesKey(p);
+    const resolvedMetricName = resolveMetricName(p.scenario, p.metric);
+    const tags = Object.keys(p.tags).length > 0 ? (p.tags as Record<string, string>) : undefined;
+    const existing = groupedMetrics.get(resolvedMetricName);
+    if (existing) {
+      existing.values.push({
+        name: key,
+        value: p.value,
+        unit: p.unit || undefined,
+        direction: p.direction,
+        range: undefined,
+        tags,
+      });
+    } else {
+      groupedMetrics.set(resolvedMetricName, {
+        metric: resolvedMetricName,
+        unit: p.unit || undefined,
+        direction: p.direction,
+        values: [
+          {
+            name: key,
+            value: p.value,
+            unit: p.unit || undefined,
+            direction: p.direction,
+            range: undefined,
+            tags,
+          },
+        ],
+      });
     }
   }
 

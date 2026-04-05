@@ -1,6 +1,4 @@
-import type { Metric } from "./types.js";
-
-type Direction = Metric["direction"];
+import type { Direction } from "./otlp-conventions.js";
 
 /**
  * Infer whether a unit is "bigger_is_better" or "smaller_is_better".

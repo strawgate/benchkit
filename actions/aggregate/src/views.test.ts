@@ -13,6 +13,7 @@ import {
   extractPrNumber,
 } from "./views.js";
 import { buildSeries } from "./aggregate.js";
+import { buildOtlpResult, MetricsBatch } from "@benchkit/format";
 
 // ── Schema helpers ──────────────────────────────────────────────────
 const schemaDir = path.resolve(__dirname, "../../../schema");
@@ -36,19 +37,27 @@ function makeRun(
   id: string,
   timestamp: string,
   ref: string,
-  benchmarks: ParsedRun["result"]["benchmarks"],
+  benchmarks: { name: string; tags?: Record<string, string>; metrics: Record<string, { value: number; unit?: string; direction?: "bigger_is_better" | "smaller_is_better" }> }[],
   commit?: string,
 ): ParsedRun {
+  const doc = buildOtlpResult({
+    benchmarks: benchmarks.map((b) => ({
+      name: b.name,
+      tags: b.tags,
+      metrics: Object.fromEntries(
+        Object.entries(b.metrics).map(([k, m]) => [k, { value: m.value, unit: m.unit, direction: m.direction }]),
+      ),
+    })),
+    context: {
+      sourceFormat: "native",
+      commit,
+      ref,
+    },
+  });
   return {
     id,
-    result: {
-      benchmarks,
-      context: {
-        timestamp,
-        ref,
-        commit,
-      },
-    },
+    batch: MetricsBatch.fromOtlp(doc),
+    timestamp,
   };
 }
 

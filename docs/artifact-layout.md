@@ -29,7 +29,7 @@ data/
 
 `data/runs/{run-id}.json`
 
-Written by `bench-stash`. Contains the normalised `BenchmarkResult` for a single CI run.
+Written by `bench-stash`. Contains OTLP metrics JSON for a single CI run.
 These files are the source of truth; all derived files are rebuilt from them on every aggregate.
 
 ### Global index (backward-compatible)

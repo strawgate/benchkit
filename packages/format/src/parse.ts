@@ -1,25 +1,22 @@
-import type { BenchmarkResult } from "./types.js";
+import type { OtlpMetricsDocument } from "./types.js";
 import { parseGoBench } from "./parse-go.js";
 import { parseRustBench } from "./parse-rust.js";
 import { parseBenchmarkAction } from "./parse-benchmark-action.js";
-import { parseNative } from "./parse-native.js";
 import { parseHyperfine } from "./parse-hyperfine.js";
 import { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
-import { parseOtlp, projectBenchmarkResultFromOtlp } from "./parse-otlp.js";
+import { parseOtlp } from "./parse-otlp.js";
 
-export type Format = "native" | "go" | "benchmark-action" | "rust" | "hyperfine" | "pytest-benchmark" | "otlp" | "auto";
+export type Format = "go" | "benchmark-action" | "rust" | "hyperfine" | "pytest-benchmark" | "otlp" | "auto";
 
 /**
- * Detect the input format and parse into the native BenchmarkResult.
+ * Detect the input format and parse into an OtlpMetricsDocument.
  */
-export function parseBenchmarks(input: string, format: Format = "auto"): BenchmarkResult {
+export function parseBenchmarks(input: string, format: Format = "auto"): OtlpMetricsDocument {
   if (format === "auto") {
     format = detectFormat(input);
   }
 
   switch (format) {
-    case "native":
-      return parseNative(input);
     case "go":
       return parseGoBench(input);
     case "rust":
@@ -31,7 +28,7 @@ export function parseBenchmarks(input: string, format: Format = "auto"): Benchma
     case "pytest-benchmark":
       return parsePytestBenchmark(input);
     case "otlp":
-      return projectBenchmarkResultFromOtlp(parseOtlp(input));
+      return parseOtlp(input);
     default:
       throw new Error(`[parseBenchmarks] Unknown format: ${format}`);
   }
@@ -41,7 +38,6 @@ export function parseBenchmarks(input: string, format: Format = "auto"): Benchma
  * Auto-detect format from content.
  *
  * - If it parses as JSON with a "benchmarks" key and entries with "stats" → pytest-benchmark
- * - If it parses as JSON with a "benchmarks" key → native
  * - If it parses as JSON with a "resourceMetrics" key → otlp
  * - If it parses as JSON with a "results" key containing objects with "command" → hyperfine
  * - If it parses as a JSON array of objects with "name"/"value"/"unit" → benchmark-action
@@ -64,7 +60,6 @@ function detectFormat(input: string): Exclude<Format, "auto"> {
         ) {
           return "pytest-benchmark";
         }
-        return "native";
       }
 
       if (parsed.resourceMetrics && Array.isArray(parsed.resourceMetrics)) {
@@ -104,6 +99,6 @@ function detectFormat(input: string): Exclude<Format, "auto"> {
   }
 
   throw new Error(
-    "[parseBenchmarks] Could not auto-detect format. Use the 'format' option to specify one of: native, go, rust, benchmark-action, hyperfine, pytest-benchmark, otlp.",
+    "[parseBenchmarks] Could not auto-detect format. Use the 'format' option to specify one of: go, rust, benchmark-action, hyperfine, pytest-benchmark, otlp.",
   );
 }

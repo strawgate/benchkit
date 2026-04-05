@@ -5,7 +5,6 @@ import {
   getOtlpTemporality,
   otlpAttributesToRecord,
   parseOtlp as parseOtlpMetrics,
-  projectBenchmarkResultFromOtlp,
 } from "./parse-otlp.js";
 
 function makeDocument() {
@@ -137,42 +136,4 @@ describe("OTLP traversal helpers", () => {
   });
 });
 
-describe("projectBenchmarkResultFromOtlp", () => {
-  it("projects OTLP metrics into benchmark-style results", () => {
-    const result = projectBenchmarkResultFromOtlp(parseOtlpMetrics(JSON.stringify(makeDocument())));
-    assert.equal(result.context?.commit, "abcdef123456");
-    assert.equal(result.context?.ref, "refs/heads/main");
-    assert.equal(result.benchmarks.length, 2);
 
-    const workflowBench = result.benchmarks.find((benchmark) => benchmark.name === "json-ingest");
-    assert.ok(workflowBench);
-    assert.equal(workflowBench?.metrics.events_per_sec.value, 14000);
-    assert.equal(workflowBench?.metrics["request_latency_ms.count"].value, 15);
-    assert.equal(workflowBench?.metrics["request_latency_ms.sum"].value, 2148);
-    assert.deepEqual(workflowBench?.tags, {
-      series: "mock-http-ingest",
-      "benchkit.transport": "http",
-    });
-    assert.equal(workflowBench?.samples?.length, 2);
-
-    const diagnosticBench = result.benchmarks.find((benchmark) => benchmark.name === "diagnostic");
-    assert.ok(diagnosticBench);
-    assert.equal(diagnosticBench?.metrics["_monitor.cpu_user_pct"].value, 71.2);
-    assert.deepEqual(diagnosticBench?.tags, {
-      series: "system",
-    });
-  });
-
-  it("throws when required semantic attributes are missing", () => {
-    const document = makeDocument();
-    const pointAttributes = document.resourceMetrics[0]!.scopeMetrics?.[0]!.metrics?.[0]!.gauge?.dataPoints?.[0]!.attributes ?? [];
-    document.resourceMetrics[0]!.scopeMetrics![0]!.metrics![0]!.gauge!.dataPoints![0]!.attributes = pointAttributes.filter(
-      (attribute) => attribute.key !== "benchkit.series",
-    );
-
-    assert.throws(
-      () => projectBenchmarkResultFromOtlp(parseOtlpMetrics(JSON.stringify(document))),
-      /benchkit.series/,
-    );
-  });
-});

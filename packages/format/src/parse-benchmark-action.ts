@@ -1,4 +1,6 @@
-import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import type { OtlpMetricsDocument } from "./types.js";
+import type { OtlpResultBenchmark, OtlpResultMetric } from "./build-otlp-result.js";
+import { buildOtlpResult } from "./build-otlp-result.js";
 import { inferDirection } from "./infer-direction.js";
 
 /**
@@ -10,7 +12,7 @@ import { inferDirection } from "./infer-direction.js";
  * Direction is inferred from the unit string.
  */
 
-export function parseBenchmarkAction(input: string): BenchmarkResult {
+export function parseBenchmarkAction(input: string): OtlpMetricsDocument {
   let entries: unknown;
   try {
     entries = JSON.parse(input);
@@ -27,7 +29,7 @@ export function parseBenchmarkAction(input: string): BenchmarkResult {
     );
   }
 
-  const benchmarks: Benchmark[] = entries.map((entry: unknown, index: number) => {
+  const benchmarks: OtlpResultBenchmark[] = entries.map((entry: unknown, index: number) => {
     if (typeof entry !== "object" || entry === null) {
       throw new Error(
         `[parse-benchmark-action] Entry at index ${index} must be an object.`,
@@ -49,13 +51,11 @@ export function parseBenchmarkAction(input: string): BenchmarkResult {
         `[parse-benchmark-action] Entry '${e.name}' must have a string 'unit'.`,
       );
     }
-    const range = parseRange(e.range as string | undefined);
-    const metric: Metric = {
+    const metric: OtlpResultMetric = {
       value: e.value,
       unit: e.unit,
       direction: inferDirection(e.unit),
     };
-    if (range !== undefined) metric.range = range;
 
     return {
       name: e.name,
@@ -63,14 +63,9 @@ export function parseBenchmarkAction(input: string): BenchmarkResult {
     };
   });
 
-  return { benchmarks };
+  return buildOtlpResult({
+    benchmarks,
+    context: { sourceFormat: "benchmark-action" },
+  });
 }
-
-function parseRange(range: string | undefined): number | undefined {
-  if (!range) return undefined;
-  // Formats: "± 300", "+/- 42.5", "±1.12%"
-  const m = range.match(/[±]?\s*\+?\/?-?\s*([\d.]+)/);
-  return m ? parseFloat(m[1]) : undefined;
-}
-
 

@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { parsePytestBenchmark } from "./parse-pytest-benchmark.js";
 import { parseBenchmarks as parse } from "./parse.js";
+import { MetricsBatch } from "./metrics-batch.js";
 
 const PYTEST_BENCHMARK_OUTPUT = JSON.stringify({
   benchmarks: [
@@ -36,74 +37,38 @@ const PYTEST_BENCHMARK_OUTPUT = JSON.stringify({
 
 describe("parsePytestBenchmark", () => {
   it("parses pytest-benchmark JSON output", () => {
-    const result = parsePytestBenchmark(PYTEST_BENCHMARK_OUTPUT);
+    const batch = MetricsBatch.fromOtlp(parsePytestBenchmark(PYTEST_BENCHMARK_OUTPUT));
 
-    assert.equal(result.benchmarks.length, 2);
+    assert.equal(batch.scenarios.length, 2);
 
-    const sortBench = result.benchmarks.find((b) => b.name === "test_sort");
-    assert.ok(sortBench);
-
-    assert.deepEqual(sortBench?.metrics.mean, {
-      value: 0.000134,
-      unit: "s",
-      direction: "smaller_is_better",
-      range: 0.0000089,
-    });
-    assert.deepEqual(sortBench?.metrics.median, {
-      value: 0.000132,
-      unit: "s",
-      direction: "smaller_is_better",
-    });
-    assert.deepEqual(sortBench?.metrics.min, {
-      value: 0.000123,
-      unit: "s",
-      direction: "smaller_is_better",
-    });
-    assert.deepEqual(sortBench?.metrics.max, {
-      value: 0.000156,
-      unit: "s",
-      direction: "smaller_is_better",
-    });
-    assert.deepEqual(sortBench?.metrics.stddev, {
-      value: 0.0000089,
-      unit: "s",
-      direction: "smaller_is_better",
-    });
-    assert.deepEqual(sortBench?.metrics.ops, {
-      value: 7462.68,
-      unit: "ops/s",
-      direction: "bigger_is_better",
-    });
-    assert.deepEqual(sortBench?.metrics.rounds, {
-      value: 1000,
-      direction: "bigger_is_better",
-    });
+    const sortBatch = batch.forScenario("test_sort");
+    assert.equal(sortBatch.forMetric("mean").points[0].value, 0.000134);
+    assert.equal(sortBatch.forMetric("mean").points[0].unit, "s");
+    assert.equal(sortBatch.forMetric("mean").points[0].direction, "smaller_is_better");
+    assert.equal(sortBatch.forMetric("median").points[0].value, 0.000132);
+    assert.equal(sortBatch.forMetric("min").points[0].value, 0.000123);
+    assert.equal(sortBatch.forMetric("max").points[0].value, 0.000156);
+    assert.equal(sortBatch.forMetric("stddev").points[0].value, 0.0000089);
+    assert.equal(sortBatch.forMetric("ops").points[0].value, 7462.68);
+    assert.equal(sortBatch.forMetric("ops").points[0].unit, "ops/s");
+    assert.equal(sortBatch.forMetric("ops").points[0].direction, "bigger_is_better");
+    assert.equal(sortBatch.forMetric("rounds").points[0].value, 1000);
+    assert.equal(sortBatch.forMetric("rounds").points[0].direction, "bigger_is_better");
   });
 
   it("parses multiple benchmarks", () => {
-    const result = parsePytestBenchmark(PYTEST_BENCHMARK_OUTPUT);
+    const batch = MetricsBatch.fromOtlp(parsePytestBenchmark(PYTEST_BENCHMARK_OUTPUT));
 
-    const searchBench = result.benchmarks.find((b) => b.name === "test_search");
-    assert.ok(searchBench);
-    assert.equal(searchBench?.metrics.mean.value, 0.000063);
-    assert.equal(searchBench?.metrics.ops.value, 15873.02);
-    assert.equal(searchBench?.metrics.rounds.value, 2000);
+    const searchBatch = batch.forScenario("test_search");
+    assert.equal(searchBatch.forMetric("mean").points[0].value, 0.000063);
+    assert.equal(searchBatch.forMetric("ops").points[0].value, 15873.02);
+    assert.equal(searchBatch.forMetric("rounds").points[0].value, 2000);
   });
 
   it("auto-detects pytest-benchmark format", () => {
-    const result = parse(PYTEST_BENCHMARK_OUTPUT);
-    assert.equal(result.benchmarks.length, 2);
-    assert.equal(result.benchmarks[0].name, "test_sort");
-  });
-
-  it("auto-detects native format when benchmarks lack stats", () => {
-    const nativeInput = JSON.stringify({
-      benchmarks: [
-        { name: "test", metrics: { eps: { value: 100 } } },
-      ],
-    });
-    const result = parse(nativeInput);
-    assert.equal(result.benchmarks[0].name, "test");
+    const batch = MetricsBatch.fromOtlp(parse(PYTEST_BENCHMARK_OUTPUT));
+    assert.equal(batch.scenarios.length, 2);
+    assert.ok(batch.scenarios.includes("test_sort"));
   });
 
   it("throws on missing benchmarks array", () => {

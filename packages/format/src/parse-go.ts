@@ -1,9 +1,11 @@
-import type { BenchmarkResult, Benchmark, Metric } from "./types.js";
+import type { OtlpMetricsDocument } from "./types.js";
+import type { OtlpResultBenchmark } from "./build-otlp-result.js";
+import { buildOtlpResult } from "./build-otlp-result.js";
 import { inferDirection } from "./infer-direction.js";
 import { unitToMetricName } from "./parser-utils.js";
 
 /**
- * Parse Go benchmark text output into native format.
+ * Parse Go benchmark text output into an OtlpMetricsDocument.
  *
  * Handles the standard format:
  *   BenchmarkName-8   N   value unit [value unit ...]
@@ -11,13 +13,13 @@ import { unitToMetricName } from "./parser-utils.js";
  * Multiple value/unit pairs per line produce multiple metrics per benchmark.
  * The -P suffix is extracted as a "procs" tag.
  */
-export function parseGoBench(input: string): BenchmarkResult {
+export function parseGoBench(input: string): OtlpMetricsDocument {
   if (typeof input !== "string" || input.trim() === "") {
     throw new Error("[parse-go] Input must be a non-empty string.");
   }
 
   try {
-    const benchmarks: Benchmark[] = [];
+    const benchmarks: OtlpResultBenchmark[] = [];
 
     const re =
       /^(?<name>Benchmark\w[\w/()$%^&*=|,[\]{}"#]*?)(?:-(?<procs>\d+))?\s+(?<iters>\d+)\s+(?<rest>.+)$/;
@@ -31,7 +33,7 @@ export function parseGoBench(input: string): BenchmarkResult {
       if (procs) tags.procs = procs;
 
       const pieces = rest.trim().split(/\s+/);
-      const metrics: Record<string, Metric> = {};
+      const metrics: Record<string, { value: number; unit: string; direction: "bigger_is_better" | "smaller_is_better" }> = {};
 
       // Pieces come in (value, unit) pairs
       for (let i = 0; i + 1 < pieces.length; i += 2) {
@@ -56,7 +58,10 @@ export function parseGoBench(input: string): BenchmarkResult {
       }
     }
 
-    return { benchmarks };
+    return buildOtlpResult({
+      benchmarks,
+      context: { sourceFormat: "go" },
+    });
   } catch (err) {
     throw new Error(
       `[parse-go] Failed to parse Go benchmark output: ${err instanceof Error ? err.message : String(err)}`,
