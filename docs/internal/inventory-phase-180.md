@@ -19,20 +19,17 @@ These concepts represent the "Benchmark Domain" and are likely to remain benchki
 Parsers are the primary site of benchmark-specific "translation" logic.
 
 ### Heuristics and Metadata
-
 - **Unit Normalization**: `unitToMetricName` encodes specific knowledge of benchmark units (e.g., `ns/iter`, `B/op`, `MB/s`) and normalizes them into standard metric keys (e.g., `ns_per_iter`).
 - **Direction Inference**: `inferDirection` implements heuristic-based guessing of the "better" direction based on common units like `ns`, `ms`, `ops/s`, `mb/s`.
 - **Auto-detection**: `detectFormat` uses content-based heuristics to identify benchmark-specific output formats (Go `Benchmark...`, Rust `test ... bench:`, Hyperfine, pytest-benchmark).
 
 ### External Tool Mapping
-
 - **Go Benchmarks**: Assumes `-P` suffix in benchmark name represents a `procs` tag.
 - **Rust Benchmarks**: Assumes standard `libtest` output format and always treats them as `smaller_is_better` (time-based).
 - **Hyperfine**: Maps Hyperfine's JSON result structure to a specific set of metrics (`mean`, `stddev`, `min`, `max`, `median`).
 - **pytest-benchmark**: Maps the `stats` object to a predefined set of metrics, including a specific mapping for `ops` to `bigger_is_better`.
 
 ### OTLP Projection
-
 - **Benchkit OTLP Contract**: `projectBenchmarkResultFromOtlp` implements the mapping from raw OTLP metrics to the Benchkit internal model.
 - **Scenario/Series Requirement**: Assumes every datapoint MUST have `benchkit.scenario` and `benchkit.series` to be projectable, with a fallback to `diagnostic` for `_monitor.*` metrics.
 - **Latest-wins**: Assumes the latest datapoint by timestamp is the "result" for a single-point comparison, while also preserving samples for time-series.
